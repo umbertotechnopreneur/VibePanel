@@ -5,12 +5,12 @@
 
 namespace VibePanel.Core;
 
-public enum DashboardScene { Music, Artwork, Mixer, System, Clock, TrackDetails, VolumeFocus, Minimal }
+public enum DashboardScene { Music, Artwork, Mixer, System, Clock, TrackDetails, VolumeFocus, Network }
 
 /// <summary>Eight layouts; five rotate by default, with still frames between short fades.</summary>
 public static class DashboardScenes
 {
-    public static IReadOnlyList<DashboardScene> Rotation { get; } = [DashboardScene.Music, DashboardScene.Artwork, DashboardScene.Mixer, DashboardScene.System, DashboardScene.Clock];
+    public static IReadOnlyList<DashboardScene> Rotation { get; } = [DashboardScene.Music, DashboardScene.Artwork, DashboardScene.Mixer, DashboardScene.System, DashboardScene.Network];
     public static string Name(DashboardScene scene) => scene switch
     {
         DashboardScene.Music => "Now playing",
@@ -20,7 +20,7 @@ public static class DashboardScenes
         DashboardScene.Clock => "Ambient clock",
         DashboardScene.TrackDetails => "Track details",
         DashboardScene.VolumeFocus => "VU focus",
-        DashboardScene.Minimal => "Minimal music",
+        DashboardScene.Network => "Network traffic",
         _ => throw new ArgumentOutOfRangeException(nameof(scene))
     };
     public static DashboardScene Parse(string value) => Enum.TryParse<DashboardScene>(value, true, out var scene) && Enum.IsDefined(scene)

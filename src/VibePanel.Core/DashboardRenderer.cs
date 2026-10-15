@@ -16,6 +16,11 @@ namespace VibePanel.Core;
 public sealed class DashboardRenderer
 {
     private readonly Dictionary<string, string> backgrounds = [];
+    private byte[]? lastArtwork;
+    private string artworkKey = "";
+    private string? wallpaper;
+    private string wallpaperKey = "";
+    private bool wallpaperRead;
     public string? BackgroundPath { get; private set; }
 
     public static string Fingerprint(DashboardSnapshot snapshot, DashboardScene scene)
@@ -29,20 +34,22 @@ public sealed class DashboardRenderer
             DashboardScene.Mixer or DashboardScene.VolumeFocus => volumes,
             DashboardScene.System => metrics,
             DashboardScene.Clock => DateTime.Now.ToString("yyyyMMddHHmm") + track,
-            DashboardScene.Music => track + volumes + metrics,
+            DashboardScene.Network => snapshot.Network?.ToString() ?? "Network unavailable",
+            DashboardScene.Music => track + volumes + metrics + snapshot.Network?.ToString(),
             _ => track
         });
     }
 
     public byte[] Render(DashboardSnapshot snapshot, DisplayProfile profile, DashboardScene scene = DashboardScene.Music)
     {
-        var background = GetBackground(profile.Width, profile.Height);
+        var background = GetBackground(profile.Width, profile.Height, snapshot.Media, scene);
         using var bitmap = new Bitmap(profile.Width, profile.Height, PixelFormat.Format24bppRgb);
         using (var graphics = Graphics.FromImage(bitmap))
         using (var image = Image.FromFile(background))
         {
             graphics.DrawImage(image, 0, 0, bitmap.Width, bitmap.Height);
             graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
             graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
             // A logical canvas makes every supported geometry usable, including square panels.
             var wide = profile.Width >= profile.Height * 1.6;
@@ -132,6 +139,17 @@ public sealed class DashboardRenderer
             g.DrawString(m.GpuName, body, muted, new RectangleF(40, 310, width - 80, 40), format);
             g.DrawString("CPU temperature: " + m.CpuTemperatureSource, heading, muted, new RectangleF(40, 365, width - 80, 35), format);
         }
+        else if (scene == DashboardScene.Network)
+        {
+            var network = s.Network;
+            g.DrawString("DOWNLOAD", heading, muted, 40, 105);
+            g.DrawString(NetworkTrafficService.Size(network?.DownloadBytesPerSecond) + "/s", large, white, 40, 145);
+            g.DrawString("UPLOAD", heading, muted, wide ? 680 : 40, wide ? 105 : 280);
+            g.DrawString(NetworkTrafficService.Size(network?.UploadBytesPerSecond) + "/s", large, white, wide ? 680 : 40, wide ? 145 : 320);
+            g.DrawString("TOTAL ↓ " + NetworkTrafficService.Size(network?.DownloadBytes), body, accent, 40, wide ? 290 : 440);
+            g.DrawString("TOTAL ↑ " + NetworkTrafficService.Size(network?.UploadBytes), body, accent, wide ? 680 : 40, wide ? 290 : 485);
+            g.DrawString("Since VibePanel started · adapter counters, not billing totals", heading, muted, new RectangleF(40, height - 90, width - 80, 30), format);
+        }
         else if (scene == DashboardScene.Clock)
         {
             using var clock = new Font("Segoe UI", wide ? 132 : 110, FontStyle.Bold, GraphicsUnit.Pixel);
@@ -208,6 +226,11 @@ public sealed class DashboardRenderer
         g.FillRectangle(card, 32, bottom, wide ? 1216 : 576, wide ? 49 : 69);
         g.DrawString($"CPU  {Metric(s.Metrics.CpuUsage, "%")}  ·  {Metric(s.Metrics.CpuTemperature, "°C")}", label, Brushes.White, 48, bottom + 15);
         g.DrawString($"GPU  {Metric(s.Metrics.GpuUsage, "%")}  ·  {Metric(s.Metrics.GpuTemperature, "°C")}", label, Brushes.White, wide ? 370 : 330, bottom + 15);
+        if (s.Network is { } network)
+        {
+            g.DrawString($"↓ {NetworkTrafficService.Size(network.DownloadBytesPerSecond)}/s   ↑ {NetworkTrafficService.Size(network.UploadBytesPerSecond)}/s", label, Brushes.White, wide ? 680 : 48, bottom + (wide ? 7 : 41));
+            if (wide) { g.DrawString($"Total ↓ {NetworkTrafficService.Size(network.DownloadBytes)}  ↑ {NetworkTrafficService.Size(network.UploadBytes)}", label, muted, 680, bottom + 27); }
+        }
         g.DrawString("VibeWare / Umberto", label, accent, wide ? 1028 : 32, wide ? 32 : 608);
     }
 
@@ -224,30 +247,69 @@ public sealed class DashboardRenderer
         graphics.FillRectangle(gradient, track.X, track.Y, (float)(track.Width * AudioLevel.Fraction(peak)), track.Height);
     }
 
-    private string GetBackground(int width, int height)
+    private string GetBackground(int width, int height, NowPlaying media, DashboardScene scene)
     {
-        var dimensions = $"{width}x{height}";
+        var cover = scene is DashboardScene.Music or DashboardScene.Artwork or DashboardScene.TrackDetails ? media.Artwork : null;
+        if (cover is not null && !ReferenceEquals(lastArtwork, cover))
+        { lastArtwork = cover; artworkKey = Convert.ToHexString(SHA256.HashData(cover))[..24]; }
+        if (!wallpaperRead)
+        {
+            using var desktop = Registry.CurrentUser.OpenSubKey(@"Control Panel\Desktop");
+            wallpaper = desktop?.GetValue("WallPaper") as string;
+            var modified = wallpaper is not null && File.Exists(wallpaper) ? File.GetLastWriteTimeUtc(wallpaper).Ticks : 0;
+            wallpaperKey = $"{wallpaper}|{modified}";
+            wallpaperRead = true;
+        }
+        var dimensions = $"{width}x{height}|{(cover is null ? wallpaperKey : artworkKey + scene)}";
         if (backgrounds.TryGetValue(dimensions, out var existing)) { BackgroundPath = existing; return existing; }
-        using var desktop = Registry.CurrentUser.OpenSubKey(@"Control Panel\Desktop");
-        var wallpaper = desktop?.GetValue("WallPaper") as string;
-        var modified = wallpaper is not null && File.Exists(wallpaper) ? File.GetLastWriteTimeUtc(wallpaper).Ticks : 0;
-        var key = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"v1|{wallpaper}|{modified}|{dimensions}")))[..24];
+        var key = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"v3|{dimensions}")))[..24];
         var directory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VibePanel", "cache");
         Directory.CreateDirectory(directory);
         var path = Path.Combine(directory, $"background-{key}.jpg");
         if (!File.Exists(path))
         {
-            var palette = SamplePalette(wallpaper);
+            var palette = SamplePalette(wallpaper, cover);
+            using var small = new Bitmap(256, 256);
+            using (var blobs = Graphics.FromImage(small))
+            {
+                blobs.Clear(Color.FromArgb(17, 21, 31));
+                var centers = new[] { new PointF(35, 30), new PointF(220, 50), new PointF(45, 220), new PointF(215, 215) };
+                for (var i = 0; i < palette.Length; i++)
+                {
+                    var bounds = new RectangleF(centers[i].X - 180, centers[i].Y - 180, 360, 360);
+                    using var pathShape = new GraphicsPath();
+                    pathShape.AddEllipse(bounds);
+                    using var blob = new PathGradientBrush(pathShape) { CenterColor = Color.FromArgb(170, palette[i]), SurroundColors = [Color.FromArgb(0, palette[i])] };
+                    blobs.FillEllipse(blob, bounds);
+                }
+            }
             using var image = new Bitmap(width, height);
             using (var g = Graphics.FromImage(image))
             {
-                using var gradient = new LinearGradientBrush(new Rectangle(0, 0, width, height), palette[0], palette[3], 25f)
-                {
-                    InterpolationColors = new ColorBlend { Colors = palette, Positions = [0f, 0.35f, 0.7f, 1f] }
-                };
-                g.FillRectangle(gradient, 0, 0, width, height);
-                using var shade = new SolidBrush(Color.FromArgb(155, 13, 17, 28));
+                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                g.DrawImage(small, 0, 0, width, height);
+                using var shade = new SolidBrush(Color.FromArgb(65, 13, 17, 28));
                 g.FillRectangle(shade, 0, 0, width, height);
+                if (cover is not null && scene is DashboardScene.Music or DashboardScene.Artwork)
+                {
+                    var wide = width >= height * 1.6;
+                    g.ScaleTransform(width / (wide ? 1280f : 640f), height / (wide ? 480f : 640f));
+                    var bounds = scene == DashboardScene.Artwork ? new RectangleF(wide ? 60 : 160, 76, 320, 320)
+                        : wide ? new RectangleF(32, 88, 280, 280) : new RectangleF(32, 76, 200, 200);
+                    var glow = RectangleF.Inflate(bounds, 70, 65);
+                    glow.Offset(0, 20);
+                    using var outline = new GraphicsPath();
+                    outline.AddRectangle(glow);
+                    using var shadow = new PathGradientBrush(outline) { CenterColor = Color.FromArgb(220, palette[0]), SurroundColors = [Color.FromArgb(0, palette[0])] };
+                    g.FillRectangle(shadow, glow);
+                    for (var spread = 26; spread > 0; spread -= 2)
+                    {
+                        using var dark = new SolidBrush(Color.FromArgb(7, Color.Black));
+                        var soft = RectangleF.Inflate(bounds, spread, spread);
+                        soft.Offset(0, 14);
+                        g.FillRectangle(dark, soft);
+                    }
+                }
             }
             using var output = new MemoryStream();
             image.Save(output, ImageFormat.Jpeg);
@@ -263,32 +325,27 @@ public sealed class DashboardRenderer
         return path;
     }
 
-    private static Color[] SamplePalette(string? path)
+    private static Color[] SamplePalette(string? path, byte[]? artwork)
     {
         var fallback = new[] { Color.FromArgb(82, 63, 121), Color.FromArgb(40, 90, 109), Color.FromArgb(111, 61, 104), Color.FromArgb(43, 50, 76) };
-        if (path is null || !File.Exists(path)) { return fallback; }
+        if (artwork is null && (path is null || !File.Exists(path))) { return fallback; }
         try
         {
-            using var source = Image.FromFile(path);
+            using var stream = artwork is null ? null : new MemoryStream(artwork);
+            using var source = stream is null ? Image.FromFile(path!) : Image.FromStream(stream);
             using var tiny = new Bitmap(source, 64, 64);
-            var histogram = new Dictionary<int, int>();
-            for (var y = 0; y < 64; y++)
+            var colors = new List<Color>();
+            foreach (var point in new[] { new Point(8, 8), new Point(40, 8), new Point(8, 40), new Point(40, 40) })
             {
-                for (var x = 0; x < 64; x++)
+                var red = 0; var green = 0; var blue = 0;
+                for (var y = point.Y; y < point.Y + 16; y++)
                 {
-                    var color = tiny.GetPixel(x, y);
-                    var bucket = ((color.R / 32) << 6) | ((color.G / 32) << 3) | (color.B / 32);
-                    histogram[bucket] = histogram.GetValueOrDefault(bucket) + 1;
+                    for (var x = point.X; x < point.X + 16; x++)
+                    { var pixel = tiny.GetPixel(x, y); red += pixel.R; green += pixel.G; blue += pixel.B; }
                 }
+                colors.Add(Color.FromArgb(Math.Clamp(red / 256, 35, 230), Math.Clamp(green / 256, 35, 230), Math.Clamp(blue / 256 + 8, 45, 240)));
             }
-            var selected = new List<Color>();
-            foreach (var bucket in histogram.OrderByDescending(item => item.Value).Select(item => item.Key))
-            {
-                var color = Color.FromArgb(((bucket >> 6) & 7) * 32 + 16, ((bucket >> 3) & 7) * 32 + 16, (bucket & 7) * 32 + 16);
-                if (selected.All(previous => Math.Abs(previous.R - color.R) + Math.Abs(previous.G - color.G) + Math.Abs(previous.B - color.B) > 80)) { selected.Add(color); }
-                if (selected.Count == 4) { break; }
-            }
-            return selected.Concat(fallback).Take(4).ToArray();
+            return colors.ToArray();
         }
         catch (Exception error) when (error is ArgumentException or IOException or UnauthorizedAccessException or OutOfMemoryException) { return fallback; }
     }

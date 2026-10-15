@@ -106,6 +106,8 @@ internal static class VibePanelCli
         table.AddRow(Markup.Escape(metrics.GpuName), DashboardRenderer.Metric(metrics.GpuUsage, "%"), DashboardRenderer.Metric(metrics.GpuTemperature, "°C"));
         AnsiConsole.Write(table);
         AnsiConsole.MarkupLine($"[grey]CPU temperature: {Markup.Escape(metrics.CpuTemperatureSource)}[/]");
+        if (snapshot.Network is { } network)
+        { AnsiConsole.WriteLine($"Network ↓ {NetworkTrafficService.Size(network.DownloadBytesPerSecond)}/s · ↑ {NetworkTrafficService.Size(network.UploadBytesPerSecond)}/s · total ↓ {NetworkTrafficService.Size(network.DownloadBytes)}, ↑ {NetworkTrafficService.Size(network.UploadBytes)} since start."); }
         foreach (var notice in snapshot.Notices) { AnsiConsole.WriteLine(notice); }
     }
 

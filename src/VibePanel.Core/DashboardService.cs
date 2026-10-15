@@ -11,6 +11,7 @@ public sealed class DashboardService : IDisposable
     public WindowsMediaService Media { get; } = new();
     public WindowsVolumeService Audio { get; } = new();
     private readonly WindowsMetricsService metrics = new();
+    private readonly NetworkTrafficService network = new();
 
     public async Task<DashboardSnapshot> ReadAsync()
     {
@@ -28,7 +29,10 @@ public sealed class DashboardService : IDisposable
             notices.Add($"Sensors unavailable: {error.Message}");
             machine = new(null, null, null, null, "GPU", "Unavailable", "Unavailable");
         }
-        return new(media, volumes, machine, notices);
+        NetworkTraffic? traffic = null;
+        try { traffic = network.Read(); }
+        catch (Exception error) { notices.Add($"Network counters unavailable: {error.Message}"); }
+        return new(media, volumes, machine, notices, traffic);
     }
 
     public void Dispose() { Audio.Dispose(); metrics.Dispose(); }

@@ -21,4 +21,4 @@ public sealed record MachineMetrics(double? CpuUsage, double? CpuTemperature, do
 
 /// <summary>A bounded snapshot used by the UI, CLI, and USB renderer.</summary>
 public sealed record DashboardSnapshot(NowPlaying Media, IReadOnlyList<AppVolume> Volumes,
-    MachineMetrics Metrics, IReadOnlyList<string> Notices);
+    MachineMetrics Metrics, IReadOnlyList<string> Notices, NetworkTraffic? Network = null);
