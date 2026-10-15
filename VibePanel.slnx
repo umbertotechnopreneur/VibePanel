@@ -6,6 +6,7 @@
     <Platform Name="ARM64" />
   </Configurations>
   <Project Path="src/VibePanel.Contracts/VibePanel.Contracts.csproj" />
+  <Project Path="src/VibePanel.Photino/VibePanel.Photino.csproj" />
   <Project Path="src/VibePanel.Core/VibePanel.Core.csproj">
     <Platform Solution="*|x64" Project="x64" />
     <Platform Solution="*|ARM64" Project="ARM64" />

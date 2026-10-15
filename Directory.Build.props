@@ -10,9 +10,12 @@ VBWR E -->
   <PropertyGroup>
     <BaseOutputPath>$(MSBuildThisFileDirectory)artifacts\bin\$(MSBuildProjectName)\</BaseOutputPath>
     <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)artifacts\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <!-- OpenSilver's XAML compiler expects this path relative to its project directory. -->
+    <BaseIntermediateOutputPath Condition="'$(MSBuildProjectName)' == 'VibePanel.App'">..\..\artifacts\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
     <DefaultItemExcludes>$(DefaultItemExcludes);$(MSBuildThisFileDirectory)artifacts\**</DefaultItemExcludes>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <SkipOpenSilverUpdates>true</SkipOpenSilverUpdates>
   </PropertyGroup>
 </Project>

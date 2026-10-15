@@ -7,3 +7,5 @@ obj/
 *.cache
 *.log
 *.vpframe
+/src/VibePanel.Photino/wwwroot/libs/
+/src/VibePanel.Photino/wwwroot/resources/
