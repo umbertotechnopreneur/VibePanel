@@ -6,11 +6,12 @@ VibePanel is part of [VibeWare](https://umbertogiacobbi.biz/vibeware/manifesto),
 
 ## What it does
 
-- A dark/lilac WinUI 3 desktop app and a branded `vp` CLI.
+- A dark/lilac OpenSilver + Photino desktop app and a branded `vp` CLI/engine, connected through versioned JSON Lines on stdin/stdout. No listening network port.
 - Spotify track, artist and artwork through local Windows media sessions; playback controls without an API key or login. If Spotify is absent, the current Windows player is used.
 - Read-only per-session app volume percentages and gradient VU meters. No volume controls or microphone capture.
 - Eight layouts, five in the default 20-second rotation, with a short crossfade. Freeze one whenever needed.
-- Four wallpaper-derived colors, sampled once per renderer session, with a reusable background JPEG on disk. Restart the app after changing wallpaper.
+- Music pages use four artwork-derived color blobs and an elevated, tinted cover shadow. Other pages sample four wallpaper regions. Background JPEGs are cached, not continuously blurred. Restart the app after changing wallpaper; the derived-color cache contains no raw artwork or song log.
+- Network download/upload rates and totals since engine start, with a dedicated screen. Adapter counters can overlap on VPN/bridges; they are not billing totals.
 - CPU usage; NVIDIA GPU usage/temperature through the installed NVML driver. CPU temperature is optional through an already-running LibreHardwareMonitor/OpenHardwareMonitor WMI provider. Missing sensors show `—`. No sensor suite or driver is installed.
 - Native HID discovery for Thermalright `0416:5302`, with optional WinUSB discovery for exposed vendor interfaces.
 - A device-info handshake that detects the screen profile. No background service or startup registration.
@@ -19,7 +20,7 @@ VibePanel is part of [VibeWare](https://umbertogiacobbi.biz/vibeware/manifesto),
 
 I confirmed the first physical render on my panel on 2026-10-15: native Windows HID, PM `0x80`, SUB `0x01`, 1280 x 480 JPEG. During an approved 20-second trial at 1 fps, the labelled chart and its red, green, blue, and white bars displayed correctly. The new dashboard/fades, other panels, arbitrary-image playback and reconnection after changing cables have not been validated on physical hardware.
 
-The owner-requested desktop demonstration displayed live Spotify metadata/artwork, Windows audio sessions, CPU usage and RTX 4060 usage/temperature. CPU temperature had no provider and correctly remained unavailable. That demonstration preceded the read-only VU-meter revision. Playback controls, the revised meters and USB scene transitions still need approved functional verification; no automated tests were executed for this dashboard work.
+The earlier WinUI prototype demonstration displayed live Spotify metadata/artwork, audio sessions, CPU usage and RTX 4060 usage/temperature. CPU temperature had no provider and remained unavailable. It preceded the OpenSilver migration and read-only VU revision: it is not validation of the new UI. No tests have been executed for this migration.
 
 ## CLI
 
@@ -42,11 +43,13 @@ vp settings --profile auto --rotate 0
 
 `vp dashboard --device 1` explicitly starts the five-screen USB rotation. Add `--scene Artwork` to hold one layout, or `--profile wide-1280x480` to override detection. Ctrl+C stops. A disconnect stops the dashboard with an error; it does not silently switch devices. `--export` saves a JPEG without opening USB and never overwrites an existing file.
 
-The scene IDs are `Music`, `Artwork`, `Mixer`, `System`, `Clock`, `TrackDetails`, `VolumeFocus`, and `Minimal`. The first five rotate by default. Desktop preview crossfades use the compositor; USB transitions use five intermediate blended frames plus the destination. USB timing depends on the panel/transport, not a promised frame rate. Between transitions, data is sampled every two seconds, and encoded frames are reused until visible values change. The clock updates by the minute.
+The eight scene IDs are `Music`, `Artwork`, `Mixer`, `System`, `Clock`, `TrackDetails`, `VolumeFocus`, and `Network`. The default rotation is Music → Artwork → Mixer → System → Network. The desktop preview crossfades over 650 ms; USB transitions use five intermediate blended frames plus the destination. USB timing depends on the panel/transport, not a promised frame rate. Dashboard data refreshes every two seconds; read-only desktop VU peaks refresh at 5 Hz from cached session handles. Encoded frames are reused until visible values change. The clock updates by the minute.
 
 `discover` only enumerates devices. `probe` requests device information. `pattern`, `image`, `hold`, and `play` send to the physical screen. `play` stops with Ctrl+C and waits for the same panel path if it disconnects. No app is registered to start automatically.
 
-The desktop app opens a local preview, mixer, and system view. It enumerates panels but does not probe or write USB until a panel command is invoked. Choose a scene or turn on five-screen rotation, then Start dashboard. Still-image tools remain in the collapsed panel. Settings and cached backgrounds stay under `%LOCALAPPDATA%\VibePanel`; no song history or audio is recorded.
+The desktop app opens a local preview, read-only audio levels, system view and network totals. It enumerates panels but does not probe or write USB until Start display. Still-image tools remain in the CLI. Settings and cached backgrounds stay under `%LOCALAPPDATA%\VibePanel`; no song history or audio is recorded. The current UI keeps scene choices for this session only; CLI profile/rotation/image settings remain persistent.
+
+The presentation references only [the portable contract](src/VibePanel.Contracts/PanelContract.cs); USB, JPEG rendering, Windows media and sensor access remain in the native engine. See [the JSON protocol](docs/engine-protocol.md). [OpenSilver's Photino launcher](https://doc.opensilver.net/documentation/general/photino-launcher.html) avoids MAUI/Catalyst. Linux/macOS native providers remain pending; portable UI compilation is not full hardware support.
 
 ## Build
 
@@ -57,7 +60,9 @@ dotnet run --project .\src\VibePanel.Cli -- discover
 ./scripts/Publish.ps1 -Architecture x64
 ```
 
-Portable output: `artifacts/portable/win-x64/cli/vp.exe` and `artifacts/portable/win-x64/desktop/VibePanel.exe`. Keep each whole folder, not just its EXE. The publish script includes the .NET runtime and Windows App SDK; there is no installer or published release yet. Use `-Architecture ARM64` for an ARM64 build. CI builds and publishes both Windows architectures; it deliberately does not execute tests. Build success is not hardware validation.
+Portable ZIP: `artifacts/packages/VibePanel-win-x64-preview.zip`. Extract it and run `VibePanel.exe`, or `engine/vp.exe help`. The .NET runtime is included; Windows WebView2 Evergreen is required and not auto-installed. Keep the whole folder. Use `-Architecture ARM64` for Windows ARM64. There is no installer, release tag or published release yet. CI builds/packages Windows x64/ARM64 and compiles the Linux UI only; it never executes tests. See [portable notes](PORTABLE.md).
+
+Codex hook integration is a future opt-in adapter, not installed by this preview. No Codex configuration, hook trust, or Python environment is modified.
 
 ## Protocol and scope
 

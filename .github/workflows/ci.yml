@@ -34,15 +34,25 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: VibePanel-win-${{ matrix.arch }}
-          path: artifacts/portable/win-*/
+          path: artifacts/packages/*.zip
           if-no-files-found: error
+  linux-ui:
+    name: Linux UI build only
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - run: dotnet restore src/VibePanel.Photino/VibePanel.Photino.csproj
+      - run: dotnet build src/VibePanel.Photino/VibePanel.Photino.csproj --configuration Release --no-restore --warnaserror
   required:
     name: Build
     if: always()
-    needs: build
+    needs: [build, linux-ui]
     runs-on: windows-latest
     steps:
       - name: Require both Windows builds
         shell: pwsh
         run: |
-          if ('${{ needs.build.result }}' -ne 'success') { throw 'A Windows build failed or was cancelled.' }
+          if ('${{ needs.build.result }}' -ne 'success' -or '${{ needs.linux-ui.result }}' -ne 'success') { throw 'A required Windows or Linux build failed or was cancelled.' }

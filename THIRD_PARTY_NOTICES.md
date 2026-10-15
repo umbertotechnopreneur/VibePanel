@@ -1,6 +1,8 @@
 # Third-party notices
 
-VibePanel uses the Windows App SDK under its applicable Microsoft license.
+The desktop UI uses OpenSilver and OpenSilver.Photino (MIT, copyright Userware). The launcher uses Photino.NET and Photino.Native (Apache-2.0, TryPhotino); the license is included under `licenses/Photino-Apache-2.0.txt`. Windows App SDK/WinUI are no longer dependencies of this UI.
+
+OpenSilver's bundled browser resources retain their upstream notices. These include Quill, html-to-image, and FileSaver. They are restored from NuGet, not hand-copied or relicensed as VibePanel source.
 
 The USB protocol facts for Thermalright `0416:5302` were researched from device behaviour, public protocol references, and comparison with `thermalright-trcc-linux`'s implementation. That project is GPL-3.0. VibePanel does not include copied upstream code or assets. Its Windows transport, renderer, and application services are independently authored. See `docs/protocol-notes.md` for the source references and evidence limits.
 
