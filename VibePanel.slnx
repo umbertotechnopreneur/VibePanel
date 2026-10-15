@@ -1,0 +1,11 @@
+<Solution>
+  <Configurations>
+    <BuildType Name="Debug" />
+    <BuildType Name="Release" />
+    <Platform Name="x64" />
+    <Platform Name="ARM64" />
+  </Configurations>
+  <Project Path="src/VibePanel.Core/VibePanel.Core.csproj" />
+  <Project Path="src/VibePanel.Cli/VibePanel.Cli.csproj" />
+  <Project Path="src/VibePanel.App/VibePanel.App.csproj" />
+</Solution>

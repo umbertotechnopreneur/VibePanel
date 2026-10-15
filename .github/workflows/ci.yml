@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet restore VibePanel.slnx
+      - run: dotnet format VibePanel.slnx --verify-no-changes --no-restore
+      - run: dotnet build VibePanel.slnx --configuration Release --no-restore --warnaserror

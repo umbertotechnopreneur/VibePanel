@@ -1,0 +1,21 @@
+<!-- VBWR B
+  Project: VibePanel | https://umbertogiacobbi.biz/vibeware/manifesto
+  Copyright (c) 2026 Umberto Giacobbi | SPDX-License-Identifier: MIT
+VBWR E -->
+<Application
+    x:Class="VibePanel.App.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <SolidColorBrush x:Key="VibePanelAccentBrush" Color="#C77BD3" />
+            <SolidColorBrush x:Key="VibePanelActionBrush" Color="#3975B4" />
+            <Style TargetType="Button">
+                <Setter Property="Margin" Value="0,0,10,0" />
+                <Setter Property="Padding" Value="16,10" />
+                <Setter Property="Background" Value="{StaticResource VibePanelActionBrush}" />
+                <Setter Property="CornerRadius" Value="6" />
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

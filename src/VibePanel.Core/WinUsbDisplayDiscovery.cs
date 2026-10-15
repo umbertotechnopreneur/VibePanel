@@ -1,0 +1,131 @@
+// VBWR B
+// Project: VibePanel | https://umbertogiacobbi.biz/vibeware/manifesto
+// Copyright (c) 2026 Umberto Giacobbi | SPDX-License-Identifier: MIT
+// VBWR E
+
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+
+namespace VibePanel.Core;
+
+/// <summary>Finds present WinUSB interfaces for the supported panel without any hardware-monitoring service.</summary>
+public static class WinUsbDisplayDiscovery
+{
+    // The first GUID comes from winusb.inf; the second is published by the connected panel firmware.
+    private static readonly Guid[] WinUsbDeviceInterfaceClasses =
+    [
+        new Guid("F72FE0D4-CBCB-407D-8814-9ED673D0DD6B"),
+        new Guid("E5B3B5AC-9725-4F78-963F-03DFB1D828C7")
+    ];
+
+    /// <summary>Returns present 0416:5302 WinUSB interfaces.</summary>
+    public static IReadOnlyList<DisplayDevice> FindSupportedDevices()
+    {
+        var devices = new List<DisplayDevice>();
+        foreach (var interfaceClass in WinUsbDeviceInterfaceClasses)
+        {
+            FindSupportedDevices(interfaceClass, devices);
+        }
+
+        return devices.DistinctBy(device => device.DevicePath, StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    /// <summary>Finds matching panels that Windows has enumerated but may not yet expose to WinUSB applications.</summary>
+    public static IReadOnlyList<DetectedPanel> FindAttachedPanels()
+    {
+        var deviceSet = Native.SetupDiGetClassDevsForEnumerator(IntPtr.Zero, "USB", IntPtr.Zero, Native.DigcfPresent | Native.DigcfAllClasses);
+        if (deviceSet == new IntPtr(-1))
+        {
+            throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not enumerate attached USB devices.");
+        }
+
+        try
+        {
+            var panels = new List<DetectedPanel>();
+            for (uint index = 0; ; index++)
+            {
+                var deviceInfo = new Native.SpDevinfoData { cbSize = Marshal.SizeOf<Native.SpDevinfoData>() };
+                if (!Native.SetupDiEnumDeviceInfo(deviceSet, index, ref deviceInfo))
+                {
+                    if (Marshal.GetLastWin32Error() == Native.ErrorNoMoreItems)
+                    {
+                        break;
+                    }
+
+                    continue;
+                }
+
+                var instanceId = new System.Text.StringBuilder(512);
+                if (Native.SetupDiGetDeviceInstanceId(deviceSet, ref deviceInfo, instanceId, instanceId.Capacity, out _)
+                    && instanceId.ToString().Contains("USB\\VID_0416&PID_5302&MI_01", StringComparison.OrdinalIgnoreCase))
+                {
+                    panels.Add(new DetectedPanel(instanceId.ToString()));
+                }
+            }
+
+            return panels;
+        }
+        finally
+        {
+            Native.SetupDiDestroyDeviceInfoList(deviceSet);
+        }
+    }
+
+    private static void FindSupportedDevices(Guid interfaceClass, ICollection<DisplayDevice> devices)
+    {
+        var deviceSet = Native.SetupDiGetClassDevs(ref interfaceClass, IntPtr.Zero, IntPtr.Zero, Native.DigcfPresent | Native.DigcfDeviceInterface);
+        if (deviceSet == new IntPtr(-1))
+        {
+            throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not enumerate USB device interfaces.");
+        }
+
+        try
+        {
+            for (uint index = 0; ; index++)
+            {
+                var interfaceData = new Native.SpDeviceInterfaceData { cbSize = Marshal.SizeOf<Native.SpDeviceInterfaceData>() };
+                if (!Native.SetupDiEnumDeviceInterfaces(deviceSet, IntPtr.Zero, ref interfaceClass, index, ref interfaceData))
+                {
+                    var error = Marshal.GetLastWin32Error();
+                    if (error == Native.ErrorNoMoreItems)
+                    {
+                        break;
+                    }
+
+                    throw new Win32Exception(error, "Could not read a USB device interface.");
+                }
+
+                Native.SetupDiGetDeviceInterfaceDetail(deviceSet, ref interfaceData, IntPtr.Zero, 0, out var requiredBytes, IntPtr.Zero);
+                if (Marshal.GetLastWin32Error() != Native.ErrorInsufficientBuffer || requiredBytes == 0)
+                {
+                    continue;
+                }
+
+                var detailBuffer = Marshal.AllocHGlobal(checked((int)requiredBytes));
+                try
+                {
+                    Marshal.WriteInt32(detailBuffer, IntPtr.Size == 8 ? 8 : 6);
+                    if (!Native.SetupDiGetDeviceInterfaceDetail(deviceSet, ref interfaceData, detailBuffer, requiredBytes, out _, IntPtr.Zero))
+                    {
+                        continue;
+                    }
+
+                    var path = Marshal.PtrToStringUni(IntPtr.Add(detailBuffer, sizeof(int)));
+                    if (path is not null && path.Contains("vid_0416&pid_5302&mi_01", StringComparison.OrdinalIgnoreCase))
+                    {
+                        devices.Add(new DisplayDevice(path, Thermalright04165302Protocol.VendorId, Thermalright04165302Protocol.ProductId));
+                    }
+                }
+                finally
+                {
+                    Marshal.FreeHGlobal(detailBuffer);
+                }
+            }
+        }
+        finally
+        {
+            Native.SetupDiDestroyDeviceInfoList(deviceSet);
+        }
+
+    }
+}

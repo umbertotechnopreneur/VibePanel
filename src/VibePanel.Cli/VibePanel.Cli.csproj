@@ -1,0 +1,19 @@
+<!-- VBWR B
+  Project: VibePanel
+  Creator: Umberto Giacobbi | https://umbertogiacobbi.biz
+  VibeWare: Human intent, AI execution, and plenty of tokens
+  Copyright (c) 2026 Umberto Giacobbi
+  SPDX-License-Identifier: MIT
+VBWR E -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <RootNamespace>VibePanel.Cli</RootNamespace>
+    <AssemblyName>vp</AssemblyName>
+    <Description>Command-line companion for VibePanel USB displays.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../VibePanel.Core/VibePanel.Core.csproj" />
+  </ItemGroup>
+</Project>
