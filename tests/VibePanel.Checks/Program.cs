@@ -6,6 +6,8 @@
 using System.Buffers.Binary;
 using System.Drawing;
 using VibePanel.Core;
+using VibePanel.Contracts;
+using System.Text.Json;
 
 var count = 0;
 void Check(bool condition, string name)
@@ -63,6 +65,12 @@ try { Thermalright04165302Protocol.CreatePicturePacket(profile, new byte[] { 1, 
 catch (ArgumentException) { rejected = true; }
 Check(rejected, "reject invalid JPEG before transport");
 Check(Enum.GetValues<DashboardScene>().Length == 8, "eight distinct dashboard layouts");
+var previewOptions = new PreviewOptions(Light: true, AmbientDrift: true);
+var requestJson = JsonSerializer.Serialize(new EngineRequest("fixture", "state", JsonSerializer.SerializeToElement(previewOptions, PanelContract.Json)), PanelContract.Json);
+var parsedRequest = JsonSerializer.Deserialize<EngineRequest>(requestJson, PanelContract.Json)!;
+Check(parsedRequest.Version == 1 && parsedRequest.Id == "fixture", "JSON Lines version and correlation survive serialization");
+Check(parsedRequest.Parameters!.Value.Deserialize<PreviewOptions>(PanelContract.Json) is { Light: true, AmbientDrift: true, IncludeDevices: false }, "preview options cannot implicitly enumerate USB");
+Check(AudioLevel.Fraction(0) == 0 && AudioLevel.Fraction(1) == 1, "VU scale covers silence through digital full scale");
 Check(DashboardScenes.Rotation.Count == 5 && DashboardScenes.Rotation.Distinct().Count() == 5, "five distinct default rotation scenes");
 Check(DashboardScenes.Parse("artwork") == DashboardScene.Artwork, "scene parsing is case insensitive");
 var snapshot = new DashboardSnapshot(NowPlaying.Empty, [], new MachineMetrics(null, null, null, null, "GPU", "Unavailable", "Unavailable"), []);

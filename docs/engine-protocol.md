@@ -10,7 +10,7 @@
 
 Responses have `version`, matching `id`, `ok`, `result`, and `error`. Binary preview JPEGs are base64 JSON values. Request lines are limited to 16 KiB; the desktop client bounds responses at 2 million characters. Unknown protocol versions and methods are rejected. JSON is UTF-8; the human CLI banner is disabled in this mode.
 
-`state` reads local media, audio levels, metrics, and device enumeration, without probing/writing a panel. Its opaque device IDs are local hashes, not USB paths. `levels` samples cached playback-session meters; it never opens a microphone.
+`state` reads local media, audio levels and metrics without touching USB. Set `includeDevices: true` to enumerate panel interfaces deliberately (cached for five seconds); this still does not send a handshake or picture. Its opaque device IDs are local hashes, not USB paths. `levels` samples cached playback-session meters; it never opens a microphone.
 
 Preview parameters also accept `light` and `ambientDrift`, both false by default. They affect the local raster only. The viewer resolves automatic day/night mode using local PC time; it never opens USB to change themes.
 

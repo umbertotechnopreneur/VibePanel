@@ -20,6 +20,9 @@ internal sealed class EngineServer : IDisposable
     private string status = "Local preview only. The USB display has not been started.";
     private string? previousFingerprint;
     private byte[]? preview;
+    private long discoveredAt;
+    private DashboardSnapshot? lastSnapshot;
+    private long snapshotAt;
 
     public static async Task<int> RunAsync()
     {
@@ -98,12 +101,18 @@ internal sealed class EngineServer : IDisposable
     {
         var scene = DashboardScenes.Parse(options.Scene);
         var profile = DisplayProfileCatalog.GetRequired(options.ProfileId) with { Encoding = PanelPixelEncoding.Jpeg, WireRotation = 0 };
-        var snapshot = await dashboard.ReadAsync();
-        devices.Clear();
-        foreach (var device in DisplayDiscovery.FindDevices())
+        if (lastSnapshot is null || Environment.TickCount64 - snapshotAt >= 2000)
+        { lastSnapshot = await dashboard.ReadAsync(); snapshotAt = Environment.TickCount64; }
+        var snapshot = lastSnapshot;
+        if (options.IncludeDevices && (discoveredAt == 0 || Environment.TickCount64 - discoveredAt >= 5000))
         {
-            var key = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(device.DevicePath + device.Transport)))[..16];
-            devices.Add(key, device);
+            devices.Clear();
+            foreach (var device in DisplayDiscovery.FindDevices())
+            {
+                var key = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(device.DevicePath + device.Transport)))[..16];
+                devices.Add(key, device);
+            }
+            discoveredAt = Environment.TickCount64;
         }
         int? drift = options.AmbientDrift ? DashboardRenderer.AmbientOffset() : null;
         var fingerprint = DashboardRenderer.Fingerprint(snapshot, scene) + profile.Id + options.Light + drift;

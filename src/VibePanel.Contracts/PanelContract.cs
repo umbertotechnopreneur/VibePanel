@@ -19,7 +19,7 @@ public static class PanelContract
 public sealed record EngineRequest(string Id, string Method, JsonElement? Parameters = null, int Version = PanelContract.Version);
 public sealed record EngineResponse(string Id, bool Ok, JsonElement? Result = null, string? Error = null, int Version = PanelContract.Version);
 public sealed record PanelChoice(string Id, string Name);
-public sealed record PreviewOptions(string ProfileId = "wide-1280x480", string Scene = "Music", bool IncludeFrame = true, bool Light = false, bool AmbientDrift = false);
+public sealed record PreviewOptions(string ProfileId = "wide-1280x480", string Scene = "Music", bool IncludeFrame = true, bool Light = false, bool AmbientDrift = false, bool IncludeDevices = false);
 public sealed record StartOptions(string DeviceId, string ProfileId = "auto", string? Scene = null);
 public sealed record MediaOptions(string Action);
 public sealed record AudioLevelDto(string Id, string Name, double VolumePercent, bool Muted, double? Peak);
