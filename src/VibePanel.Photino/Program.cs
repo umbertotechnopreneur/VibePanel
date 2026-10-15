@@ -18,7 +18,7 @@ internal static class Program
         var window = new PhotinoWindow()
             .SetTitle("VibePanel — my music, my screen")
             .SetUseOsDefaultSize(false)
-            .SetSize(1160, 1000)
+            .SetSize(1120, 650)
             .SetResizable(true)
             .SetLogVerbosity(0)
             .Center()

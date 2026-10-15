@@ -11,6 +11,7 @@ VBWR E -->
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="OpenSilver" Version="3.3.3" />
+    <PackageReference Include="OpenSilver.Themes.Modern" Version="3.3.0" />
     <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.13" />
     <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
     <ProjectReference Include="../VibePanel.Contracts/VibePanel.Contracts.csproj" />

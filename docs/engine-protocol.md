@@ -12,6 +12,8 @@ Responses have `version`, matching `id`, `ok`, `result`, and `error`. Binary pre
 
 `state` reads local media, audio levels, metrics, and device enumeration, without probing/writing a panel. Its opaque device IDs are local hashes, not USB paths. `levels` samples cached playback-session meters; it never opens a microphone.
 
+Preview parameters also accept `light` and `ambientDrift`, both false by default. They affect the local raster only. The viewer resolves automatic day/night mode using local PC time; it never opens USB to change themes.
+
 Only `start` (`deviceId`, `profileId`, optional fixed `scene`) starts a physical display session. An absent scene selects the five-screen rotation. `stop` cancels that session. EOF also stops it; a removed device is never silently replaced. A successful start response means the request was accepted, not that an image was physically observed.
 
 `media` accepts an `action`: `toggle`, `play`, `pause`, `next`, or `previous`. There is deliberately no volume-write method.

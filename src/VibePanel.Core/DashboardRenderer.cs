@@ -8,6 +8,7 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Security.Cryptography;
 using System.Text;
+using System.Runtime.InteropServices;
 using Microsoft.Win32;
 
 namespace VibePanel.Core;
@@ -21,6 +22,8 @@ public sealed class DashboardRenderer
     private string? wallpaper;
     private string wallpaperKey = "";
     private bool wallpaperRead;
+    private Color[] artworkPalette = [];
+    private readonly Dictionary<int, byte[]> shadows = [];
     public string? BackgroundPath { get; private set; }
 
     public static string Fingerprint(DashboardSnapshot snapshot, DashboardScene scene)
@@ -40,22 +43,31 @@ public sealed class DashboardRenderer
         });
     }
 
-    public byte[] Render(DashboardSnapshot snapshot, DisplayProfile profile, DashboardScene scene = DashboardScene.Music)
+    public byte[] Render(DashboardSnapshot snapshot, DisplayProfile profile, DashboardScene scene = DashboardScene.Music, bool light = false, int? driftOffset = null)
     {
-        var background = GetBackground(profile.Width, profile.Height, snapshot.Media, scene);
+        var background = GetBackground(profile.Width, profile.Height, snapshot.Media, scene, light);
         using var bitmap = new Bitmap(profile.Width, profile.Height, PixelFormat.Format24bppRgb);
         using (var graphics = Graphics.FromImage(bitmap))
         using (var image = Image.FromFile(background))
         {
-            graphics.DrawImage(image, 0, 0, bitmap.Width, bitmap.Height);
+            if (driftOffset is { } offset) { graphics.DrawImage(image, -32 + offset, -32 + offset / 2, bitmap.Width + 64, bitmap.Height + 64); }
+            else { graphics.DrawImage(image, 0, 0, bitmap.Width, bitmap.Height); }
             graphics.SmoothingMode = SmoothingMode.AntiAlias;
             graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
             graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
             // A logical canvas makes every supported geometry usable, including square panels.
             var wide = profile.Width >= profile.Height * 1.6;
             graphics.ScaleTransform(profile.Width / (wide ? 1280f : 640f), profile.Height / (wide ? 480f : 640f));
-            if (scene == DashboardScene.Music) { Draw(graphics, snapshot, wide); }
-            else { DrawScene(graphics, snapshot, wide, scene); }
+            if (snapshot.Media.Artwork is not null && scene is DashboardScene.Music or DashboardScene.Artwork)
+            {
+                var bounds = scene == DashboardScene.Artwork ? new Rectangle(wide ? 60 : 160, 76, 320, 320)
+                    : wide ? new Rectangle(32, 88, 280, 280) : new Rectangle(32, 76, 200, 200);
+                using var shadowStream = new MemoryStream(GetCoverShadow(bounds.Width));
+                using var shadow = Image.FromStream(shadowStream);
+                graphics.DrawImage(shadow, bounds.X - 64, bounds.Y - 64, bounds.Width + 128, bounds.Height + 128);
+            }
+            if (scene == DashboardScene.Music) { Draw(graphics, snapshot, wide, light); }
+            else { DrawScene(graphics, snapshot, wide, scene, light); }
         }
         return PanelFrameRenderer.Encode(bitmap, profile);
     }
@@ -78,17 +90,17 @@ public sealed class DashboardRenderer
         return PanelFrameRenderer.Encode(frame, profile);
     }
 
-    private static void DrawScene(Graphics g, DashboardSnapshot s, bool wide, DashboardScene scene)
+    private static void DrawScene(Graphics g, DashboardSnapshot s, bool wide, DashboardScene scene, bool light)
     {
         var width = wide ? 1280 : 640;
         var height = wide ? 480 : 640;
-        using var white = new SolidBrush(Color.FromArgb(239, 240, 246));
-        using var muted = new SolidBrush(Color.FromArgb(173, 183, 204));
-        using var accent = new SolidBrush(Color.FromArgb(221, 176, 235));
-        using var card = new SolidBrush(Color.FromArgb(120, 15, 20, 30));
-        using var heading = new Font("Segoe UI", 18, FontStyle.Bold, GraphicsUnit.Pixel);
-        using var large = new Font("Segoe UI", wide ? 60 : 44, FontStyle.Bold, GraphicsUnit.Pixel);
-        using var body = new Font("Segoe UI", 26, FontStyle.Regular, GraphicsUnit.Pixel);
+        using var white = new SolidBrush(light ? Color.FromArgb(32, 31, 48) : Color.FromArgb(239, 240, 246));
+        using var muted = new SolidBrush(light ? Color.FromArgb(76, 72, 95) : Color.FromArgb(173, 183, 204));
+        using var accent = new SolidBrush(light ? Color.FromArgb(109, 61, 130) : Color.FromArgb(221, 176, 235));
+        using var card = new SolidBrush(light ? Color.FromArgb(170, 255, 255, 255) : Color.FromArgb(120, 15, 20, 30));
+        using var heading = new Font("Consolas", 18, FontStyle.Bold, GraphicsUnit.Pixel);
+        using var large = new Font("Consolas", wide ? 60 : 44, FontStyle.Bold, GraphicsUnit.Pixel);
+        using var body = new Font("Consolas", 26, FontStyle.Regular, GraphicsUnit.Pixel);
         using var format = new StringFormat { Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap };
         g.DrawString(DashboardScenes.Name(scene).ToUpperInvariant(), heading, accent, 32, 25);
         g.DrawString("VibePanel / VibeWare", heading, muted, 32, height - 40);
@@ -120,7 +132,7 @@ public sealed class DashboardRenderer
             var y = 95;
             foreach (var volume in volumes)
             {
-                g.DrawString(volume.Name + (volume.Muted ? " / MUTED" : ""), body, white, new RectangleF(40, y, width - 210, 35), format);
+                g.DrawString(volume.Name + (volume.Muted ? " / MUTED" : ""), body, white, new RectangleF(40, y, width - 380, 35), format);
                 g.DrawString($"{volume.Percent:F0}%  /  {AudioLevel.Label(volume.Peak)}", heading, accent, width - 300, y + 8);
                 DrawMeter(g, new RectangleF(40, y + 43, width - 80, 10), volume.Peak);
                 y += wide ? 64 : 85;
@@ -152,7 +164,7 @@ public sealed class DashboardRenderer
         }
         else if (scene == DashboardScene.Clock)
         {
-            using var clock = new Font("Segoe UI", wide ? 132 : 110, FontStyle.Bold, GraphicsUnit.Pixel);
+            using var clock = new Font("Consolas", wide ? 132 : 110, FontStyle.Bold, GraphicsUnit.Pixel);
             g.DrawString(DateTime.Now.ToString("HH:mm"), clock, white, 40, wide ? 90 : 130);
             g.DrawString(DateTime.Now.ToString("dddd, dd MMMM"), body, accent, 48, wide ? 255 : 310);
             g.DrawString(s.Media.Title + " / " + s.Media.Artist, heading, muted, new RectangleF(48, wide ? 330 : 415, width - 96, 40), format);
@@ -169,16 +181,17 @@ public sealed class DashboardRenderer
         }
     }
 
-    private static void Draw(Graphics g, DashboardSnapshot s, bool wide)
+    private static void Draw(Graphics g, DashboardSnapshot s, bool wide, bool light)
     {
-        using var muted = new SolidBrush(Color.FromArgb(189, 193, 206));
-        using var accent = new SolidBrush(Color.FromArgb(221, 176, 235));
-        using var card = new SolidBrush(Color.FromArgb(135, 18, 21, 31));
-        using var title = new Font("Segoe UI", wide ? 39 : 29, FontStyle.Bold, GraphicsUnit.Pixel);
-        using var body = new Font("Segoe UI", 23, FontStyle.Regular, GraphicsUnit.Pixel);
-        using var label = new Font("Segoe UI", 16, FontStyle.Bold, GraphicsUnit.Pixel);
+        using var ink = new SolidBrush(light ? Color.FromArgb(32, 31, 48) : Color.FromArgb(239, 240, 246));
+        using var muted = new SolidBrush(light ? Color.FromArgb(76, 72, 95) : Color.FromArgb(189, 193, 206));
+        using var accent = new SolidBrush(light ? Color.FromArgb(109, 61, 130) : Color.FromArgb(221, 176, 235));
+        using var card = new SolidBrush(light ? Color.FromArgb(170, 255, 255, 255) : Color.FromArgb(135, 18, 21, 31));
+        using var title = new Font("Consolas", wide ? 39 : 29, FontStyle.Bold, GraphicsUnit.Pixel);
+        using var body = new Font("Consolas", 23, FontStyle.Regular, GraphicsUnit.Pixel);
+        using var label = new Font("Consolas", 16, FontStyle.Bold, GraphicsUnit.Pixel);
         using var format = new StringFormat { Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap };
-        g.DrawString("VIBE PANEL", label, Brushes.White, 32, 24);
+        g.DrawString("V I B E P A N E L", label, ink, 32, 24);
         g.DrawString(s.Media.Playing ? "NOW PLAYING" : "MY MUSIC", label, accent, wide ? 350 : 32, wide ? 92 : 294);
         var artworkBounds = wide ? new Rectangle(32, 88, 280, 280) : new Rectangle(32, 76, 200, 200);
         g.FillRectangle(card, artworkBounds);
@@ -196,7 +209,7 @@ public sealed class DashboardRenderer
         else { g.DrawString("♪", title, accent, artworkBounds.X + 70, artworkBounds.Y + 65); }
         var textX = wide ? 350 : 32;
         var textY = wide ? 126 : 322;
-        g.DrawString(s.Media.Title, title, Brushes.White, new RectangleF(textX, textY, wide ? 565 : 570, 64), format);
+        g.DrawString(s.Media.Title, title, ink, new RectangleF(textX, textY, wide ? 565 : 570, 64), format);
         g.DrawString(s.Media.Artist, body, muted, new RectangleF(textX, textY + 67, wide ? 555 : 570, 40), format);
         g.DrawString(s.Media.Playing ? "●  Playing" : "Ⅱ  Paused / ready", label, accent, textX, textY + 125);
         if (wide)
@@ -206,7 +219,7 @@ public sealed class DashboardRenderer
             var y = 143;
             foreach (var volume in s.Volumes.Take(4))
             {
-                g.DrawString($"{volume.Name}   {(volume.Muted ? "MUTE" : $"{volume.Percent:F0}%")}", label, Brushes.White, new RectangleF(964, y, 264, 26), format);
+                g.DrawString($"{volume.Name}   {(volume.Muted ? "MUTE" : $"{volume.Percent:F0}%")}", label, ink, new RectangleF(964, y, 264, 26), format);
                 DrawMeter(g, new RectangleF(964, y + 32, 260, 10), volume.Peak);
                 y += 55;
             }
@@ -218,17 +231,17 @@ public sealed class DashboardRenderer
             var y = 123;
             foreach (var volume in s.Volumes.Take(4))
             {
-                g.DrawString($"{volume.Name}  {(volume.Muted ? "MUTE" : $"{volume.Percent:F0}%")}", label, Brushes.White, new RectangleF(270, y, 335, 30), format);
+                g.DrawString($"{volume.Name}  {(volume.Muted ? "MUTE" : $"{volume.Percent:F0}%")}", label, ink, new RectangleF(270, y, 335, 30), format);
                 y += 38;
             }
         }
         var bottom = wide ? 400 : 522;
         g.FillRectangle(card, 32, bottom, wide ? 1216 : 576, wide ? 49 : 69);
-        g.DrawString($"CPU  {Metric(s.Metrics.CpuUsage, "%")}  ·  {Metric(s.Metrics.CpuTemperature, "°C")}", label, Brushes.White, 48, bottom + 15);
-        g.DrawString($"GPU  {Metric(s.Metrics.GpuUsage, "%")}  ·  {Metric(s.Metrics.GpuTemperature, "°C")}", label, Brushes.White, wide ? 370 : 330, bottom + 15);
+        g.DrawString($"CPU  {Metric(s.Metrics.CpuUsage, "%")}  ·  {Metric(s.Metrics.CpuTemperature, "°C")}", label, ink, 48, bottom + 15);
+        g.DrawString($"GPU  {Metric(s.Metrics.GpuUsage, "%")}  ·  {Metric(s.Metrics.GpuTemperature, "°C")}", label, ink, wide ? 370 : 330, bottom + 15);
         if (s.Network is { } network)
         {
-            g.DrawString($"↓ {NetworkTrafficService.Size(network.DownloadBytesPerSecond)}/s   ↑ {NetworkTrafficService.Size(network.UploadBytesPerSecond)}/s", label, Brushes.White, wide ? 680 : 48, bottom + (wide ? 7 : 41));
+            g.DrawString($"↓ {NetworkTrafficService.Size(network.DownloadBytesPerSecond)}/s   ↑ {NetworkTrafficService.Size(network.UploadBytesPerSecond)}/s", label, ink, wide ? 680 : 48, bottom + (wide ? 7 : 41));
             if (wide) { g.DrawString($"Total ↓ {NetworkTrafficService.Size(network.DownloadBytes)}  ↑ {NetworkTrafficService.Size(network.UploadBytes)}", label, muted, 680, bottom + 27); }
         }
         g.DrawString("VibeWare / Umberto", label, accent, wide ? 1028 : 32, wide ? 32 : 608);
@@ -247,11 +260,11 @@ public sealed class DashboardRenderer
         graphics.FillRectangle(gradient, track.X, track.Y, (float)(track.Width * AudioLevel.Fraction(peak)), track.Height);
     }
 
-    private string GetBackground(int width, int height, NowPlaying media, DashboardScene scene)
+    private string GetBackground(int width, int height, NowPlaying media, DashboardScene scene, bool light)
     {
         var cover = scene is DashboardScene.Music or DashboardScene.Artwork or DashboardScene.TrackDetails ? media.Artwork : null;
         if (cover is not null && !ReferenceEquals(lastArtwork, cover))
-        { lastArtwork = cover; artworkKey = Convert.ToHexString(SHA256.HashData(cover))[..24]; }
+        { lastArtwork = cover; artworkKey = Convert.ToHexString(SHA256.HashData(cover))[..24]; artworkPalette = SamplePalette(null, cover); shadows.Clear(); }
         if (!wallpaperRead)
         {
             using var desktop = Registry.CurrentUser.OpenSubKey(@"Control Panel\Desktop");
@@ -260,26 +273,26 @@ public sealed class DashboardRenderer
             wallpaperKey = $"{wallpaper}|{modified}";
             wallpaperRead = true;
         }
-        var dimensions = $"{width}x{height}|{(cover is null ? wallpaperKey : artworkKey + scene)}";
+        var dimensions = $"{width}x{height}|{light}|{(cover is null ? wallpaperKey : artworkKey)}";
         if (backgrounds.TryGetValue(dimensions, out var existing)) { BackgroundPath = existing; return existing; }
-        var key = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"v3|{dimensions}")))[..24];
+        var key = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"v4|{dimensions}")))[..24];
         var directory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VibePanel", "cache");
         Directory.CreateDirectory(directory);
         var path = Path.Combine(directory, $"background-{key}.jpg");
         if (!File.Exists(path))
         {
-            var palette = SamplePalette(wallpaper, cover);
+            var palette = cover is null ? SamplePalette(wallpaper, null) : artworkPalette;
             using var small = new Bitmap(256, 256);
             using (var blobs = Graphics.FromImage(small))
             {
-                blobs.Clear(Color.FromArgb(17, 21, 31));
+                blobs.Clear(light ? Color.FromArgb(244, 243, 248) : Color.FromArgb(17, 21, 31));
                 var centers = new[] { new PointF(35, 30), new PointF(220, 50), new PointF(45, 220), new PointF(215, 215) };
                 for (var i = 0; i < palette.Length; i++)
                 {
                     var bounds = new RectangleF(centers[i].X - 180, centers[i].Y - 180, 360, 360);
                     using var pathShape = new GraphicsPath();
                     pathShape.AddEllipse(bounds);
-                    using var blob = new PathGradientBrush(pathShape) { CenterColor = Color.FromArgb(170, palette[i]), SurroundColors = [Color.FromArgb(0, palette[i])] };
+                    using var blob = new PathGradientBrush(pathShape) { CenterColor = Color.FromArgb(light ? 95 : 170, palette[i]), SurroundColors = [Color.FromArgb(0, palette[i])] };
                     blobs.FillEllipse(blob, bounds);
                 }
             }
@@ -288,28 +301,8 @@ public sealed class DashboardRenderer
             {
                 g.InterpolationMode = InterpolationMode.HighQualityBicubic;
                 g.DrawImage(small, 0, 0, width, height);
-                using var shade = new SolidBrush(Color.FromArgb(65, 13, 17, 28));
+                using var shade = new SolidBrush(light ? Color.FromArgb(85, 250, 248, 255) : Color.FromArgb(65, 13, 17, 28));
                 g.FillRectangle(shade, 0, 0, width, height);
-                if (cover is not null && scene is DashboardScene.Music or DashboardScene.Artwork)
-                {
-                    var wide = width >= height * 1.6;
-                    g.ScaleTransform(width / (wide ? 1280f : 640f), height / (wide ? 480f : 640f));
-                    var bounds = scene == DashboardScene.Artwork ? new RectangleF(wide ? 60 : 160, 76, 320, 320)
-                        : wide ? new RectangleF(32, 88, 280, 280) : new RectangleF(32, 76, 200, 200);
-                    var glow = RectangleF.Inflate(bounds, 70, 65);
-                    glow.Offset(0, 20);
-                    using var outline = new GraphicsPath();
-                    outline.AddRectangle(glow);
-                    using var shadow = new PathGradientBrush(outline) { CenterColor = Color.FromArgb(220, palette[0]), SurroundColors = [Color.FromArgb(0, palette[0])] };
-                    g.FillRectangle(shadow, glow);
-                    for (var spread = 26; spread > 0; spread -= 2)
-                    {
-                        using var dark = new SolidBrush(Color.FromArgb(7, Color.Black));
-                        var soft = RectangleF.Inflate(bounds, spread, spread);
-                        soft.Offset(0, 14);
-                        g.FillRectangle(dark, soft);
-                    }
-                }
             }
             using var output = new MemoryStream();
             image.Save(output, ImageFormat.Jpeg);
@@ -334,6 +327,23 @@ public sealed class DashboardRenderer
             using var stream = artwork is null ? null : new MemoryStream(artwork);
             using var source = stream is null ? Image.FromFile(path!) : Image.FromStream(stream);
             using var tiny = new Bitmap(source, 64, 64);
+            if (artwork is not null)
+            {
+                var buckets = new Dictionary<int, (int Count, int Red, int Green, int Blue)>();
+                for (var y = 0; y < 64; y++)
+                {
+                    for (var x = 0; x < 64; x++)
+                    {
+                        var pixel = tiny.GetPixel(x, y);
+                        var key = ((pixel.R / 32) << 6) | ((pixel.G / 32) << 3) | (pixel.B / 32);
+                        var item = buckets.GetValueOrDefault(key);
+                        buckets[key] = (item.Count + 1, item.Red + pixel.R, item.Green + pixel.G, item.Blue + pixel.B);
+                    }
+                }
+                var dominant = buckets.Values.OrderByDescending(item => item.Count).Select(item => Color.FromArgb(item.Red / item.Count, item.Green / item.Count, item.Blue / item.Count)).Take(4).ToList();
+                while (dominant.Count < 4) { dominant.Add(dominant[0]); }
+                return dominant.ToArray();
+            }
             var colors = new List<Color>();
             foreach (var point in new[] { new Point(8, 8), new Point(40, 8), new Point(8, 40), new Point(40, 40) })
             {
@@ -348,5 +358,59 @@ public sealed class DashboardRenderer
             return colors.ToArray();
         }
         catch (Exception error) when (error is ArgumentException or IOException or UnauthorizedAccessException or OutOfMemoryException) { return fallback; }
+    }
+
+    /// <summary>Nominal one-pixel-per-second ping-pong drift; frames remain low-rate snapshots.</summary>
+    public static int AmbientOffset()
+    {
+        var phase = (int)(Environment.TickCount64 / 1000 % 96);
+        return (phase <= 48 ? phase : 96 - phase) - 24;
+    }
+
+    private byte[] GetCoverShadow(int edge)
+    {
+        if (shadows.TryGetValue(edge, out var cached)) { return cached; }
+        var side = edge + 128;
+        var alpha = new int[side * side];
+        var temporary = new int[alpha.Length];
+        for (var y = 80; y < edge + 80; y++) { Array.Fill(alpha, 195, y * side + 64, edge); }
+        // Three separable box passes approximate a soft Gaussian. This runs once per artwork/size.
+        const int radius = 16;
+        const int diameter = radius * 2 + 1;
+        for (var pass = 0; pass < 3; pass++)
+        {
+            for (var y = 0; y < side; y++)
+            {
+                var sum = 0;
+                for (var x = 0; x <= radius; x++) { sum += alpha[y * side + x]; }
+                for (var x = 0; x < side; x++)
+                {
+                    temporary[y * side + x] = sum / diameter;
+                    if (x - radius >= 0) { sum -= alpha[y * side + x - radius]; }
+                    if (x + radius + 1 < side) { sum += alpha[y * side + x + radius + 1]; }
+                }
+            }
+            for (var x = 0; x < side; x++)
+            {
+                var sum = 0;
+                for (var y = 0; y <= radius; y++) { sum += temporary[y * side + x]; }
+                for (var y = 0; y < side; y++)
+                {
+                    alpha[y * side + x] = sum / diameter;
+                    if (y - radius >= 0) { sum -= temporary[(y - radius) * side + x]; }
+                    if (y + radius + 1 < side) { sum += temporary[(y + radius + 1) * side + x]; }
+                }
+            }
+        }
+        var tint = artworkPalette[0];
+        var pixels = new byte[alpha.Length * 4];
+        for (var i = 0; i < alpha.Length; i++) { pixels[i * 4] = tint.B; pixels[i * 4 + 1] = tint.G; pixels[i * 4 + 2] = tint.R; pixels[i * 4 + 3] = (byte)alpha[i]; }
+        using var bitmap = new Bitmap(side, side, PixelFormat.Format32bppArgb);
+        var data = bitmap.LockBits(new Rectangle(0, 0, side, side), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+        try { Marshal.Copy(pixels, 0, data.Scan0, pixels.Length); }
+        finally { bitmap.UnlockBits(data); }
+        using var output = new MemoryStream();
+        bitmap.Save(output, ImageFormat.Png);
+        cached = output.ToArray(); shadows[edge] = cached; return cached;
     }
 }

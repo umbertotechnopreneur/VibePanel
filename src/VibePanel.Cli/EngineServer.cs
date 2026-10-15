@@ -105,10 +105,11 @@ internal sealed class EngineServer : IDisposable
             var key = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(device.DevicePath + device.Transport)))[..16];
             devices.Add(key, device);
         }
-        var fingerprint = DashboardRenderer.Fingerprint(snapshot, scene) + profile.Id;
+        int? drift = options.AmbientDrift ? DashboardRenderer.AmbientOffset() : null;
+        var fingerprint = DashboardRenderer.Fingerprint(snapshot, scene) + profile.Id + options.Light + drift;
         if (options.IncludeFrame && previousFingerprint != fingerprint)
         {
-            preview = renderer.Render(snapshot, profile, scene);
+            preview = renderer.Render(snapshot, profile, scene, options.Light, drift);
             previousFingerprint = fingerprint;
         }
         var metrics = snapshot.Metrics;
