@@ -8,15 +8,41 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
-    name: Build
+    name: Windows ${{ matrix.arch }}
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, ARM64]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
-      - run: dotnet restore VibePanel.slnx
+      - run: dotnet restore VibePanel.slnx -p:Platform=${{ matrix.arch }}
       - run: dotnet format VibePanel.slnx --verify-no-changes --no-restore
-      - run: dotnet build VibePanel.slnx --configuration Release --no-restore --warnaserror
+      - run: dotnet build VibePanel.slnx --configuration Release --no-restore --warnaserror -p:Platform=${{ matrix.arch }}
+      - name: Publish portable folders (no tests)
+        shell: pwsh
+        run: ./scripts/Publish.ps1 -Architecture ${{ matrix.arch }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: VibePanel-win-${{ matrix.arch }}
+          path: artifacts/portable/win-*/
+          if-no-files-found: error
+  required:
+    name: Build
+    if: always()
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - name: Require both Windows builds
+        shell: pwsh
+        run: |
+          if ('${{ needs.build.result }}' -ne 'success') { throw 'A Windows build failed or was cancelled.' }

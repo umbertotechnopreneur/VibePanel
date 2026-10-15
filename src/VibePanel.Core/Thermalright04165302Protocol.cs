@@ -46,34 +46,42 @@ public static class Thermalright04165302Protocol
         return request;
     }
 
-    /// <summary>Creates an experimental RGB565 picture packet for an explicitly selected profile.</summary>
-    public static byte[] CreatePicturePacket(DisplayProfile profile, PanelProbeResult probe)
+    /// <summary>Wraps an encoded frame and pads the wire packet to a 512-byte boundary.</summary>
+    public static byte[] CreatePicturePacket(DisplayProfile profile, ReadOnlySpan<byte> payload)
     {
         ArgumentNullException.ThrowIfNull(profile);
-        ArgumentNullException.ThrowIfNull(probe);
-
-        var packet = new byte[checked(20 + profile.FrameBytes)];
-        Magic.CopyTo(packet);
-        packet[4] = probe.ProductMode;
-        packet[5] = probe.SubMode;
-        packet[12] = PictureCommand;
-        BinaryPrimitives.WriteInt32LittleEndian(packet.AsSpan(16, 4), profile.FrameBytes);
-        FillDiagnosticPattern(packet.AsSpan(20), profile);
-        return packet;
-    }
-
-    private static void FillDiagnosticPattern(Span<byte> pixels, DisplayProfile profile)
-    {
-        for (var y = 0; y < profile.Height; y++)
+        if (profile.Width is < 32 or > 2048 || profile.Height is < 32 or > 2048)
         {
-            for (var x = 0; x < profile.Width; x++)
-            {
-                var red = (byte)(x * 31 / Math.Max(profile.Width - 1, 1));
-                var green = (byte)(y * 63 / Math.Max(profile.Height - 1, 1));
-                var blue = (byte)(((x / 24 + y / 24) % 2) == 0 ? 31 : 0);
-                var rgb565 = (ushort)((red << 11) | (green << 5) | blue);
-                BinaryPrimitives.WriteUInt16BigEndian(pixels.Slice((y * profile.Width + x) * 2, 2), rgb565);
-            }
+            throw new ArgumentException("Unsupported profile dimensions.", nameof(profile));
         }
+        if (profile.Encoding != PanelPixelEncoding.Jpeg && payload.Length != profile.FrameBytes)
+        {
+            throw new ArgumentException("RGB565 payload size must match the selected profile.", nameof(payload));
+        }
+        if (payload.IsEmpty || payload.Length > 8 * 1024 * 1024)
+        {
+            throw new ArgumentException("The encoded frame must contain between one byte and 8 MiB.", nameof(payload));
+        }
+        if (profile.Encoding == PanelPixelEncoding.Jpeg
+            && (payload.Length < 4 || payload[0] != 0xFF || payload[1] != 0xD8 || payload[^2] != 0xFF || payload[^1] != 0xD9))
+        {
+            throw new ArgumentException("The JPEG payload is missing its start/end markers.", nameof(payload));
+        }
+        if (profile.Encoding == PanelPixelEncoding.Jpeg && payload.Length > 450_000)
+        {
+            throw new ArgumentException("The JPEG exceeds the panel's 450 KB limit.", nameof(payload));
+        }
+        var length = checked(20 + payload.Length);
+        var packet = new byte[checked((length + 511) / 512 * 512)];
+        Magic.CopyTo(packet);
+        BinaryPrimitives.WriteUInt16LittleEndian(packet.AsSpan(4, 2), PictureCommand);
+        BinaryPrimitives.WriteUInt16LittleEndian(packet.AsSpan(6, 2), profile.Encoding == PanelPixelEncoding.Jpeg ? (ushort)0 : (ushort)1);
+        // RGB565 firmware uses the legacy header geometry; JPEG declares the actual raster dimensions.
+        BinaryPrimitives.WriteUInt16LittleEndian(packet.AsSpan(8, 2), profile.Encoding == PanelPixelEncoding.Jpeg ? checked((ushort)profile.Width) : (ushort)240);
+        BinaryPrimitives.WriteUInt16LittleEndian(packet.AsSpan(10, 2), profile.Encoding == PanelPixelEncoding.Jpeg ? checked((ushort)profile.Height) : (ushort)320);
+        BinaryPrimitives.WriteUInt32LittleEndian(packet.AsSpan(12, 4), PictureCommand);
+        BinaryPrimitives.WriteInt32LittleEndian(packet.AsSpan(16, 4), payload.Length);
+        payload.CopyTo(packet.AsSpan(20));
+        return packet;
     }
 }

@@ -10,6 +10,7 @@ namespace VibePanel.App;
 /// <summary>Starts the VibePanel desktop application.</summary>
 public partial class App : Application
 {
+    private Window? window;
     /// <summary>Initializes the application instance.</summary>
     public App()
     {
@@ -19,7 +20,7 @@ public partial class App : Application
     /// <summary>Creates the main window when the application launches.</summary>
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-        var window = new MainWindow();
+        window = new MainWindow();
         window.Activate();
     }
 }

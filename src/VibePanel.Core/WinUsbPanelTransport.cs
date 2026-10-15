@@ -26,11 +26,12 @@ public sealed class WinUsbPanelTransport : IDisposable
     public static WinUsbPanelTransport Open(DisplayDevice device)
     {
         ArgumentNullException.ThrowIfNull(device);
-        var fileHandle = Native.CreateFile(device.DevicePath, Native.GenericRead | Native.GenericWrite, Native.FileShareRead | Native.FileShareWrite, IntPtr.Zero, Native.OpenExisting, Native.FileAttributeNormal, IntPtr.Zero);
+        var fileHandle = Native.CreateFile(device.DevicePath, Native.GenericRead | Native.GenericWrite, Native.FileShareRead | Native.FileShareWrite, IntPtr.Zero, Native.OpenExisting, Native.FileFlagOverlapped, IntPtr.Zero);
         if (fileHandle.IsInvalid)
         {
+            var error = Marshal.GetLastWin32Error();
             fileHandle.Dispose();
-            throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not open the panel WinUSB interface.");
+            throw new Win32Exception(error, "Could not open the panel WinUSB interface.");
         }
 
         if (!Native.WinUsb_Initialize(fileHandle, out var winUsbHandle))
@@ -40,7 +41,13 @@ public sealed class WinUsbPanelTransport : IDisposable
             throw new Win32Exception(error, "Could not initialize the panel WinUSB session.");
         }
 
-        return new WinUsbPanelTransport(fileHandle, winUsbHandle);
+        var transport = new WinUsbPanelTransport(fileHandle, winUsbHandle);
+        try
+        {
+            transport.ValidatePipes();
+            return transport;
+        }
+        catch { transport.Dispose(); throw; }
     }
 
     /// <summary>Sends only the documented device-information handshake and returns the decoded reply.</summary>
@@ -54,11 +61,43 @@ public sealed class WinUsbPanelTransport : IDisposable
     }
 
     /// <summary>Sends an explicitly requested diagnostic RGB565 frame using the selected profile.</summary>
-    public void SendDiagnosticPattern(DisplayProfile profile, PanelProbeResult probe)
+    public void SendPacket(byte[] packet)
     {
         ThrowIfDisposed();
-        var packet = Thermalright04165302Protocol.CreatePicturePacket(profile, probe);
         WriteExact(packet);
+    }
+
+    private void ValidatePipes()
+    {
+        var readFound = false;
+        var writeFound = false;
+        for (byte index = 0; index < 32; index++)
+        {
+            if (!Native.WinUsb_QueryPipe(interfaceHandle, 0, index, out var pipe))
+            {
+                var error = Marshal.GetLastWin32Error();
+                if (error == 259) { break; }
+                throw new Win32Exception(error, "Could not inspect the WinUSB endpoints.");
+            }
+
+            if (pipe.PipeType != 2) { continue; }
+            readFound |= pipe.PipeId == Thermalright04165302Protocol.ReadEndpoint;
+            writeFound |= pipe.PipeId == Thermalright04165302Protocol.WriteEndpoint;
+        }
+
+        if (!readFound || !writeFound)
+        {
+            throw new IOException("This WinUSB interface does not expose the expected bulk endpoints 0x02/0x81. Use its HID interface instead.");
+        }
+
+        foreach (var endpoint in new[] { Thermalright04165302Protocol.ReadEndpoint, Thermalright04165302Protocol.WriteEndpoint })
+        {
+            uint timeoutMs = 3000;
+            if (!Native.WinUsb_SetPipePolicy(interfaceHandle, endpoint, 3, sizeof(uint), ref timeoutMs))
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not configure the WinUSB transfer timeout.");
+            }
+        }
     }
 
     /// <summary>Closes the underlying WinUSB and device handles.</summary>

@@ -15,5 +15,6 @@ VBWR E -->
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../VibePanel.Core/VibePanel.Core.csproj" />
+    <PackageReference Include="Spectre.Console" Version="0.57.2" />
   </ItemGroup>
 </Project>

@@ -5,7 +5,20 @@
     <Platform Name="x64" />
     <Platform Name="ARM64" />
   </Configurations>
-  <Project Path="src/VibePanel.Core/VibePanel.Core.csproj" />
-  <Project Path="src/VibePanel.Cli/VibePanel.Cli.csproj" />
-  <Project Path="src/VibePanel.App/VibePanel.App.csproj" />
+  <Project Path="src/VibePanel.Core/VibePanel.Core.csproj">
+    <Platform Solution="*|x64" Project="x64" />
+    <Platform Solution="*|ARM64" Project="ARM64" />
+  </Project>
+  <Project Path="src/VibePanel.Cli/VibePanel.Cli.csproj">
+    <Platform Solution="*|x64" Project="x64" />
+    <Platform Solution="*|ARM64" Project="ARM64" />
+  </Project>
+  <Project Path="src/VibePanel.App/VibePanel.App.csproj">
+    <Platform Solution="*|x64" Project="x64" />
+    <Platform Solution="*|ARM64" Project="ARM64" />
+  </Project>
+  <Project Path="tests/VibePanel.Checks/VibePanel.Checks.csproj">
+    <Platform Solution="*|x64" Project="x64" />
+    <Platform Solution="*|ARM64" Project="ARM64" />
+  </Project>
 </Solution>

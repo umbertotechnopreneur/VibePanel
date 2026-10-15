@@ -8,8 +8,11 @@ VBWR E -->
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Application.Resources>
         <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+            </ResourceDictionary.MergedDictionaries>
             <SolidColorBrush x:Key="VibePanelAccentBrush" Color="#C77BD3" />
-            <SolidColorBrush x:Key="VibePanelActionBrush" Color="#3975B4" />
+            <SolidColorBrush x:Key="VibePanelActionBrush" Color="#363047" />
             <Style TargetType="Button">
                 <Setter Property="Margin" Value="0,0,10,0" />
                 <Setter Property="Padding" Value="16,10" />
