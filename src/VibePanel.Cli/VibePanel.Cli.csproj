@@ -14,6 +14,7 @@ VBWR E -->
     <Description>Command-line companion for VibePanel USB displays.</Description>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../VibePanel.Contracts/VibePanel.Contracts.csproj" />
     <ProjectReference Include="../VibePanel.Core/VibePanel.Core.csproj" />
     <PackageReference Include="Spectre.Console" Version="0.57.2" />
   </ItemGroup>

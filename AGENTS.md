@@ -12,7 +12,9 @@ VibePanel is an MIT-licensed VibeWare utility for controlling compatible USB dis
 
 ## Product boundaries
 
-- Target Windows 11 x64 and ARM64 with .NET 10, C#, WinUI 3, and a separate CLI.
+- Use .NET 10 and C#. The owner chose OpenSilver + Photino instead of WinUI 3. Keep a separate CLI/engine and a versioned JSON-lines stdin/stdout contract; no listening network port is needed.
+- Ship portable ZIP folders. Windows x64/ARM64 hardware support is the current implementation; a portable UI build must never be described as working Linux/macOS USB/audio support without those backends and evidence.
+- Make frequent focused checkpoint commits on the existing branch. Do not create a branch or workspace to do this.
 - Keep the protocol core independent from the UI and CLI. The UI and CLI must not duplicate USB protocol code.
 - Do not add telemetry, network calls, startup registration, sensor polling, or a hardware-monitoring dependency without an explicit request.
 - The owner requested local Windows media sessions, read-only per-session volume percentages and VU meters, CPU usage, and existing CPU/GPU sensor providers. Do not add volume setters, sliders, microphone capture, or recording. Keep sampling modest; do not install a sensor driver or monitoring suite. Missing temperatures must remain unavailable, not guessed from ACPI zones.

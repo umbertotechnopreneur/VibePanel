@@ -7,7 +7,7 @@ using VibePanel.Core;
 using Spectre.Console;
 using System.Text;
 
-return await VibePanelCli.RunAsync(args);
+return args is ["--stdio"] ? await EngineServer.RunAsync() : await VibePanelCli.RunAsync(args);
 
 internal static class VibePanelCli
 {
@@ -353,6 +353,7 @@ internal static class VibePanelCli
         commands.AddRow("vp volumes", "Read-only app volume percentages and colored peak meters.");
         commands.AddRow("vp discover / vp profiles", "List connected panels / supported geometries.");
         commands.AddRow("vp scenes", "Eight layouts; five rotate with a short fade. --scene <ID> locks one.");
+        commands.AddRow("vp --stdio", "JSON Lines engine v1. No banner, no network listener, explicit USB start.");
         AnsiConsole.Write(commands);
         AnsiConsole.MarkupLine("[grey]Panel tools (these touch hardware only when explicitly invoked):[/]");
         Console.WriteLine("vp discover");
