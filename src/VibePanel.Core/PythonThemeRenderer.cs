@@ -26,10 +26,11 @@ public sealed class PythonThemeRenderer : IDisposable
 
     public async Task<byte[]> RenderAsync(ThemeDefinition theme, DashboardSnapshot snapshot, DisplayProfile profile,
         bool light = false, bool ambientDrift = false, string fontFamily = "Cascadia Mono", double fontScale = 1,
-        CancellationToken cancellationToken = default)
+        string jpegQuality = "high", CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(fontFamily) || fontFamily.Length > 128 || fontFamily.Any(char.IsControl)) { throw new ArgumentException("Choose a font family of 1–128 printable characters."); }
         if (!double.IsFinite(fontScale) || fontScale is < 0.65 or > 1.6) { throw new ArgumentException("Font scale must be between 0.65 and 1.6."); }
+        if (jpegQuality is not ("low" or "medium" or "high")) { throw new ArgumentException("JPEG quality must be low, medium or high."); }
         await gate.WaitAsync(cancellationToken);
         try
         {
@@ -75,6 +76,7 @@ public sealed class PythonThemeRenderer : IDisposable
                 ambientDrift,
                 fontFamily,
                 fontScale,
+                jpegQuality,
                 state = new
                 {
                     media = mediaState,

@@ -36,6 +36,7 @@ internal static class VibePanelCli
                 "scenes" => Scenes(),
                 "themes" => Themes(),
                 "theme" => Theme(args),
+                "gui" => Gui(),
                 "help" or "--help" or "-h" or null => Help(),
                 _ => Fail("I do not know that command. Run 'vp help'.")
             });
@@ -147,6 +148,17 @@ internal static class VibePanelCli
         return 0;
     }
 
+    private static int Gui()
+    {
+        var executable = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "VibePanel.exe"));
+        if (!File.Exists(executable)) { throw new FileNotFoundException("Open the GUI from the portable folder. VibePanel.exe is missing beside engine/.", executable); }
+        using var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(executable)
+        { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(executable)! });
+        if (process is null) { throw new IOException("The Vibe Panel window could not open."); }
+        AnsiConsole.WriteLine("Vibe Panel opened. Its window owns one hidden CLI engine.");
+        return 0;
+    }
+
     private static int Themes()
     {
         var catalog = ThemeCatalog.Read();
@@ -165,11 +177,16 @@ internal static class VibePanelCli
         var export = GetOption(args, "--export");
         var deviceNumber = GetOption(args, "--device");
         if (args.Count < 2 || args[1].StartsWith("--", StringComparison.Ordinal) || (export is null) == (deviceNumber is null))
-        { return Fail("Usage: vp theme <id> (--export <new.jpg> | --device <number>) [--profile <id>] [--font \"Cascadia Mono\"] [--font-scale 1] [--light] [--seconds N]"); }
+        { return Fail("Usage: vp theme <id> (--export <new.jpg> | --device <number>) [--profile <id>] [--font \"Cascadia Mono\"] [--font-scale 1] [--light] [--seconds N] [--interval-ms 1000]"); }
         var theme = ThemeCatalog.Read().Themes.FirstOrDefault(item => item.Id == args[1])
             ?? throw new ArgumentException("Theme not found. Run 'vp themes'.");
         var font = GetOption(args, "--font") ?? "Cascadia Mono";
         var scaleText = GetOption(args, "--font-scale") ?? "1";
+        var intervalText = GetOption(args, "--interval-ms") ?? "1000";
+        var quality = (GetOption(args, "--quality") ?? "high").ToLowerInvariant();
+        if (quality is not ("low" or "medium" or "high")) { throw new ArgumentException("--quality must be low, medium or high."); }
+        if (!int.TryParse(intervalText, out var interval) || interval is < 50 or > 1000)
+        { throw new ArgumentException("--interval-ms must be between 50 and 1000."); }
         if (!double.TryParse(scaleText, NumberStyles.Float, CultureInfo.InvariantCulture, out var scale))
         { throw new ArgumentException("--font-scale must be a number from 0.65 to 1.6 (use a decimal point)."); }
         if (deviceNumber is not null)
@@ -192,7 +209,7 @@ internal static class VibePanelCli
             {
                 AnsiConsole.WriteLine($"Sending theme {theme.Name} to device {device.Id}. Profile: {profileId}.");
                 ThemePlayback.RunAsync(theme, device, profileId, duration, new ThemeProgress(), cancellation.Token,
-                    args.Contains("--light"), args.Contains("--ambient-drift"), font, scale).GetAwaiter().GetResult();
+                    args.Contains("--light"), args.Contains("--ambient-drift"), font, scale, interval, quality).GetAwaiter().GetResult();
             }
             finally { Console.CancelKeyPress -= cancel; }
             return 0;
@@ -204,7 +221,7 @@ internal static class VibePanelCli
         using var service = new DashboardService();
         using var renderer = new PythonThemeRenderer();
         var snapshot = service.ReadAsync(includeSystem: false, includeMedia: theme.Category != "codex").GetAwaiter().GetResult();
-        var frame = renderer.RenderAsync(theme, snapshot, profile, args.Contains("--light"), args.Contains("--ambient-drift"), font, scale).GetAwaiter().GetResult();
+        var frame = renderer.RenderAsync(theme, snapshot, profile, args.Contains("--light"), args.Contains("--ambient-drift"), font, scale, quality).GetAwaiter().GetResult();
         using var output = new FileStream(path, FileMode.CreateNew);
         output.Write(frame);
         AnsiConsole.WriteLine($"{theme.Name}: {profile.Width} × {profile.Height} preview saved to {path}");
@@ -429,9 +446,12 @@ internal static class VibePanelCli
         commands.AddRow("vp discover / vp profiles", "List connected panels / supported geometries.");
         commands.AddRow("vp scenes", "Eight layouts; five rotate with a short fade. --scene <ID> locks one.");
         commands.AddRow("vp themes", "List installed Multimedia and OpenAI Codex themes from their folders.");
+        commands.AddRow("vp gui", "Open the desktop window from the portable folder.");
         commands.AddRow("vp theme media.aurora --export frame.jpg", "Render a Python/Skia theme to a new file. No USB writes.");
         commands.AddRow("vp theme <id> --export frame.jpg --font <name> --light", "Use the same font and light-mode options as the UI.");
         commands.AddRow("vp theme media.aurora --device 1 --seconds 60", "Explicitly stream a theme to one panel at a target 1 fps; Ctrl+C stops.");
+        commands.AddRow("vp theme media.aurora --device 1 --interval-ms 250", "Request updates every 250 ms; rendering and USB can be slower.");
+        commands.AddRow("vp theme media.aurora --device 1 --quality medium", "JPEG quality: low, medium or high. The panel size limit still applies.");
         commands.AddRow("vp --stdio", "JSON Lines engine v1. No banner, no network listener, explicit USB start.");
         AnsiConsole.Write(commands);
         AnsiConsole.MarkupLine("[grey]Panel tools (these touch hardware only when explicitly invoked):[/]");

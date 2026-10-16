@@ -10,39 +10,36 @@ public static class ThemePlayback
 {
     public static async Task RunAsync(ThemeDefinition theme, DisplayDevice device, string profileId,
         TimeSpan? duration, IProgress<string>? progress, CancellationToken cancellationToken,
-        bool light = false, bool ambientDrift = false, string fontFamily = "Cascadia Mono", double fontScale = 1)
+        bool light = false, bool ambientDrift = false, string fontFamily = "Cascadia Mono", double fontScale = 1,
+        int refreshIntervalMilliseconds = 1000, string jpegQuality = "high")
     {
         if (duration is { } requestedDuration && (requestedDuration <= TimeSpan.Zero || requestedDuration > TimeSpan.FromDays(1)))
         { throw new ArgumentOutOfRangeException(nameof(duration), "Duration must be between one second and one day."); }
-        // Validate explicit geometry before opening hardware.
-        var requestedProfile = profileId == "auto" ? null : DisplayProfileCatalog.GetRequired(profileId);
+        if (refreshIntervalMilliseconds is < 50 or > 1000)
+        { throw new ArgumentOutOfRangeException(nameof(refreshIntervalMilliseconds), "Refresh interval must be between 50 and 1000 ms."); }
+        if (jpegQuality is not ("low" or "medium" or "high")) { throw new ArgumentException("JPEG quality must be low, medium or high."); }
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         if (duration is { } limit) { stop.CancelAfter(limit); }
         var token = stop.Token;
         using var service = new DashboardService();
         using var renderer = new PythonThemeRenderer();
-        using var session = PanelSession.Open(device);
         try
         {
             progress?.Report($"Reading the selected panel's profile: {device.Id}.");
-            var probe = await session.ProbeAsync(token);
-            if (!probe.IsCompatible) { throw new IOException(probe.Message); }
-            var profile = requestedProfile ?? probe.DetectedProfile ?? throw new NotSupportedException("Unknown panel geometry. Choose --profile from 'vp profiles'.");
-            progress?.Report($"{theme.Name} · {profile.Name} · target 1 frame/second. Ctrl+C stops.");
-            long frame = 0;
+            using var output = await ThemePanelOutput.OpenAsync(device, profileId, token);
+            var profile = output.Profile;
+            progress?.Report($"{theme.Name} · {profile.Name} · requested {refreshIntervalMilliseconds} ms. Ctrl+C stops.");
             while (!token.IsCancellationRequested)
             {
                 var started = Environment.TickCount64;
                 var snapshot = await service.ReadAsync(includeSystem: false, includeMedia: theme.Category != "codex");
                 token.ThrowIfCancellationRequested();
                 var jpeg = await renderer.RenderAsync(theme, snapshot, profile with { Encoding = PanelPixelEncoding.Jpeg, WireRotation = 0 },
-                    light, ambientDrift, fontFamily, fontScale, token);
-                var payload = profile is { Encoding: PanelPixelEncoding.Jpeg, WireRotation: 0 }
-                    ? jpeg : DashboardRenderer.Fade(jpeg, jpeg, profile, 1);
-                var packet = Thermalright04165302Protocol.CreatePicturePacket(profile, payload);
-                await session.SendPacketAsync(packet, token);
-                progress?.Report($"{theme.Name} · frame {++frame} submitted · {profile.Width} × {profile.Height} · {packet.Length:N0} bytes");
-                await Task.Delay((int)Math.Max(1, 1000 - (Environment.TickCount64 - started)), token);
+                    light, ambientDrift, fontFamily, fontScale, jpegQuality, token);
+                if (await output.SendAsync(jpeg, jpegQuality, token))
+                { progress?.Report($"{theme.Name} · frame {output.SubmittedFrames} submitted · {profile.Width} × {profile.Height}"); }
+                // One in-flight frame only. Slow rendering/USB reduces the rate instead of building a queue.
+                await Task.Delay((int)Math.Max(1, refreshIntervalMilliseconds - (Environment.TickCount64 - started)), token);
             }
         }
         catch (OperationCanceledException) when (stop.IsCancellationRequested) { }

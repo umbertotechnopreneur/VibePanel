@@ -73,7 +73,7 @@ public sealed class DashboardRenderer
     }
 
     /// <summary>Blends two already-rendered, unrotated frames; only transitions pay this encoding cost.</summary>
-    public static byte[] Fade(byte[] before, byte[] after, DisplayProfile profile, float progress)
+    public static byte[] Fade(byte[] before, byte[] after, DisplayProfile profile, float progress, int jpegQuality = 95)
     {
         using var firstStream = new MemoryStream(before);
         using var lastStream = new MemoryStream(after);
@@ -87,7 +87,7 @@ public sealed class DashboardRenderer
             attributes.SetColorMatrix(new ColorMatrix { Matrix33 = Math.Clamp(progress, 0, 1) });
             g.DrawImage(last, new Rectangle(0, 0, frame.Width, frame.Height), 0, 0, last.Width, last.Height, GraphicsUnit.Pixel, attributes);
         }
-        return PanelFrameRenderer.Encode(frame, profile);
+        return PanelFrameRenderer.Encode(frame, profile, jpegQuality);
     }
 
     private static void DrawScene(Graphics g, DashboardSnapshot s, bool wide, DashboardScene scene, bool light)

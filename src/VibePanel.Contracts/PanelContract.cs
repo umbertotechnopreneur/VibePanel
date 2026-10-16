@@ -22,8 +22,10 @@ public sealed record PanelChoice(string Id, string Name);
 public sealed record ThemeChoiceDto(string Id, string Name, string Category, string Description, string PackId);
 public sealed record ThemeCatalogDto(IReadOnlyList<PanelChoice> Categories, IReadOnlyList<ThemeChoiceDto> Themes, IReadOnlyList<string> Notices);
 public sealed record PreviewOptions(string ProfileId = "wide-1280x480", string Scene = "Music", bool IncludeFrame = true, bool Light = false, bool AmbientDrift = false, bool IncludeDevices = false,
-    string? ThemeId = null, string FontFamily = "Cascadia Mono", double FontScale = 1);
-public sealed record StartOptions(string DeviceId, string ProfileId = "auto", string? Scene = null);
+    string? ThemeId = null, string FontFamily = "Cascadia Mono", double FontScale = 1, int RefreshIntervalMilliseconds = 1000,
+    string JpegQuality = "high");
+public sealed record StartOptions(string DeviceId, string ProfileId = "auto", string? Scene = null, string? ThemeId = null);
+public sealed record DisplayStartResult(bool Accepted, string? ProfileId = null);
 public sealed record MediaOptions(string Action);
 public sealed record AudioLevelDto(string Id, string Name, double VolumePercent, bool Muted, double? Peak);
 public sealed record SystemDto(double? CpuUsage, double? CpuTemperature, double? GpuUsage, double? GpuTemperature, string GpuName, string CpuTemperatureSource);
@@ -31,7 +33,8 @@ public sealed record NetworkDto(double? DownloadBytesPerSecond, double? UploadBy
 public sealed record PanelState(string Title, string Artist, string Album, bool Playing, string Source,
     IReadOnlyList<AudioLevelDto> Audio, SystemDto System, NetworkDto? Network,
     IReadOnlyList<PanelChoice> Devices, IReadOnlyList<PanelChoice> Profiles, IReadOnlyList<PanelChoice> Scenes,
-    bool DisplayRunning, string Status, byte[]? FrameJpeg, IReadOnlyList<string> Notices);
+    bool DisplayRunning, string Status, byte[]? FrameJpeg, IReadOnlyList<string> Notices,
+    double? FrameMilliseconds = null, long SubmittedFrames = 0);
 
 /// <summary>The presentation depends on this contract, not the USB driver or operating system APIs.</summary>
 public interface IPanelClient

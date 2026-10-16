@@ -26,8 +26,13 @@ public sealed partial class MainPage : Page
     private readonly string settingsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VibePanel", "presentation.json");
     private readonly List<CatalogRow> categoryRows = [];
     private readonly List<CatalogRow> themeRows = [];
+    private static readonly int[] RefreshIntervals = [1000, 500, 250, 100, 50];
     private ThemeCatalogDto? catalog;
     private bool refreshing, unloaded, ready, updatingChoices, refreshAgain, catalogLoading;
+    private bool displayActive, displayBusy, devicesLoading;
+    private int refreshMilliseconds = 1000;
+    private string jpegQuality = "high";
+    private string profileSelection = "auto";
     private long lastChange = Environment.TickCount64;
     private string selectedCategory = "multimedia", selectedTheme = "", selectedProfile = "wide-1280x480", fontFamily = "Cascadia Mono";
     private int appearance;
@@ -44,6 +49,11 @@ public sealed partial class MainPage : Page
         this.client = client;
         InitializeComponent();
         LoadChoices();
+        RefreshBox.ItemsSource = RefreshIntervals.Select(value => new PanelChoice(value.ToString(), value == 1000 ? "1 s" : $"{value} ms")).ToArray();
+        RefreshBox.SelectedItem = ((PanelChoice[])RefreshBox.ItemsSource).First(item => item.Id == refreshMilliseconds.ToString());
+        QualityBox.ItemsSource = new[] { new PanelChoice("low", "Low"), new PanelChoice("medium", "Medium"), new PanelChoice("high", "High") };
+        QualityBox.SelectedItem = ((PanelChoice[])QualityBox.ItemsSource).First(item => item.Id == jpegQuality);
+        refresh.Interval = TimeSpan.FromMilliseconds(refreshMilliseconds);
         FontBox.Text = fontFamily;
         UpdateFontScale();
         ready = true;
@@ -53,6 +63,7 @@ public sealed partial class MainPage : Page
         {
             unloaded = false;
             await LoadCatalogAsync();
+            await RefreshDevicesAsync();
             await RefreshAsync();
             if (!unloaded) { refresh.Start(); footerDelay.Start(); }
         };
@@ -67,7 +78,7 @@ public sealed partial class MainPage : Page
         {
             if (AboutOverlay.Visibility == Visibility.Visible)
             { if (args.Key == Key.Escape) { CloseAbout(); args.Handled = true; } return; }
-            if (ProfilesBox.IsDropDownOpen || args.OriginalSource is TextBox) { return; }
+            if (ProfilesBox.IsDropDownOpen || DevicesBox.IsDropDownOpen || RefreshBox.IsDropDownOpen || QualityBox.IsDropDownOpen || args.OriginalSource is TextBox) { return; }
             if (args.Key == Key.PageUp) { Navigate(-1); args.Handled = true; }
             if (args.Key == Key.PageDown) { Navigate(1); args.Handled = true; }
         };
@@ -117,9 +128,10 @@ public sealed partial class MainPage : Page
 
     private async Task RefreshAsync()
     {
-        if (unloaded || !ready || string.IsNullOrEmpty(selectedTheme)) { return; }
+        if (unloaded || !ready || displayBusy || string.IsNullOrEmpty(selectedTheme)) { return; }
         if (refreshing) { refreshAgain = true; return; }
         refreshing = true;
+        var requestedDisplay = displayActive;
         try
         {
             ApplyAppearance();
@@ -129,17 +141,24 @@ public sealed partial class MainPage : Page
             var requestedLight = IsLight;
             var requestedFont = fontFamily;
             var requestedScale = fontScale;
-            var state = await client.RequestAsync<PanelState>("state", new PreviewOptions(
+            var requestedInterval = refreshMilliseconds;
+            var requestedQuality = jpegQuality;
+            var state = await client.RequestAsync<PanelState>(requestedDisplay ? "present" : "state", new PreviewOptions(
                 ProfileId: requestedProfile, Light: requestedLight, ThemeId: requestedTheme,
-                FontFamily: requestedFont, FontScale: requestedScale));
-            if (unloaded) { return; }
+                FontFamily: requestedFont, FontScale: requestedScale, RefreshIntervalMilliseconds: requestedInterval,
+                JpegQuality: requestedQuality));
+            if (unloaded || displayBusy) { return; }
             // A slow frame may complete after the user has selected another theme or font.
-            if (requestedTheme != selectedTheme || requestedProfile != selectedProfile || requestedLight != IsLight || requestedFont != fontFamily || requestedScale != fontScale)
+            if (requestedTheme != selectedTheme || requestedProfile != selectedProfile || requestedLight != IsLight || requestedFont != fontFamily || requestedScale != fontScale
+                || requestedInterval != refreshMilliseconds || requestedQuality != jpegQuality || requestedDisplay != displayActive)
             { refreshAgain = true; return; }
+            displayActive = state.DisplayRunning;
+            UpdateDisplayControls();
             UpdateProfiles(state.Profiles);
             SourceText.Text = selectedCategory == "codex" ? "OpenAI Codex · local activity"
                 : string.IsNullOrWhiteSpace(state.Source) ? "System media session" : state.Source;
-            StatusText.Text = state.Notices.Count > 0 ? string.Join(" · ", state.Notices) : "Local preview · 1-second updates";
+            StatusText.Text = state.Notices.Count > 0 ? string.Join(" · ", state.Notices)
+                : displayActive ? state.Status : $"Preview · {refreshMilliseconds} ms · {jpegQuality} JPEG";
             if (state.FrameJpeg is { Length: > 0 } frame)
             {
                 if (lastFrame is null || !lastFrame.AsSpan().SequenceEqual(frame))
@@ -173,15 +192,16 @@ public sealed partial class MainPage : Page
         }
         catch (Exception error)
         {
+            if (requestedDisplay) { displayActive = false; UpdateDisplayControls(); }
             StatusText.Text = error.Message;
             ClearPreview();
-            LoadingTitle.Text = "Waiting for the local engine.";
+            LoadingTitle.Text = requestedDisplay ? "Display stopped." : "Waiting for the local engine.";
             LoadingText.Text = error.Message;
         }
         finally
         {
             refreshing = false;
-            if (refreshAgain && !unloaded) { refreshAgain = false; Dispatcher.BeginInvoke(async () => await RefreshAsync()); }
+            if (refreshAgain && !unloaded && !displayBusy) { refreshAgain = false; Dispatcher.BeginInvoke(async () => await RefreshAsync()); }
         }
     }
 
@@ -196,12 +216,12 @@ public sealed partial class MainPage : Page
 
     private void UpdateProfiles(IReadOnlyList<PanelChoice> profiles)
     {
-        var choices = profiles.Select(profile => new PanelChoice(profile.Id, ShortProfileName(profile.Id, profile.Name))).ToArray();
+        var choices = new[] { new PanelChoice("auto", "Auto size") }.Concat(profiles.Select(profile => new PanelChoice(profile.Id, ShortProfileName(profile.Id, profile.Name)))).ToArray();
         if (ProfilesBox.ItemsSource is IEnumerable<PanelChoice> existing && existing.SequenceEqual(choices)) { return; }
         updatingChoices = true;
         ProfilesBox.ItemsSource = choices;
-        ProfilesBox.SelectedItem = choices.FirstOrDefault(profile => profile.Id == selectedProfile) ?? choices.FirstOrDefault();
-        selectedProfile = (ProfilesBox.SelectedItem as PanelChoice)?.Id ?? "wide-1280x480";
+        ProfilesBox.SelectedItem = choices.FirstOrDefault(profile => profile.Id == profileSelection) ?? choices.First();
+        profileSelection = ((PanelChoice)ProfilesBox.SelectedItem).Id;
         updatingChoices = false;
     }
 
@@ -227,22 +247,25 @@ public sealed partial class MainPage : Page
         var ink = Brush(light ? "#242231" : "#F1F1FA");
         var muted = Brush(light ? "#716B80" : "#9C9CAF");
         var accent = Brush(light ? "#7854B5" : "#C9AEF3");
-        foreach (var border in new[] { LibraryFrame, AppearanceFrame, OptionsFrame, PreviewBadge, AboutFrame }) { border.Background = surface; border.BorderBrush = line; }
+        foreach (var border in new[] { LibraryFrame, AppearanceFrame, OptionsFrame, DisplayFrame, PreviewBadge, AboutFrame }) { border.Background = surface; border.BorderBrush = line; }
         PreviewFrame.Background = Brush(light ? "#E6E3EE" : "#0A0D13");
         PreviewFrame.BorderBrush = line;
         foreach (var text in new[] { Heading, SelectedThemeText, LoadingTitle, PositionText, FontScaleText, AboutHeading, AboutAuthor, AboutDisclosureHeading }) { text.Foreground = ink; }
-        foreach (var text in new[] { Subtitle, Author, CatalogText, SourceText, StatusText, LoadingText, FontLabel, SizeLabel, GeometryLabel, FooterDot1, FooterDot2, AboutVersion, AboutDisclosure, AboutInitiative }) { text.Foreground = muted; }
+        foreach (var text in new[] { Subtitle, Author, CatalogText, SourceText, StatusText, LoadingText, FontLabel, SizeLabel, GeometryLabel, DeviceLabel, RefreshLabel, QualityLabel, FooterDot1, FooterDot2, AboutVersion, AboutDisclosure, AboutInitiative }) { text.Foreground = muted; }
         foreach (var text in new[] { Eyebrow, LibraryHeading, CategoryText, PreviewBadgeText }) { text.Foreground = accent; }
         foreach (var link in new[] { Manifesto, AboutLink, TermsLink, PrivacyLink, AboutManifesto, ProjectLink, InitiativeLink, WebsiteLink, AboutTerms, AboutPrivacy }) { link.Foreground = accent; }
         CategoriesBox.Background = ThemesBox.Background = surface;
         FontBox.Background = ProfilesBox.Background = Brush(light ? "#F6F4FA" : "#11141D");
         FontBox.Foreground = ProfilesBox.Foreground = ink;
         FontBox.BorderBrush = ProfilesBox.BorderBrush = line;
+        foreach (var combo in new[] { DevicesBox, RefreshBox, QualityBox })
+        { combo.Background = Brush(light ? "#F6F4FA" : "#11141D"); combo.Foreground = ink; combo.BorderBrush = line; }
         CycleBox.Foreground = muted;
-        foreach (var button in new[] { ReloadButton, PreviousButton, NextButton, ApplyFontButton, SmallerButton, LargerButton, CloseAboutButton })
+        foreach (var button in new[] { ReloadButton, PreviousButton, NextButton, ApplyFontButton, SmallerButton, LargerButton, CloseAboutButton, RefreshDevicesButton, StartDisplayButton, StopDisplayButton })
         { button.Background = surface; button.Foreground = ink; button.BorderBrush = line; }
         UpdateRows();
         UpdateAppearanceButtons();
+        UpdateDisplayControls();
     }
 
     private void UpdateAppearanceButtons()
@@ -268,6 +291,7 @@ public sealed partial class MainPage : Page
         SelectedThemeText.Text = themeRows.FirstOrDefault(row => row.Id == selectedTheme)?.Name ?? "No themes installed";
         PositionText.Text = $"{ThemesBox.SelectedIndex + 1:00} / {themeRows.Count:00}";
         PreviousButton.IsEnabled = NextButton.IsEnabled = themeRows.Count > 1;
+        UpdateDisplayControls();
         UpdateRows();
         if (themeRows.Count == 0) { ClearPreview(); LoadingTitle.Text = "This category is empty."; LoadingText.Text = "Add a theme pack and reload the library."; }
     }
@@ -275,6 +299,91 @@ public sealed partial class MainPage : Page
     private void Navigate(int direction)
     {
         if (ThemesBox.Items.Count > 0) { ThemesBox.SelectedIndex = (ThemesBox.SelectedIndex + direction + ThemesBox.Items.Count) % ThemesBox.Items.Count; ThemesBox.ScrollIntoView(ThemesBox.SelectedItem); }
+    }
+
+    private void UpdateDisplayControls()
+    {
+        StartDisplayButton.IsEnabled = !displayBusy && !displayActive && !devicesLoading && DevicesBox.SelectedItem is PanelChoice && !string.IsNullOrEmpty(selectedTheme);
+        StopDisplayButton.IsEnabled = !displayBusy && displayActive;
+        DevicesBox.IsEnabled = !displayBusy && !displayActive;
+        RefreshDevicesButton.IsEnabled = !displayBusy && !displayActive && !devicesLoading;
+        ProfilesBox.IsEnabled = !displayBusy && !displayActive;
+        PreviewBadgeText.Text = displayActive ? "LIVE DISPLAY" : "LOCAL PREVIEW";
+    }
+
+    private async Task RefreshDevicesAsync()
+    {
+        if (devicesLoading || displayActive || displayBusy) { return; }
+        devicesLoading = true;
+        UpdateDisplayControls();
+        try
+        {
+            var previous = (DevicesBox.SelectedItem as PanelChoice)?.Id;
+            var choices = await client.RequestAsync<PanelChoice[]>("devices");
+            if (unloaded) { return; }
+            DevicesBox.ItemsSource = choices;
+            DevicesBox.SelectedItem = choices.FirstOrDefault(item => item.Id == previous) ?? choices.FirstOrDefault();
+            if (choices.Length == 0) { StatusText.Text = "Connect a USB display, then press ↻."; }
+        }
+        catch (Exception error) { StatusText.Text = error.Message; }
+        finally { devicesLoading = false; UpdateDisplayControls(); }
+    }
+
+    private async void StartDisplay_Click(object sender, RoutedEventArgs args)
+    {
+        if (displayBusy || displayActive || DevicesBox.SelectedItem is not PanelChoice device || string.IsNullOrEmpty(selectedTheme)) { return; }
+        displayBusy = true;
+        UpdateDisplayControls();
+        StatusText.Text = "Connecting to the selected display…";
+        try
+        {
+            var result = await client.RequestAsync<DisplayStartResult>("start", new StartOptions(device.Id, profileSelection, ThemeId: selectedTheme));
+            displayActive = result.Accepted;
+            if (result.ProfileId is { } detected)
+            {
+                updatingChoices = true;
+                selectedProfile = detected;
+                ProfilesBox.SelectedItem = (ProfilesBox.ItemsSource as IEnumerable<PanelChoice>)?.FirstOrDefault(item => item.Id == profileSelection);
+                updatingChoices = false;
+            }
+            SaveChoices();
+        }
+        catch (Exception error) { StatusText.Text = error.Message; }
+        finally { updatingChoices = false; displayBusy = false; UpdateDisplayControls(); }
+        if (displayActive) { await RefreshAsync(); }
+    }
+
+    private async void StopDisplay_Click(object sender, RoutedEventArgs args)
+    {
+        if (displayBusy || !displayActive) { return; }
+        displayBusy = true;
+        UpdateDisplayControls();
+        try
+        {
+            await client.RequestAsync<JsonElement>("stop");
+            displayActive = false;
+            StatusText.Text = "Display stopped.";
+        }
+        catch (Exception error) { StatusText.Text = error.Message; }
+        finally { displayBusy = false; UpdateDisplayControls(); }
+    }
+
+    private async void RefreshDevices_Click(object sender, RoutedEventArgs args) => await RefreshDevicesAsync();
+    private void Device_Changed(object sender, SelectionChangedEventArgs args) { if (ready) { UpdateDisplayControls(); } }
+    private void Refresh_Changed(object sender, SelectionChangedEventArgs args)
+    {
+        if (!ready || RefreshBox.SelectedItem is not PanelChoice choice) { return; }
+        refreshMilliseconds = int.Parse(choice.Id, System.Globalization.CultureInfo.InvariantCulture);
+        refresh.Interval = TimeSpan.FromMilliseconds(refreshMilliseconds);
+        SaveChoices();
+        _ = RefreshAsync();
+    }
+    private void Quality_Changed(object sender, SelectionChangedEventArgs args)
+    {
+        if (!ready || QualityBox.SelectedItem is not PanelChoice choice) { return; }
+        jpegQuality = choice.Id;
+        SaveChoices();
+        _ = RefreshAsync();
     }
 
     private void About_Click(object sender, RoutedEventArgs args)
@@ -324,7 +433,8 @@ public sealed partial class MainPage : Page
     private void Profile_Changed(object sender, SelectionChangedEventArgs args)
     {
         if (!ready || updatingChoices) { return; }
-        selectedProfile = (ProfilesBox.SelectedItem as PanelChoice)?.Id ?? "wide-1280x480";
+        profileSelection = (ProfilesBox.SelectedItem as PanelChoice)?.Id ?? "auto";
+        if (profileSelection != "auto") { selectedProfile = profileSelection; }
         SaveChoices();
         _ = RefreshAsync();
     }
@@ -362,8 +472,11 @@ public sealed partial class MainPage : Page
             if (json.TryGetProperty("category", out var category)) { selectedCategory = category.GetString() ?? selectedCategory; }
             if (json.TryGetProperty("themeId", out var theme)) { selectedTheme = theme.GetString() ?? ""; }
             if (json.TryGetProperty("profile", out var profile)) { selectedProfile = profile.GetString() ?? selectedProfile; }
+            if (json.TryGetProperty("profileSelection", out var profileChoice)) { profileSelection = profileChoice.GetString() ?? "auto"; }
             if (json.TryGetProperty("font", out var font)) { fontFamily = font.GetString() ?? fontFamily; }
             if (json.TryGetProperty("fontScale", out var scale) && scale.TryGetDouble(out var number) && double.IsFinite(number)) { fontScale = Math.Clamp(number, 0.7, 1.5); }
+            if (json.TryGetProperty("refreshMilliseconds", out var interval) && interval.TryGetInt32(out var milliseconds) && RefreshIntervals.Contains(milliseconds)) { refreshMilliseconds = milliseconds; }
+            if (json.TryGetProperty("jpegQuality", out var quality) && quality.GetString() is "low" or "medium" or "high") { jpegQuality = quality.GetString()!; }
         }
         catch (Exception error) when (error is IOException or JsonException or InvalidOperationException or UnauthorizedAccessException) { }
     }
@@ -372,7 +485,7 @@ public sealed partial class MainPage : Page
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(settingsPath)!);
-            File.WriteAllText(settingsPath, JsonSerializer.Serialize(new { theme = appearance, category = selectedCategory, themeId = selectedTheme, profile = selectedProfile, font = fontFamily, fontScale }));
+            File.WriteAllText(settingsPath, JsonSerializer.Serialize(new { theme = appearance, category = selectedCategory, themeId = selectedTheme, profile = selectedProfile, profileSelection, font = fontFamily, fontScale, refreshMilliseconds, jpegQuality }));
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException) { StatusText.Text = "The preference changed but could not be saved."; }
     }

@@ -62,13 +62,14 @@ public static class PanelFrameRenderer
         return Encode(bitmap, profile);
     }
 
-    internal static byte[] Encode(Bitmap bitmap, DisplayProfile profile)
+    internal static byte[] Encode(Bitmap bitmap, DisplayProfile profile, int jpegQuality = 95)
     {
+        if (jpegQuality is < 1 or > 100) { throw new ArgumentOutOfRangeException(nameof(jpegQuality)); }
         if (profile.WireRotation == 90) { bitmap.RotateFlip(RotateFlipType.Rotate90FlipNone); }
         if (profile.Encoding == PanelPixelEncoding.Jpeg)
         {
             var codec = ImageCodecInfo.GetImageEncoders().Single(item => item.FormatID == ImageFormat.Jpeg.Guid);
-            foreach (var quality in new long[] { 95, 85, 75, 60, 45, 30 })
+            foreach (var quality in new long[] { jpegQuality }.Concat(new long[] { 85, 75, 60, 45, 30, 18, 8 }.Where(value => value < jpegQuality)))
             {
                 using var output = new MemoryStream();
                 using var options = new EncoderParameters(1);

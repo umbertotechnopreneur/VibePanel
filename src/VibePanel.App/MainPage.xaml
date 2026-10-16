@@ -74,7 +74,7 @@ VBWR E -->
                 </Grid>
             </Border>
             <Grid Grid.Column="2">
-                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <Grid Margin="2,2,2,14">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <StackPanel>
@@ -125,6 +125,26 @@ VBWR E -->
                             <TextBlock x:Name="GeometryLabel" Text="DISPLAY" FontSize="9" Margin="0,0,0,6"/>
                             <ComboBox x:Name="ProfilesBox" Width="155" Height="32" DisplayMemberPath="Name" SelectionChanged="Profile_Changed"/>
                         </StackPanel>
+                    </Grid>
+                </Border>
+                <Border x:Name="DisplayFrame" Grid.Row="4" CornerRadius="12" BorderThickness="1" Padding="14,12" Margin="0,10,0,0">
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel Margin="0,0,6,0">
+                            <TextBlock x:Name="DeviceLabel" Text="USB DISPLAY" FontSize="9" Margin="0,0,0,6"/>
+                            <ComboBox x:Name="DevicesBox" Height="32" MinWidth="100" DisplayMemberPath="Name" SelectionChanged="Device_Changed"/>
+                        </StackPanel>
+                        <Button x:Name="RefreshDevicesButton" Grid.Column="1" Content="↻" Click="RefreshDevices_Click" Width="30" Height="32" Margin="0,0,12,0" VerticalAlignment="Bottom" ToolTipService.ToolTip="Find connected displays"/>
+                        <StackPanel Grid.Column="2" Margin="0,0,12,0">
+                            <TextBlock x:Name="RefreshLabel" Text="UPDATE" FontSize="9" Margin="0,0,0,6"/>
+                            <ComboBox x:Name="RefreshBox" Width="94" Height="32" DisplayMemberPath="Name" SelectionChanged="Refresh_Changed"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="3" Margin="0,0,12,0">
+                            <TextBlock x:Name="QualityLabel" Text="JPEG QUALITY" FontSize="9" Margin="0,0,0,6"/>
+                            <ComboBox x:Name="QualityBox" Width="94" Height="32" DisplayMemberPath="Name" SelectionChanged="Quality_Changed"/>
+                        </StackPanel>
+                        <Button x:Name="StartDisplayButton" Grid.Column="4" Content="Show on display" Click="StartDisplay_Click" Height="32" Padding="12,0" Margin="0,0,6,0" VerticalAlignment="Bottom"/>
+                        <Button x:Name="StopDisplayButton" Grid.Column="5" Content="Stop" Click="StopDisplay_Click" Height="32" Padding="12,0" VerticalAlignment="Bottom" IsEnabled="False"/>
                     </Grid>
                 </Border>
             </Grid>

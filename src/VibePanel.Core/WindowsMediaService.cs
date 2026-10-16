@@ -14,6 +14,8 @@ public sealed class WindowsMediaService
     private GlobalSystemMediaTransportControlsSessionManager? manager;
     private string? artworkKey;
     private byte[]? cachedArtwork;
+    private NowPlaying? metadata;
+    private long metadataAt;
 
     private async Task<GlobalSystemMediaTransportControlsSession?> SessionAsync(CancellationToken cancellationToken)
     {
@@ -28,25 +30,31 @@ public sealed class WindowsMediaService
     {
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(3));
         var session = await SessionAsync(deadline.Token);
-        if (session is null) { return NowPlaying.Empty; }
-        var properties = await session.TryGetMediaPropertiesAsync().AsTask(deadline.Token);
-        var key = $"{session.SourceAppUserModelId}\n{properties.Title}\n{properties.Artist}\n{properties.AlbumTitle}";
-        if (key != artworkKey)
+        if (session is null) { metadata = null; cachedArtwork = null; artworkKey = null; return NowPlaying.Empty; }
+        // Metadata/artwork can be expensive. Timeline and cached audio meters still update at the selected rate.
+        if (metadata is null || metadata.Source != session.SourceAppUserModelId || Environment.TickCount64 - metadataAt >= 1000)
         {
-            cachedArtwork = null;
-            if (properties.Thumbnail is not null)
+            var properties = await session.TryGetMediaPropertiesAsync().AsTask(deadline.Token);
+            var key = $"{session.SourceAppUserModelId}\n{properties.Title}\n{properties.Artist}\n{properties.AlbumTitle}";
+            if (key != artworkKey)
             {
-                using var stream = await properties.Thumbnail.OpenReadAsync().AsTask(deadline.Token);
-                if (stream.Size is > 0 and <= 5 * 1024 * 1024)
+                cachedArtwork = null;
+                if (properties.Thumbnail is not null)
                 {
-                    using var reader = new DataReader(stream.GetInputStreamAt(0));
-                    var size = checked((uint)stream.Size);
-                    await reader.LoadAsync(size).AsTask(deadline.Token);
-                    cachedArtwork = new byte[size];
-                    reader.ReadBytes(cachedArtwork);
+                    using var stream = await properties.Thumbnail.OpenReadAsync().AsTask(deadline.Token);
+                    if (stream.Size is > 0 and <= 5 * 1024 * 1024)
+                    {
+                        using var reader = new DataReader(stream.GetInputStreamAt(0));
+                        var size = checked((uint)stream.Size);
+                        await reader.LoadAsync(size).AsTask(deadline.Token);
+                        cachedArtwork = new byte[size];
+                        reader.ReadBytes(cachedArtwork);
+                    }
                 }
+                artworkKey = key;
             }
-            artworkKey = key;
+            metadata = new(properties.Title, properties.Artist, properties.AlbumTitle, session.SourceAppUserModelId, false, cachedArtwork, 0, 0);
+            metadataAt = Environment.TickCount64;
         }
         var timeline = session.GetTimelineProperties();
         var playback = session.GetPlaybackInfo();
@@ -60,8 +68,7 @@ public sealed class WindowsMediaService
             if (double.IsFinite(advanced)) { position = advanced; }
         }
         if (duration > 0) { position = Math.Clamp(position, 0, duration); }
-        return new NowPlaying(properties.Title, properties.Artist, properties.AlbumTitle, session.SourceAppUserModelId,
-            playing, cachedArtwork, position, duration, playback.IsShuffleActive);
+        return metadata with { Playing = playing, PositionSeconds = position, DurationSeconds = duration, Shuffle = playback.IsShuffleActive };
     }
 
     /// <summary>Controls the selected local player only after a user invokes a media command.</summary>

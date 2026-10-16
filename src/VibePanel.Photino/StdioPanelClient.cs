@@ -23,7 +23,8 @@ internal sealed class StdioPanelClient : IPanelClient, IDisposable
     public async Task<T> RequestAsync<T>(string method, object? parameters = null, CancellationToken cancellationToken = default)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lifetime.Token);
-        timeout.CancelAfter(TimeSpan.FromSeconds(25));
+        // Allow the bounded media read (3 s), Python render (12 s) and USB write (10 s), plus IPC overhead.
+        timeout.CancelAfter(TimeSpan.FromSeconds(35));
         await gate.WaitAsync(timeout.Token).ConfigureAwait(false);
         try
         {
