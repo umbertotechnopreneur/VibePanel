@@ -20,6 +20,7 @@ foreach ($target in @(@{ Project = 'Cli'; Folder = $engine }, @{ Project = 'Phot
     if ($LASTEXITCODE -ne 0) { throw "Publish failed: $($target.Project) / $runtime" }
 }
 & (Join-Path $PSScriptRoot 'Bundle-Python.ps1') -Architecture $Architecture -Destination $destination -HostPython $HostPython
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Install-Local.ps1') -Destination (Join-Path $destination 'Install-VibePanel.ps1') -Force
 foreach ($document in @('README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'TRADEMARKS.md', 'PORTABLE.md', 'cave.md', 'lesson.md')) {
     Copy-Item -LiteralPath (Join-Path $repo $document) -Destination $destination -Force
 }

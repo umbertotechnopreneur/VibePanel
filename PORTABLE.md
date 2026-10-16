@@ -6,6 +6,18 @@
 4. Choose a theme. Look at the preview.
 5. Choose your USB screen. Press **Show on display**. Press **Stop** to stop.
 
+## Start when you sign in
+
+From the extracted package, open PowerShell in its folder and run:
+
+```powershell
+.\Install-VibePanel.ps1
+```
+
+It installs that exact package for the current user in `%LOCALAPPDATA%\Umberto Giacobbi.biz\Apps\VibePanel` and creates one managed Windows Startup shortcut. At the next sign-in it opens the VibePanel studio. It does **not** connect to a USB screen or send content until you choose a screen and press **Show on display**.
+
+To remove only the automatic startup, run `./Install-VibePanel.ps1 -DisableStartup` from the same package. The installed files are kept so you can still open VibePanel manually.
+
 ## Make it yours
 
 - **Font**: pick a style of letters. **Custom font** lets you type a name.
