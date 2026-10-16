@@ -12,10 +12,10 @@ def render(c, s):
     c.playback_indicators(1060, 76, 38)
     c.text(s.title, 505, 201, min(53, 64 / s.font_scale), width=710, bold=True)
     c.text(s.artist, 505, 255, min(26, 34 / s.font_scale), s.muted, 710)
-    c.text(s.album, 505, 294, min(17, 23 / s.font_scale), s.muted, 710)
+    c.caption(s.album, 505, 294, width=710)
     c.spectrum(505, 327, 710, 99)
     c.app_volume(87, 420, 280)
     c.progress(505, 438, 710, 4, labels=False)
-    c.text(s.timing(), 1215, 464, min(14, 18 / s.font_scale), s.muted, 340, align="right")
+    c.caption(s.timing(), 1215, 470, width=340, align="right")
     c.footer(width=800)
 # VBWR E

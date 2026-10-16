@@ -5,10 +5,10 @@ def render(c, s):
         return
     c.backdrop("focus")
     c.header("OPENAI CODEX / FOCUS", extended=True)
-    c.text(s.chat_title.upper(), 640, 142, 15, s.accent, 1080, align="center")
-    c.text(s.status, 640, 251, 70, s.signal, 1160, align="center", bold=True)
-    c.text(s.activity_detail(), 640, 314, 24, s.muted, 1120, align="center")
+    c.caption(s.chat_title.upper(), 640, 142, s.accent, 1080, align="center")
+    c.text(s.status, 640, 251, min(70, 86 / s.font_scale), s.signal, 1160, align="center", bold=True)
+    c.text(s.activity_detail(), 640, 316, min(24, 32 / s.font_scale), s.muted, 1120, align="center")
     c.line(572, 368, 708, 368, s.signal, 3, .6)
-    c.text(s.tool or s.event or "No activity received yet", 640, 408, 17, s.muted, 1120, align="center")
+    c.caption(s.tool or s.event or "No activity received yet", 640, 408, s.muted, 1120, align="center")
     c.footer()
 # VBWR E

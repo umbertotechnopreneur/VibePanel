@@ -430,14 +430,32 @@ class Canvas:
             self.native.drawString(value, x + 1, y + 2, font, self.paint("#000000", .55))
         self.native.drawString(value, x, y, font, self.paint(tint or self.ctx.fg))
 
+    def text_size(self, role="caption"):
+        """Readable secondary type in logical pixels; titles keep their own scale.
+
+        Floors intentionally protect instrument labels when fontScale is reduced.
+        Caps reserve a predictable slot at the largest supported user setting.
+        """
+        base, minimum, maximum = {
+            "instrument": (16, 16, 18),
+            "caption": (18, 16, 22),
+            "body": (20, 18, 26),
+        }[role]
+        return clip(base * self.ctx.font_scale, minimum, maximum) / self.ctx.font_scale
+
+    def caption(self, value, x, y, tint=None, width=None, align="left", bold=False):
+        self.text(value, x, y, self.text_size("caption"), tint or self.ctx.muted,
+                  width, align=align, bold=bold)
+
     def label(self, value, x, y, width=None, tint=None):
-        self.text(str(value).upper(), x, y, 13, tint or self.ctx.muted, width)
+        self.caption(str(value).upper(), x, y, tint, width)
 
     def header(self, name=None, extended=False):
         if self.compact:
-            self.label(name or self.ctx.category, 24, 28, 150)
-            self.text(self.ctx.now.strftime("%H:%M"), 456, 30, min(22, 28 / self.ctx.font_scale), align="right")
-            self.text(self.ctx.now.strftime("%d %b %Y"), 456, 54, 11, self.ctx.muted, align="right")
+            self.label(name or self.ctx.category, 24, 28, 245)
+            self.text(self.ctx.now.strftime("%H:%M"), 456, 30,
+                      clip(22 * self.ctx.font_scale, 22, 28) / self.ctx.font_scale, align="right")
+            self.caption(self.ctx.now.strftime("%d %b %Y"), 456, 59, width=280, align="right")
         else:
             self.label(name or self.ctx.category, 40, 35, 370)
             self.text(self.ctx.now.strftime("%H:%M"), 1240, 42, 28, align="right")
@@ -449,7 +467,7 @@ class Canvas:
                 if extended:
                     date = days[self.ctx.now.weekday()] + " " + date
             date_right = 1240 - 170 * self.ctx.font_scale
-            self.text(date.upper(), date_right, 39, 13, self.ctx.muted, date_right - 450, align="right")
+            self.caption(date.upper(), date_right, 39, width=date_right - 450, align="right")
 
     def backdrop(self, style="aurora", artwork=None):
         ctx = self.ctx
@@ -614,16 +632,16 @@ class Canvas:
             if fill > .5:
                 self.gradient(x, y, fill, height, [self.ctx.accent, blend(self.ctx.palette[1], self.ctx.fg, .35)], radius=height / 2)
         if labels:
-            self.text(duration(self.ctx.position), x, y + 29, 14, self.ctx.muted)
-            self.text(duration(self.ctx.length) if self.ctx.length else "—", x + width, y + 29, 14, self.ctx.muted, align="right")
+            self.caption(duration(self.ctx.position), x, y + 31)
+            self.caption(duration(self.ctx.length) if self.ctx.length else "—", x + width, y + 31, align="right")
 
     def vu(self, x, y, width=190, height=18, label=True):
         peak = self.ctx.peak
         if peak is None:
-            self.text("LEVEL —", x, y + height, min(12, height), self.ctx.muted, width)
+            self.caption("LEVEL —", x, y + height, width=width)
             if label:
                 value = f"{clip(self.ctx.volume, 0, 100):.0f}%" if self.ctx.volume is not None else "—"
-                self.text(value, x + width + 16, y + height, 17, self.ctx.fg)
+                self.text(value, x + width + 16, y + height, self.text_size("caption"), self.ctx.fg)
             return
         normalized = clip((20 * math.log10(max(.001, number(peak))) + 60) / 60) if peak is not None else 0
         count = max(8, min(48, int(width / 9)))
@@ -633,21 +651,21 @@ class Canvas:
                       1 if index / count < normalized else .18)
         if label:
             value = f"{clip(self.ctx.volume, 0, 100):.0f}%" if self.ctx.volume is not None else "—"
-            self.text(value, x + width + 16, y + height, 17, self.ctx.fg)
+            self.text(value, x + width + 16, y + height, self.text_size("caption"), self.ctx.fg)
 
     def app_volume(self, x, y, width=180, stacked=False):
         """The media application's gain setting, never the system-output meter."""
         value = optional_number(self.ctx.volume)
         value = f"{clip(value, 0, 100):.0f}%" if value is not None else "—"
-        small = min(11, 12 / self.ctx.font_scale)
-        self.text("APP VOLUME", x, y, small, self.ctx.muted, width if stacked else width - 62)
-        self.text(value, x if stacked else x + width, y + 29 if stacked else y,
-                  min(25, 31 / self.ctx.font_scale) if stacked else min(16, 20 / self.ctx.font_scale),
-                  width=width if stacked else 58, align="left" if stacked else "right", bold=stacked)
+        label_width = width if stacked else width - 82
+        self.caption("APP VOL" if label_width < 140 else "APP VOLUME", x, y, width=label_width)
+        self.text(value, x if stacked else x + width, y + 36 if stacked else y,
+                  min(25, 31 / self.ctx.font_scale) if stacked else self.text_size("body"),
+                  width=width if stacked else 72, align="left" if stacked else "right", bold=stacked)
 
     def playback_indicators(self, x, y, size=36):
         """Large read-only glyphs, drawn locally without icon fonts or controls."""
-        caption = min(10, 11 / self.ctx.font_scale)
+        caption = self.text_size("instrument")
         tint = self.ctx.accent if self.ctx.playing else self.ctx.fg
         if not self.ctx.has_media or (not self.ctx.playing and self.ctx.playback_state != "paused"):
             self.circle(x + size / 2, y + size / 2, size * .42, self.ctx.muted, .6, 2)
@@ -658,9 +676,11 @@ class Canvas:
         else:
             self.rect(x + size * .20, y + size * .12, size * .20, size * .76, tint, 2)
             self.rect(x + size * .60, y + size * .12, size * .20, size * .76, tint, 2)
-        self.text(self.ctx.playback_status(), x + size / 2, y + size + 17, caption,
-                  self.ctx.muted, 82, align="center")
-        left = x + size + 52
+        status = {"NO SESSION": "NO MEDIA", "NOT PLAYING": "INACTIVE"}.get(
+            self.ctx.playback_status(), self.ctx.playback_status())
+        self.text(status, x + size / 2, y + size + 23, caption,
+                  self.ctx.muted, 96, align="center")
+        left = x + size + 62
         active = self.ctx.shuffle is True
         known = self.ctx.shuffle is not None
         tint = self.ctx.accent if active else self.ctx.muted
@@ -677,28 +697,33 @@ class Canvas:
                           (left + size * .77, y + size * (bottom - .16)),
                           (left + size * .77, y + size * (bottom + .16))], tint, opacity)
         state = "ON" if active else "OFF" if known else "—"
-        self.text("SHUFFLE " + state, left + size / 2, y + size + 17, caption,
-                  tint, 82, align="center")
+        self.text("SHFL " + state, left + size / 2, y + size + 23, caption,
+                  tint, 96, align="center")
 
     def spectrum(self, x, y, width, height=130):
         """Measured 32-band log-frequency spectrum. No input means no bars."""
         analysis = self.ctx.analysis
-        small = min(10, 11 / self.ctx.font_scale)
-        self.text(analysis.caption(), x, y + 11, small, self.ctx.muted, width - 52)
-        self.text("dBFS", x + width, y + 11, small, self.ctx.muted, 45, align="right")
-        left, top = x + 27, y + 26
-        plot_width, plot_height = width - 27, height - 47
+        small = self.text_size("instrument")
+        # Keep the source name and units readable; omit optional FFT metadata in
+        # narrow slots instead of shrinking the source into an eight-pixel label.
+        heading = analysis.caption() if width >= 600 else "SYSTEM OUTPUT"
+        self.text(heading, x, y + 17, small, self.ctx.muted, width - 65)
+        self.text("dBFS", x + width, y + 17, small, self.ctx.muted, 58, align="right")
+        left, top = x + 41, y + 38
+        plot_width, plot_height = width - 41, height - 65
         bottom = top + plot_height
-        for level in (-60, -30, 0):
+        for level in ((-60, -30, 0) if plot_height >= 54 else (-60, 0)):
             line_y = bottom - (level + 60) / 60 * plot_height
             self.line(left, line_y, x + width, line_y, self.ctx.fg, opacity=.13)
-            self.text(str(level), left - 6, line_y + 3, min(8, 9 / self.ctx.font_scale),
-                      self.ctx.muted, 23, align="right")
+            self.text(str(level), left - 8, line_y + 5, small,
+                      self.ctx.muted, 33, align="right")
         if not analysis.bands:
-            self.text("Spectrum unavailable", left + plot_width / 2, top + plot_height * .48,
-                      min(14, 16 / self.ctx.font_scale), self.ctx.muted, plot_width - 16, align="center")
-            self.text(analysis.status, left + plot_width / 2, top + plot_height * .48 + 18,
+            baseline = top + plot_height / 2 + 6
+            self.text("Spectrum unavailable", left + plot_width / 2, baseline,
                       small, self.ctx.muted, plot_width - 16, align="center")
+            if plot_height >= 70:
+                self.text(analysis.status, left + plot_width / 2, baseline + 25,
+                          small, self.ctx.muted, plot_width - 16, align="center")
             return
         logs = [math.log10(value) for value in analysis.frequencies]
         low, high = logs[0] - (logs[1] - logs[0]) / 2, logs[-1] + (logs[-1] - logs[-2]) / 2
@@ -724,7 +749,7 @@ class Canvas:
         for frequency in (100, 1000, 10000):
             if analysis.frequencies[0] < frequency < analysis.frequencies[-1]:
                 label_x = left + (math.log10(frequency) - low) / span * plot_width
-                if label_x - last_x >= 42 and final_x - label_x >= 60:
+                if label_x - last_x >= 62 and final_x - label_x >= 92:
                     labels.append((frequency, label_x, "center"))
                     last_x = label_x
         labels.append((analysis.frequencies[-1], final_x, "right"))
@@ -732,25 +757,29 @@ class Canvas:
             value = f"{frequency / 1000:.3g}k" if frequency >= 1000 else f"{frequency:.3g}"
             if align == "right":
                 value += " Hz"
-            self.text(value, label_x, y + height - 4, small, self.ctx.muted, 64 if align == "right" else 45, align=align)
+            self.text(value, label_x, y + height - 4, small, self.ctx.muted, 88 if align == "right" else 58, align=align)
 
     def stereo_vu(self, x, y, width, height=100):
         """RMS fill, instantaneous peak line and provider peak-hold marker."""
         analysis = self.ctx.analysis
-        small = min(10, 11 / self.ctx.font_scale)
-        numerical_width = 175 if width >= 600 else 145
-        meter_x = x + 23
-        meter_width = width - numerical_width - 37
-        title = "SYSTEM OUTPUT" + (" · FRONT L/R" if analysis.channels > 2 else "")
-        self.text(title, x, y + 11, small, self.ctx.muted, width - numerical_width - 12)
-        self.text("RMS / PK / HOLD · dBFS", x + width, y + 11,
-                  min(8, 9 / self.ctx.font_scale), self.ctx.muted, numerical_width, align="right")
-        row_height = (height - 38) / 2
+        small = self.text_size("instrument")
+        numerical_width = 204
+        column_width = numerical_width / 3
+        meter_x = x + 25
+        meter_width = width - numerical_width - 41
+        title = "SYSTEM OUTPUT" if width >= 420 else "SYSTEM MIX"
+        if analysis.channels > 2:
+            title = "SYSTEM · FRONT L/R" if width >= 600 else "FRONT L/R"
+        self.text(title, x, y + 17, small, self.ctx.muted, width - numerical_width - 12)
+        for column, name in enumerate(("RMS", "PK", "HOLD")):
+            self.text(name, x + width - numerical_width + (column + 1) * column_width,
+                      y + 17, small, self.ctx.muted, column_width - 6, align="right")
+        row_height = (height - 52) / 2
         bar_height = min(18, row_height * .63)
         for index, channel in enumerate(("L", "R")):
-            bar_y = y + 23 + index * row_height
+            bar_y = y + 31 + index * row_height
             baseline = bar_y + bar_height - 1
-            self.text(channel, x, baseline, small, self.ctx.muted, 15)
+            self.text(channel, x, baseline, small, self.ctx.muted, 18)
             self.rect(meter_x, bar_y, meter_width, bar_height, self.ctx.fg, 3, .09)
             rms = analysis.display_rms[index]
             if rms is not None and rms > -60:
@@ -767,20 +796,22 @@ class Canvas:
             if hold is not None and hold >= -60:
                 hold_x = meter_x + clip((hold + 60) / 60) * meter_width
                 self.line(hold_x, bar_y - 3, hold_x, bar_y + bar_height + 3, self.ctx.fg, 2)
-            values = " / ".join(db_label(value) for value in (analysis.rms[index], analysis.peaks[index], analysis.holds[index]))
-            self.text(values, x + width, baseline, small, self.ctx.fg, numerical_width, align="right")
-        for level in ((-60, -30, -12, 0) if meter_width >= 280 else (-60, -30, 0)):
+            for column, value in enumerate((analysis.rms[index], analysis.peaks[index], analysis.holds[index])):
+                self.text(db_label(value), x + width - numerical_width + (column + 1) * column_width,
+                          baseline, small, self.ctx.fg, column_width - 6, align="right")
+        ticks = (-60, -30, -12, 0) if meter_width >= 330 else (-60, -30, 0) if meter_width >= 170 else (-60, 0)
+        for level in ticks:
             tick_x = meter_x + (level + 60) / 60 * meter_width
-            self.line(tick_x, y + height - 17, tick_x, y + height - 14, self.ctx.muted, opacity=.5)
+            self.line(tick_x, y + height - 23, tick_x, y + height - 20, self.ctx.muted, opacity=.5)
             align = "left" if level == -60 else "right" if level == 0 else "center"
-            self.text(str(level), tick_x, y + height - 3, min(8, 9 / self.ctx.font_scale),
-                      self.ctx.muted, 30, align=align)
+            self.text(str(level), tick_x, y + height - 3, small,
+                      self.ctx.muted, 34, align=align)
         if not analysis.available:
-            self.text("UNAVAILABLE", x + width, y + height - 3, small, self.ctx.muted,
-                      numerical_width, align="right")
-        elif analysis.status and analysis.status != "Live":
-            self.text(analysis.status, x + width, y + height - 3, min(8, 9 / self.ctx.font_scale),
-                      self.ctx.muted, numerical_width, align="right")
+            summary = "UNAVAILABLE · dBFS"
+        else:
+            summary = "dBFS" + (" · " + analysis.status if analysis.status and analysis.status != "Live" else "")
+        self.text(summary, x + width, y + height - 3, small, self.ctx.muted,
+                  numerical_width, align="right")
 
     def ring(self, x, y, radius, value=None, tint=None, stroke=4, marker=False):
         self.circle(x, y, radius, self.ctx.fg, .13, stroke)
@@ -796,7 +827,7 @@ class Canvas:
         text = text or ("DEMO DATA · PREVIEW" if self.ctx.preview else "VIBE PANEL")
         if self.ctx.preview and not text.startswith("DEMO DATA"):
             text = "DEMO DATA · PREVIEW · " + text
-        self.label(text, 24 if self.compact else 40, 461, width or self.width - 80)
+        self.label(text, 24 if self.compact else 40, 470, width or self.width - 80)
 
     def media_text(self, x, y, width, title_size=44, album=True):
         # Keep a fixed-height title slot even with the font-size override.
@@ -806,7 +837,7 @@ class Canvas:
         self.text(self.ctx.title, x, y + 12, safe_title_size, width=width, bold=True)
         self.text(self.ctx.artist, x, y + 57, safe_artist_size, self.ctx.muted, width)
         if album and self.ctx.album:
-            self.text(self.ctx.album, x, y + 92, 17, self.ctx.muted, width)
+            self.caption(self.ctx.album, x, y + 92, width=width)
 
     def status_symbol(self, x, y, radius=60):
         self.circle(x, y, radius, self.ctx.signal, .13)
@@ -826,16 +857,16 @@ class Canvas:
     def activity_rows(self, x, y, width, row_height=64, limit=4):
         events = self.ctx.events()[-limit:]
         if not events:
-            self.text("No activity received yet", x, y + 24, 19, self.ctx.muted, width)
+            self.text("No activity received yet", x, y + 24, self.text_size("body"), self.ctx.muted, width)
             return
         for index, item in enumerate(events):
             top = y + index * row_height
             self.circle(x + 6, top + 8, 4, self.ctx.signal, 1 if index == len(events) - 1 else .4)
             if index < len(events) - 1:
                 self.line(x + 6, top + 15, x + 6, top + row_height - 6, self.ctx.signal, 1, .3)
-            self.text(item.get("status") or item.get("event"), x + 26, top + 15, 20, width=width - 35)
+            self.text(item.get("status") or item.get("event"), x + 26, top + 19, self.text_size("body"), width=width - 35)
             detail = item.get("tool") or item.get("toolKind") or item.get("event")
-            self.text(detail, x + 26, top + 38, 12, self.ctx.muted, width - 35)
+            self.caption(detail, x + 26, top + 47, width=width - 35)
 
     def compact_media(self, variant):
         self.backdrop(variant)
@@ -845,15 +876,16 @@ class Canvas:
                    circular=circular)
         if circular:
             self.ring(86, 137, 69, self.ctx.progress, stroke=2)
-        self.text(self.ctx.title, 164, 107, min(23, 30 / self.ctx.font_scale), width=292, bold=True)
-        self.text(self.ctx.artist, 164, 141, min(16, 21 / self.ctx.font_scale), self.ctx.muted, 292)
-        self.text(self.ctx.album, 164, 168, min(11, 15 / self.ctx.font_scale), self.ctx.muted, 292)
-        self.text(self.ctx.timing(), 24, 223, min(11, 12 / self.ctx.font_scale), self.ctx.muted, 132)
+        self.text(self.ctx.title, 164, 107, clip(25 * self.ctx.font_scale, 24, 32) / self.ctx.font_scale,
+                  width=292, bold=True)
+        self.text(self.ctx.artist, 164, 141, self.text_size("body"), self.ctx.muted, 292)
+        self.caption(self.ctx.album, 164, 168, width=292)
+        self.text(self.ctx.timing(), 24, 223, self.text_size("instrument"), self.ctx.muted, 132)
         self.playback_indicators(178, 184, 29)
-        self.app_volume(348, 189, 108, stacked=True)
-        self.spectrum(24, 245, 432, 88)
-        self.stereo_vu(24, 347, 432, 85)
-        self.progress(24, 439, 432, 4, labels=False)
+        self.app_volume(348, 195, 108, stacked=True)
+        self.spectrum(24, 245, 432, 90)
+        self.stereo_vu(24, 339, 432, 98)
+        self.progress(24, 444, 432, 3, labels=False)
         self.footer()
 
     def compact_codex(self, variant):
@@ -861,12 +893,14 @@ class Canvas:
         self.header("CODEX / " + variant)
         if variant in ("beacon", "pulse", "approval", "quiet"):
             self.status_symbol(240, 150, 64)
-            self.text(self.ctx.status, 240, 261, 29, self.ctx.signal, 432, align="center", bold=True)
-            self.text(self.ctx.chat_title, 240, 303, 20, width=432, align="center")
-            self.text(self.ctx.activity_detail(), 240, 343, 14, self.ctx.muted, 432, align="center")
+            self.text(self.ctx.status, 240, 261, clip(29 * self.ctx.font_scale, 28, 42) / self.ctx.font_scale,
+                      self.ctx.signal, 432, align="center", bold=True)
+            self.text(self.ctx.chat_title, 240, 307, self.text_size("body"), width=432, align="center")
+            self.caption(self.ctx.activity_detail(), 240, 349, width=432, align="center")
         else:
-            self.text(self.ctx.chat_title, 24, 110, 25, width=432, bold=True)
-            self.text(self.ctx.status, 24, 154, 25, self.ctx.signal, 432)
+            title_size = clip(25 * self.ctx.font_scale, 24, 34) / self.ctx.font_scale
+            self.text(self.ctx.chat_title, 24, 110, title_size, width=432, bold=True)
+            self.text(self.ctx.status, 24, 154, title_size, self.ctx.signal, 432)
             self.activity_rows(24, 211, 420, 66, 3)
         self.line(24, 422, 456, 422, self.ctx.fg, opacity=.12)
         self.footer(self.ctx.activity_detail())

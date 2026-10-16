@@ -89,7 +89,21 @@ Each Codex theme has its own color anchors, tinted 22% by the desktop samples: b
 
 Backgrounds, curves, glow and shadows are cached; optional drift moves an existing layer at one logical pixel per second in a ping-pong motion. The worker retains up to four decoded covers, twelve static layers and ninety-six fonts. It never loops over frame pixels in Python. Background rebuilds depend on artwork, theme, appearance, palette or the semantic status color, not on every clock tick.
 
-Fonts use the selected installed family with the platform monospace fallback. A pack does not ship proprietary fonts or artwork. Light/dark and font scale 0.65–1.6 apply to every theme. The helper reserves fixed slots, caps dense instrument labels and truncates long text; elaborate scripts can use other layouts or assets. Read-only shuffle is ON/OFF only for a provider boolean and an em dash when unknown. Playback shows a triangle while playing and pause bars only when optional `media.playbackStatus` explicitly says `Paused`. Stopped, closed, missing sessions and an unspecified non-playing state use a neutral symbol with the corresponding label. Source quality is omitted while unavailable.
+Fonts use the selected installed family with the platform monospace fallback. A pack does not ship proprietary fonts or artwork. Light/dark and font scale 0.65–1.6 apply to every theme. Read-only shuffle is ON/OFF only for a provider boolean and an em dash when unknown. Playback shows a triangle while playing and pause bars only when optional `media.playbackStatus` explicitly says `Paused`. Stopped, closed, missing sessions and an unspecified non-playing state use a neutral symbol with the corresponding label. Source quality is omitted while unavailable.
+
+### Readable small type
+
+All twenty themes share three secondary type roles in logical canvas pixels:
+
+| Role | Default | Range with font scale |
+| --- | ---: | ---: |
+| Instrument: FFT scales, dBFS, RMS/PK/HOLD, state captions | 16 | 16–18 |
+| Caption: source, album, date, footer, event details | 18 | 16–22 |
+| Body: supporting text | 20 | 18–26 |
+
+`canvas.caption(value, x, y, tint=None, width=None, align="left")` uses the caption role. `canvas.text_size("instrument" | "caption" | "body")` supplies a compensated size for `canvas.text(...)`; it must not be multiplied by the user scale again. The floors protect small labels when the user reduces font scale, while caps reserve predictable vertical space. Titles keep their own separate size and cap instead of inheriting a global enlargement.
+
+The spectrum reserves 41 pixels for its dBFS labels and 27 pixels below the plot. Short plots show 0/-60 only; taller plots add -30. Frequency ticks use fewer labels when needed, never smaller text. Narrow headings keep SYSTEM OUTPUT and omit optional sample-rate/FFT metadata. Stereo meters retain all three numeric columns at the instrument size, with separate RMS/PK/HOLD headings; short strips have been given more height. SYSTEM MIX in narrow VU panels means the same full playback mix, not app gain. The compact layout keeps these same readable roles. Long custom-font labels can still use ellipsis; exact appearance and physical readability require a separately authorized visual check.
 
 `jpegQuality` accepts `low`, `medium` or `high`, with initial JPEG qualities 50, 75 and 90. Omitting it selects `high`; unsupported values are rejected. Quality is reduced adaptively from the selected target, down to 8 if needed, to stay at or below 450,000 bytes without changing physical resolution. If even the lowest quality exceeds the cap, the worker reports it. This controls JPEG compression, not the audio source quality, and does not guarantee a refresh rate or validate any USB device.
 

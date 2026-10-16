@@ -5,7 +5,7 @@ def render(c, s):
         return
     c.backdrop("flow")
     c.header("OPENAI CODEX / FLOW", extended=True)
-    c.text(s.chat_title, 40, 104, 24, width=1180, bold=True)
+    c.text(s.chat_title, 40, 104, min(24, 32 / s.font_scale), width=1180, bold=True)
     events = s.events()
     for index in range(4):
         x = 160 + index * 320
@@ -21,12 +21,12 @@ def render(c, s):
             c.circle(x, 205, 21, s.fg, .6, 2)
             c.circle(x, 205, 7, s.fg, .95)
             c.text(event.get("status") or event.get("event"), x, 279, min(21, 28 / s.font_scale), width=280, align="center", bold=True)
-            c.text(event.get("tool") or event.get("event"), x, 313, 12, s.muted, 278, align="center")
+            c.caption(event.get("tool") or event.get("event"), x, 318, s.muted, 278, align="center")
         else:
             c.circle(x, 205, 41, s.muted, .45, 1.5)
             c.line(x - 10, 205, x + 10, 205, s.muted, 3, .6)
-            c.text("No event yet", x, 279, 18, s.muted, 280, align="center")
-    c.label("CURRENT STATUS", 40, 364, 1120)
-    c.text(s.status, 40, 416, min(38, 52 / s.font_scale), s.signal, 1160, bold=True)
+            c.text("No event yet", x, 279, c.text_size("body"), s.muted, 280, align="center")
+    c.label("CURRENT STATUS", 40, 360, 1120)
+    c.text(s.status, 40, 418, min(38, 46 / s.font_scale), s.signal, 1160, bold=True)
     c.footer(s.event or "WAITING FOR CODEX")
 # VBWR E

@@ -9,9 +9,9 @@ def render(c, s):
     c.cover(56, 86, 286, radius=2)
     c.media_text(400, 177, 812, 50)
     c.playback_indicators(80, 383, 36)
-    c.app_volume(973, 292, 239)
+    c.app_volume(973, 295, 239)
     c.spectrum(400, 310, 812, 92)
     c.progress(400, 422, 812, 5, labels=False)
-    c.text(s.timing(), 1212, 464, min(14, 18 / s.font_scale), s.muted, 340, align="right")
+    c.caption(s.timing(), 1212, 470, width=340, align="right")
     c.footer(s.source, width=800)
 # VBWR E

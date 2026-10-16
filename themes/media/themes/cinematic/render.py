@@ -13,6 +13,6 @@ def render(c, s):
     c.text(s.title, 640, 332, min(43, 52 / s.font_scale), width=1160, align="center", bold=True)
     c.text(s.artist, 640, 373, min(24, 30 / s.font_scale), s.muted, 1100, align="center")
     c.progress(40, 405, 1200, 5, labels=False)
-    c.text(s.timing(), 640, 436, min(14, 18 / s.font_scale), s.muted, 600, align="center")
+    c.caption(s.timing(), 640, 436, width=600, align="center")
     c.footer(s.source)
 # VBWR E

@@ -14,8 +14,8 @@ def render(c, s):
     c.panel(491, 115, 714, 265, radius=26)
     c.label(s.chat_title, 527, 155, 640)
     c.text(s.status, 527, 223, min(44, 58 / s.font_scale), s.signal, 640, bold=True)
-    c.text(s.activity_detail(), 527, 270, 20, s.muted, 640)
-    c.line(527, 307, 1168, 307, s.fg, opacity=.12)
-    c.label(s.model or s.event or "WAITING FOR EVENTS", 527, 344, 640)
+    c.text(s.activity_detail(), 527, 279, c.text_size("body"), s.muted, 640)
+    c.line(527, 313, 1168, 313, s.fg, opacity=.12)
+    c.label(s.model or s.event or "WAITING FOR EVENTS", 527, 352, 640)
     c.footer()
 # VBWR E
