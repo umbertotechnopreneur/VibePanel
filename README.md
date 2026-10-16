@@ -1,79 +1,75 @@
-# VibePanel
+# Vibe Panel
 
-I wanted to use my small Thermalright USB display without leaving TRCC and a full hardware-monitoring stack running all day. So I started VibePanel: a small Windows app and CLI that talk to the panel directly.
+My music. My workspace. My screen.
 
-VibePanel is part of [VibeWare](https://umbertogiacobbi.biz/vibeware/manifesto), my personal open-source initiative. I keep it understandable, local, and modest.
+I'm [Umberto Giacobbi](https://umbertogiacobbi.biz). I wasn't happy with TRCC, the software that came with my little Thermalright display. So, as usual, I decided to make my own.
 
-## What it does
+I started **Vibe Panel** as a week-long holiday hobby project. I build it with AI assistance, make the decisions, and keep the source open. It is an early preview, not a commercial promise: **no warranty, no guaranteed support, and no claim that every panel works**.
 
-- An OpenSilver Modern-theme + Photino screen viewer and a branded `vp` CLI/engine, connected through versioned JSON Lines on stdin/stdout. No listening network port. Light, dark and automatic day/night modes; monospace typography throughout.
-- Spotify track, artist and artwork through local Windows media sessions; playback controls without an API key or login. If Spotify is absent, the current Windows player is used.
-- Read-only per-session app volume percentages and gradient VU meters. No volume controls or microphone capture.
-- Eight layouts, five in the default 20-second rotation, with a short crossfade. Freeze one whenever needed.
-- Music pages use artwork-derived color blobs and a cached, soft cover shadow with a 16-pixel logical offset, tinted from the mean color of the most common quantized cover-color group. Other pages average four wallpaper regions. Optional ambient drift moves the cached background at a nominal 1 pixel/second in low-rate snapshots, without re-sampling or re-blurring. Restart after changing wallpaper; derived-color caches contain no raw artwork or song log.
-- Network download/upload rates and totals since engine start, with a dedicated screen. Adapter counters can overlap on VPN/bridges; they are not billing totals.
-- CPU usage; NVIDIA GPU usage/temperature through the installed NVML driver. CPU temperature is optional through an already-running LibreHardwareMonitor/OpenHardwareMonitor WMI provider. Missing sensors show `—`. No sensor suite or driver is installed.
-- Native HID discovery for Thermalright `0416:5302`, with optional WinUSB discovery for exposed vendor interfaces.
-- A device-info handshake that detects the screen profile. No background service or startup registration.
-- RGB565 and JPEG profiles, local image display, and saved profile/rotation choices.
-- Optional one-frame-per-second playback: the still image is encoded once and reused.
+## What's here
 
-I confirmed the first physical render on my panel on 2026-10-15: native Windows HID, PM `0x80`, SUB `0x01`, 1280 x 480 JPEG. During an approved 20-second trial at 1 fps, the labelled chart and its red, green, blue, and white bars displayed correctly. The new dashboard/fades, other panels, arbitrary-image playback and reconnection after changing cables have not been validated on physical hardware.
+- A simple **OpenSilver Modern + Photino** theme viewer: category, theme, preview, font and size. Light, dark or automatic day/night appearance.
+- **10 Multimedia themes** and **10 OpenAI Codex themes**, discovered from folders. Each theme is Python drawing on an offscreen Skia canvas; the renderer does not use a browser.
+- Generic Windows media sessions: title, artist, cover, position and available shuffle state. **No Spotify API, account or direct integration.** Volume and VU are read-only.
+- Artwork-colored blur and a tinted 16-pixel cover shadow; wallpaper-derived palettes, cached backgrounds, and an optional slow drift.
+- A separate .NET 10 engine and `vp` CLI, connected to the viewer through stdin/stdout. No local HTTP server, telemetry, startup service or sensor installation.
+- An optional local Codex hook plugin. Theme packs do not install or enable it.
 
-The earlier WinUI prototype demonstration displayed live Spotify metadata/artwork, audio sessions, CPU usage and RTX 4060 usage/temperature. CPU temperature had no provider and remained unavailable. It preceded the OpenSilver migration and read-only VU revision: it is not validation of the new UI. No tests have been executed for this migration.
+The viewer requests updates once a second. That is an update policy, **not a measured CPU or physical refresh-rate guarantee**. Missing data stays unavailable. I am keeping hardware monitoring secondary.
 
-## CLI
+## Try it
 
-```powershell
-vp help
-vp dashboard
-vp dashboard --watch
-vp dashboard --export frame.jpg
-vp scenes
-vp media toggle
-vp volumes
-vp discover
-vp profiles
-vp probe 1
-vp pattern 1 auto
-vp image 1 "C:\Pictures\panel.png"
-vp play 1 "C:\Pictures\panel.png" --seconds 20
-vp settings --profile auto --rotate 0
-```
-
-`vp dashboard --device 1` explicitly starts the five-screen USB rotation. Add `--scene Artwork` to hold one layout, or `--profile wide-1280x480` to override detection. Ctrl+C stops. A disconnect stops the dashboard with an error; it does not silently switch devices. `--export` saves a JPEG without opening USB and never overwrites an existing file.
-
-The eight scene IDs are `Music`, `Artwork`, `Mixer`, `System`, `Clock`, `TrackDetails`, `VolumeFocus`, and `Network`. The optional five-screen rotation is Music → Artwork → Mixer → System → Network. The desktop preview crossfades over 650 ms; USB transitions use five intermediate blended frames plus the destination. USB timing depends on the panel/transport, not a promised frame rate. Dashboard snapshots refresh every two seconds. Encoded frames are reused until visible values change; enabling ambient drift adds low-rate frame updates on otherwise static scenes. The clock updates by the minute.
-
-`discover` only enumerates devices. `probe` requests device information. `pattern`, `image`, `hold`, and `play` send to the physical screen. `play` stops with Ctrl+C and waits for the same panel path if it disconnects. No app is registered to start automatically.
-
-The desktop app is deliberately just a large screen preview and navigator: previous/next, scene, geometry, optional rotation and ambient drift. Page Up/Page Down also switch screens. There are no media buttons, volume controls, duplicated status cards or USB Start button in the viewer. All physical panel commands remain explicit CLI/engine operations. Auto theme uses local PC time: light from 07:00 to 19:00, dark otherwise; manual overrides are saved. Settings and cached backgrounds stay under `%LOCALAPPDATA%\VibePanel`; no song history or audio is recorded. Scene choices are session-only; CLI profile/rotation/image settings remain persistent.
-
-The presentation references only [the portable contract](src/VibePanel.Contracts/PanelContract.cs); USB, JPEG rendering, Windows media and sensor access remain in the native engine. See [the JSON protocol](docs/engine-protocol.md). [OpenSilver's Photino launcher](https://doc.opensilver.net/documentation/general/photino-launcher.html) avoids MAUI/Catalyst. Linux/macOS native providers remain pending; portable UI compilation is not full hardware support.
-
-## Build
+Build the portable ZIP, extract the whole folder, then run **`VibePanel.exe`**. The Windows package includes .NET, Python and the theme dependencies. WebView2 is required; I do not install it automatically.
 
 ```powershell
 dotnet restore .\VibePanel.slnx
 dotnet build .\VibePanel.slnx --configuration Release --no-restore
-dotnet run --project .\src\VibePanel.Cli -- discover
 ./scripts/Publish.ps1 -Architecture x64
 ```
 
-Portable ZIP: `artifacts/packages/VibePanel-win-x64-preview.zip`. Extract it and run `VibePanel.exe`, or `engine/vp.exe help`. The .NET runtime is included; Windows WebView2 Evergreen is required and not auto-installed. Keep the whole folder. Use `-Architecture ARM64` for Windows ARM64. There is no installer, release tag or published release yet. CI builds/packages Windows x64/ARM64 and compiles the Linux UI only; it never executes tests. See [portable notes](PORTABLE.md).
+Output: `artifacts/packages/VibePanel-win-x64-preview.zip`. For Windows ARM64 use `-Architecture ARM64`. These are local preview packages, not a published release.
 
-Codex hook integration is a future opt-in adapter, not installed by this preview. No Codex configuration, hook trust, or Python environment is modified.
+Inside the extracted folder:
 
-## Protocol and scope
+```powershell
+./engine/vp.exe help
+./engine/vp.exe themes
+./engine/vp.exe theme media.aurora --export my-frame.jpg
+./engine/vp.exe theme media.editorial --export my-light-frame.jpg --light --font "Consolas" --font-scale 1.1
+```
 
-My connected panel advertises USB ID `0416:5302`. Its HID interface exposes 513-byte output reports and 37-byte input reports, including the Windows report ID. VibePanel uses that native interface without changing drivers or registry entries.
+The viewer is **preview-only**. Sending a theme to hardware is a separate, explicit command: `vp theme media.aurora --device 1 --profile auto --seconds 20`. It probes and writes to the selected display; it is not a preview command.
 
-I wrote the C# implementation independently, using protocol documentation and comparison with the open-source Linux implementation. I did not copy GPL implementation code. The evidence and limits are in [the protocol notes](docs/protocol-notes.md).
+See [portable setup](PORTABLE.md), [theme packs](docs/theme-packs.md), [the engine contract](docs/engine-protocol.md), and [the optional Codex plugin](plugins/vibepanel-codex/README.md).
 
-## Contributing
+## Honest limits
 
-I welcome issues and pull requests. `main` is protected: I review the final change before it lands. Please read [AGENTS.md](AGENTS.md) before changing code, and keep physical-device behaviour clearly marked until it has been observed.
+My earlier labelled JPEG chart worked on one Thermalright 1280 × 480 HID panel. That does not validate these new themes, every device, or Linux/macOS hardware support. Windows has the native providers today; a portable UI build is not cross-platform USB/media support.
 
-## License
+I record current limitations in [cave.md](cave.md), decisions in [lesson.md](lesson.md), and protocol evidence in [the protocol notes](docs/protocol-notes.md). Compilation, image rendering and a physical-device trial are different kinds of evidence.
 
-VibePanel source code is [MIT licensed](LICENSE). The VibePanel and VibeWare names and visual identity are not part of that grant; see [TRADEMARKS.md](TRADEMARKS.md).
+## Contributing and license
+
+I welcome issues and pull requests. `main` is protected, and I keep final control over what lands. Read [AGENTS.md](AGENTS.md) before changing code. Tests and hardware trials need my approval before each execution.
+
+I publish the source under the [MIT License](LICENSE), copyright © 2026 Umberto Giacobbi, **as is and without warranty**. Third-party dependencies keep their [own notices](THIRD_PARTY_NOTICES.md). Names and visual identity are covered separately in [TRADEMARKS.md](TRADEMARKS.md).
+
+---
+
+<p align="right">
+  <a href="https://umbertogiacobbi.biz/vibeware/manifesto">
+    <img src="src/VibePanel.App/Assets/vibeware-logo.png" alt="VibeWare floppy logo" width="120">
+  </a><br>
+  <strong>VibeWare</strong><br>
+  <em>Human intent, AI execution, and plenty of tokens</em>
+</p>
+
+### This is VibeWare · [Manifesto](https://umbertogiacobbi.biz/vibeware/manifesto)
+
+I participate in **VibeWare**, the open initiative I created. VibeWare is the initiative, not Vibe Panel's author or publisher.
+
+I am **Umberto Giacobbi**. I define this project's purpose, guide its implementation, and remain responsible for checking its functionality, performance and security. The badge does not replace this project's validation evidence.
+
+[Vibe Panel on GitHub](https://github.com/umbertotechnopreneur/VibePanel) · [VibeWare on GitHub](https://github.com/umbertotechnopreneur/VibeWare) · [My website](https://umbertogiacobbi.biz)
+
+[Terms](https://umbertogiacobbi.biz/terms/) · [Privacy](https://umbertogiacobbi.biz/privacy/)

@@ -11,3 +11,5 @@ System.Drawing.Common is used under the MIT license. Windows GDI+ performs local
 Spectre.Console and NAudio.Wasapi (including NAudio.Core) are MIT-licensed dependencies. System.Management is part of the MIT-licensed .NET libraries. Their package license information remains available through NuGet.
 
 Windows media-session metadata and artwork come from the current user's local player. No Spotify Web API or Spotify asset bundle is included. NVIDIA metrics use the NVML library already installed with the user's driver; VibePanel does not redistribute it.
+
+The Windows portable ZIP bundles CPython 3.13.16's official embeddable distribution (Python Software Foundation License 2.0). Its `LICENSE.txt` is copied into `licenses/Python-PSF-2.0.txt`. It also bundles pinned PyPI wheels for skia-python 144.0.post2 (BSD-style), NumPy 2.4.3 (BSD-3-Clause), and pybind11 3.0.2 (BSD-3-Clause). Their wheel metadata and included license files remain under `engine/python/Lib/site-packages/*.dist-info/`. The packaging script verifies the Python archive against the official release SHA-256 and each wheel against its PyPI release SHA-256 before extraction.
