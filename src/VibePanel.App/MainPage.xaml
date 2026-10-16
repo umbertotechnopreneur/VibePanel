@@ -18,7 +18,7 @@ VBWR E -->
     <Grid x:Name="Root" Background="#101218">
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <Grid Margin="28,22,28,20">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
             <StackPanel>
                 <TextBlock x:Name="Eyebrow" Text="C O D E N A M E" FontSize="10"/>
                 <TextBlock x:Name="Heading" Text="Vibe Panel" FontSize="28" FontWeight="SemiBold" Margin="0,4,0,0"/>
@@ -34,6 +34,9 @@ VBWR E -->
                 </Border>
                 <TextBlock x:Name="Author" Text="by Umberto Giacobbi" FontSize="10" HorizontalAlignment="Right" Margin="0,8,0,0"/>
             </StackPanel>
+            <HyperlinkButton x:Name="InitiativeLogo" Grid.Column="2" NavigateUri="https://umbertogiacobbi.biz/vibeware/manifesto" TargetName="_blank" Margin="18,0,0,0" VerticalAlignment="Center" ToolTipService.ToolTip="Participates in VibeWare. Read the manifesto." AutomationProperties.Name="Participates in VibeWare. Read the manifesto">
+                <Image Source="/VibePanel.UI;component/Assets/vibeware-logo.png" Width="70" Height="70" Stretch="Uniform"/>
+            </HyperlinkButton>
         </Grid>
         <Grid Grid.Row="1" Margin="28,0,28,0">
             <Grid.ColumnDefinitions><ColumnDefinition x:Name="LibraryColumn" Width="284"/><ColumnDefinition Width="18"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -127,9 +130,39 @@ VBWR E -->
             </Grid>
         </Grid>
         <Grid Grid.Row="2" Margin="30,14,28,16">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
             <TextBlock x:Name="StatusText" Text="Local preview" FontSize="10" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-            <HyperlinkButton x:Name="Manifesto" Grid.Column="1" Content="I stand with VibeWare ↗" NavigateUri="https://umbertogiacobbi.biz/vibeware/manifesto" TargetName="_blank" FontSize="10" Margin="16,0,0,0"/>
+            <StackPanel x:Name="FooterLinks" Grid.Row="1" HorizontalAlignment="Center" Margin="0,8,0,0">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <HyperlinkButton x:Name="AboutLink" Content="About Vibe Panel" Click="About_Click" FontSize="10"/>
+                    <TextBlock x:Name="FooterDot1" Text=" · " FontSize="10" VerticalAlignment="Center" Margin="6,0"/>
+                    <HyperlinkButton x:Name="TermsLink" Content="Terms" NavigateUri="https://umbertogiacobbi.biz/terms/" TargetName="_blank" FontSize="10"/>
+                    <TextBlock x:Name="FooterDot2" Text=" · " FontSize="10" VerticalAlignment="Center" Margin="6,0"/>
+                    <HyperlinkButton x:Name="PrivacyLink" Content="Privacy" NavigateUri="https://umbertogiacobbi.biz/privacy/" TargetName="_blank" FontSize="10"/>
+                </StackPanel>
+                <HyperlinkButton x:Name="Manifesto" Content="This is VibeWare · Manifesto" NavigateUri="https://umbertogiacobbi.biz/vibeware/manifesto" TargetName="_blank" FontSize="10" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+            </StackPanel>
+        </Grid>
+        <Grid x:Name="AboutOverlay" Grid.RowSpan="3" Background="#B0000000" Visibility="Collapsed">
+            <Border x:Name="AboutFrame" Width="550" MaxWidth="600" Padding="30" CornerRadius="20" BorderThickness="1" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="20">
+                <StackPanel>
+                    <TextBlock x:Name="AboutHeading" Text="Vibe Panel" FontSize="28" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="AboutVersion" Text="Codename · local preview" FontSize="11" Margin="0,7,0,20"/>
+                    <TextBlock x:Name="AboutAuthor" Text="I am Umberto Giacobbi. I created Vibe Panel to make my small display useful, personal and beautiful." TextWrapping="Wrap" FontSize="13"/>
+                    <TextBlock x:Name="AboutDisclosureHeading" Text="This is VibeWare" FontSize="16" FontWeight="SemiBold" Margin="0,22,0,10"/>
+                    <TextBlock x:Name="AboutDisclosure" Text="I created this software with AI assistance. I define its purpose, guide the implementation, and take responsibility for checking functionality, performance, and security." TextWrapping="Wrap" FontSize="12"/>
+                    <TextBlock x:Name="AboutInitiative" Text="Vibe Panel participates in my VibeWare initiative. Human intent, AI execution, and plenty of tokens." TextWrapping="Wrap" FontSize="12" Margin="0,12,0,14"/>
+                    <HyperlinkButton x:Name="AboutManifesto" Content="Read the VibeWare manifesto" NavigateUri="https://umbertogiacobbi.biz/vibeware/manifesto" TargetName="_blank" HorizontalAlignment="Left" FontSize="12"/>
+                    <HyperlinkButton x:Name="ProjectLink" Content="Vibe Panel on GitHub" NavigateUri="https://github.com/umbertotechnopreneur/VibePanel" TargetName="_blank" HorizontalAlignment="Left" FontSize="12" Margin="0,10,0,0"/>
+                    <HyperlinkButton x:Name="InitiativeLink" Content="VibeWare on GitHub" NavigateUri="https://github.com/umbertotechnopreneur/VibeWare" TargetName="_blank" HorizontalAlignment="Left" FontSize="12" Margin="0,6,0,0"/>
+                    <HyperlinkButton x:Name="WebsiteLink" Content="umbertogiacobbi.biz" NavigateUri="https://umbertogiacobbi.biz" TargetName="_blank" HorizontalAlignment="Left" FontSize="12" Margin="0,6,0,0"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,22,0,16">
+                        <HyperlinkButton x:Name="AboutTerms" Content="Terms" NavigateUri="https://umbertogiacobbi.biz/terms/" TargetName="_blank" FontSize="11" Margin="0,0,14,0"/>
+                        <HyperlinkButton x:Name="AboutPrivacy" Content="Privacy" NavigateUri="https://umbertogiacobbi.biz/privacy/" TargetName="_blank" FontSize="11"/>
+                    </StackPanel>
+                    <Button x:Name="CloseAboutButton" Content="Close" Click="CloseAbout_Click" Height="36"/>
+                </StackPanel>
+            </Border>
         </Grid>
     </Grid>
 </Page>

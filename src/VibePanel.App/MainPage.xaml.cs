@@ -22,6 +22,7 @@ public sealed partial class MainPage : Page
 {
     private readonly IPanelClient client;
     private readonly DispatcherTimer refresh = new() { Interval = TimeSpan.FromSeconds(1) };
+    private readonly DispatcherTimer footerDelay = new() { Interval = TimeSpan.FromSeconds(30) };
     private readonly string settingsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VibePanel", "presentation.json");
     private readonly List<CatalogRow> categoryRows = [];
     private readonly List<CatalogRow> themeRows = [];
@@ -34,6 +35,8 @@ public sealed partial class MainPage : Page
     private string? lastRenderedTheme;
     private byte[]? lastFrame;
     private Storyboard? fade;
+    private Storyboard? footerFade;
+    private bool footerHovered;
     private bool? appliedLight;
 
     public MainPage(IPanelClient client)
@@ -45,17 +48,25 @@ public sealed partial class MainPage : Page
         UpdateFontScale();
         ready = true;
         ApplyAppearance();
+        AboutVersion.Text = $"Codename · {typeof(App).Assembly.GetName().Version?.ToString(3)} · preview";
         Loaded += async (_, _) =>
         {
             unloaded = false;
             await LoadCatalogAsync();
             await RefreshAsync();
-            if (!unloaded) { refresh.Start(); }
+            if (!unloaded) { refresh.Start(); footerDelay.Start(); }
         };
-        Unloaded += (_, _) => { unloaded = true; refresh.Stop(); fade?.Stop(); };
+        Unloaded += (_, _) => { unloaded = true; refresh.Stop(); footerDelay.Stop(); fade?.Stop(); footerFade?.Stop(); };
         refresh.Tick += async (_, _) => await RefreshAsync();
+        footerDelay.Tick += (_, _) => FadeFooter();
+        FooterLinks.MouseEnter += (_, _) => { footerHovered = true; RevealFooter(); };
+        FooterLinks.MouseLeave += (_, _) => { footerHovered = false; footerDelay.Start(); };
+        FooterLinks.GotFocus += (_, _) => RevealFooter();
+        FooterLinks.LostFocus += (_, _) => footerDelay.Start();
         KeyDown += (_, args) =>
         {
+            if (AboutOverlay.Visibility == Visibility.Visible)
+            { if (args.Key == Key.Escape) { CloseAbout(); args.Handled = true; } return; }
             if (ProfilesBox.IsDropDownOpen || args.OriginalSource is TextBox) { return; }
             if (args.Key == Key.PageUp) { Navigate(-1); args.Handled = true; }
             if (args.Key == Key.PageDown) { Navigate(1); args.Handled = true; }
@@ -216,19 +227,19 @@ public sealed partial class MainPage : Page
         var ink = Brush(light ? "#242231" : "#F1F1FA");
         var muted = Brush(light ? "#716B80" : "#9C9CAF");
         var accent = Brush(light ? "#7854B5" : "#C9AEF3");
-        foreach (var border in new[] { LibraryFrame, AppearanceFrame, OptionsFrame, PreviewBadge }) { border.Background = surface; border.BorderBrush = line; }
+        foreach (var border in new[] { LibraryFrame, AppearanceFrame, OptionsFrame, PreviewBadge, AboutFrame }) { border.Background = surface; border.BorderBrush = line; }
         PreviewFrame.Background = Brush(light ? "#E6E3EE" : "#0A0D13");
         PreviewFrame.BorderBrush = line;
-        foreach (var text in new[] { Heading, SelectedThemeText, LoadingTitle, PositionText, FontScaleText }) { text.Foreground = ink; }
-        foreach (var text in new[] { Subtitle, Author, CatalogText, SourceText, StatusText, LoadingText, FontLabel, SizeLabel, GeometryLabel }) { text.Foreground = muted; }
+        foreach (var text in new[] { Heading, SelectedThemeText, LoadingTitle, PositionText, FontScaleText, AboutHeading, AboutAuthor, AboutDisclosureHeading }) { text.Foreground = ink; }
+        foreach (var text in new[] { Subtitle, Author, CatalogText, SourceText, StatusText, LoadingText, FontLabel, SizeLabel, GeometryLabel, FooterDot1, FooterDot2, AboutVersion, AboutDisclosure, AboutInitiative }) { text.Foreground = muted; }
         foreach (var text in new[] { Eyebrow, LibraryHeading, CategoryText, PreviewBadgeText }) { text.Foreground = accent; }
-        Manifesto.Foreground = accent;
+        foreach (var link in new[] { Manifesto, AboutLink, TermsLink, PrivacyLink, AboutManifesto, ProjectLink, InitiativeLink, WebsiteLink, AboutTerms, AboutPrivacy }) { link.Foreground = accent; }
         CategoriesBox.Background = ThemesBox.Background = surface;
         FontBox.Background = ProfilesBox.Background = Brush(light ? "#F6F4FA" : "#11141D");
         FontBox.Foreground = ProfilesBox.Foreground = ink;
         FontBox.BorderBrush = ProfilesBox.BorderBrush = line;
         CycleBox.Foreground = muted;
-        foreach (var button in new[] { ReloadButton, PreviousButton, NextButton, ApplyFontButton, SmallerButton, LargerButton })
+        foreach (var button in new[] { ReloadButton, PreviousButton, NextButton, ApplyFontButton, SmallerButton, LargerButton, CloseAboutButton })
         { button.Background = surface; button.Foreground = ink; button.BorderBrush = line; }
         UpdateRows();
         UpdateAppearanceButtons();
@@ -264,6 +275,31 @@ public sealed partial class MainPage : Page
     private void Navigate(int direction)
     {
         if (ThemesBox.Items.Count > 0) { ThemesBox.SelectedIndex = (ThemesBox.SelectedIndex + direction + ThemesBox.Items.Count) % ThemesBox.Items.Count; ThemesBox.ScrollIntoView(ThemesBox.SelectedItem); }
+    }
+
+    private void About_Click(object sender, RoutedEventArgs args)
+    {
+        AboutOverlay.Visibility = Visibility.Visible;
+        CloseAboutButton.Focus();
+        RevealFooter();
+    }
+    private void CloseAbout_Click(object sender, RoutedEventArgs args) => CloseAbout();
+    private void CloseAbout() { AboutOverlay.Visibility = Visibility.Collapsed; AboutLink.Focus(); }
+    private void RevealFooter() { footerDelay.Stop(); footerFade?.Stop(); FooterLinks.Opacity = 1; }
+    private void FadeFooter()
+    {
+        footerDelay.Stop();
+        if (footerHovered || AboutOverlay.Visibility == Visibility.Visible) { return; }
+        var focus = FocusManager.GetFocusedElement() as DependencyObject;
+        while (focus is not null)
+        {
+            if (focus == FooterLinks) { return; }
+            focus = VisualTreeHelper.GetParent(focus);
+        }
+        var animation = new DoubleAnimation { From = 1, To = 0, Duration = new Duration(TimeSpan.FromSeconds(3)) };
+        Storyboard.SetTarget(animation, FooterLinks);
+        Storyboard.SetTargetProperty(animation, new PropertyPath("Opacity"));
+        footerFade = new Storyboard(); footerFade.Children.Add(animation); footerFade.Begin();
     }
 
     private void Category_Changed(object sender, SelectionChangedEventArgs args)
