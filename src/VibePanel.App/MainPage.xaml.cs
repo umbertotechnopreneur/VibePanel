@@ -85,7 +85,7 @@ public sealed partial class MainPage : Page
             if (args.Key == Key.PageUp) { Navigate(-1); args.Handled = true; }
             if (args.Key == Key.PageDown) { Navigate(1); args.Handled = true; }
         };
-        SizeChanged += (_, args) => LibraryColumn.Width = new GridLength(args.NewSize.Width < 1150 ? 244 : 284);
+        SizeChanged += (_, args) => LibraryColumn.Width = new GridLength(args.NewSize.Width < 1150 ? 232 : 264);
     }
 
     private async Task LoadCatalogAsync()
@@ -245,29 +245,35 @@ public sealed partial class MainPage : Page
         appliedLight = light;
         ((ModernTheme)Application.Current.Theme).CurrentPalette = light ? ModernTheme.Palettes.Light : ModernTheme.Palettes.Dark;
         OpenSilver.Interop.ExecuteJavaScript("document.documentElement.style.colorScheme = $0", light ? "light" : "dark");
-        Root.Background = Brush(light ? "#F3F2F7" : "#101218");
+        Root.Background = Brush(light ? "#FAF9FC" : "#101218");
+        var transparent = new SolidColorBrush(Colors.Transparent);
         var surface = Brush(light ? "#FFFFFF" : "#191C25");
         var line = Brush(light ? "#DDD9E7" : "#303441");
         var ink = Brush(light ? "#242231" : "#F1F1FA");
         var muted = Brush(light ? "#716B80" : "#9C9CAF");
         var accent = Brush(light ? "#7854B5" : "#C9AEF3");
-        foreach (var border in new[] { LibraryFrame, AppearanceFrame, OptionsFrame, DisplayFrame, CodexSetupFrame, PreviewBadge, AboutFrame }) { border.Background = surface; border.BorderBrush = line; }
-        PreviewFrame.Background = Brush(light ? "#E6E3EE" : "#0A0D13");
-        PreviewFrame.BorderBrush = line;
+        // Sections share the page, without cards. Only the modal needs its own surface.
+        foreach (var section in new[] { LibraryFrame, AppearanceFrame, OptionsFrame, DisplayFrame, CodexSetupFrame, PreviewBadge, PreviewFrame }) { section.Background = transparent; }
+        AboutFrame.Background = surface;
+        AboutFrame.BorderBrush = line;
+        DisplayDivider.BorderBrush = line;
         foreach (var text in new[] { Heading, SelectedThemeText, LoadingTitle, PositionText, FontScaleText, AboutHeading, AboutAuthor, AboutDisclosureHeading, CodexStatusText }) { text.Foreground = ink; }
         foreach (var text in new[] { Subtitle, Author, CatalogText, SourceText, StatusText, LoadingText, FontLabel, SizeLabel, GeometryLabel, DeviceLabel, RefreshLabel, QualityLabel, CodexEventText, CodexHelpText, FooterDot1, FooterDot2, AboutVersion, AboutDisclosure, AboutInitiative }) { text.Foreground = muted; }
         foreach (var text in new[] { Eyebrow, LibraryHeading, CategoryText, PreviewBadgeText, CodexSetupHeading }) { text.Foreground = accent; }
         foreach (var link in new[] { Manifesto, AboutLink, TermsLink, PrivacyLink, AboutManifesto, ProjectLink, InitiativeLink, WebsiteLink, AboutTerms, AboutPrivacy }) { link.Foreground = accent; }
-        CategoriesBox.Background = ThemesBox.Background = surface;
-        FontBox.Background = ProfilesBox.Background = Brush(light ? "#F6F4FA" : "#11141D");
+        CategoriesBox.Background = ThemesBox.Background = transparent;
+        FontBox.Background = ProfilesBox.Background = transparent;
         FontBox.Foreground = ProfilesBox.Foreground = ink;
         FontBox.BorderBrush = ProfilesBox.BorderBrush = line;
+        FontBox.BorderThickness = ProfilesBox.BorderThickness = new Thickness(0, 0, 0, 1);
         foreach (var combo in new[] { DevicesBox, RefreshBox, QualityBox })
-        { combo.Background = Brush(light ? "#F6F4FA" : "#11141D"); combo.Foreground = ink; combo.BorderBrush = line; }
+        { combo.Background = transparent; combo.Foreground = ink; combo.BorderBrush = line; combo.BorderThickness = new Thickness(0, 0, 0, 1); }
         CycleBox.Foreground = muted;
         LogErrorsBox.Foreground = muted;
         foreach (var button in new[] { ReloadButton, PreviousButton, NextButton, ApplyFontButton, SmallerButton, LargerButton, CloseAboutButton, RefreshDevicesButton, StartDisplayButton, StopDisplayButton, CodexRefreshButton, CodexPrepareButton, OpenLogButton })
-        { button.Background = surface; button.Foreground = ink; button.BorderBrush = line; }
+        { button.Background = transparent; button.Foreground = ink; button.BorderThickness = new Thickness(0); }
+        StartDisplayButton.Background = Brush(light ? "#68468F" : "#C5AAE8");
+        StartDisplayButton.Foreground = Brush(light ? "#FFFFFF" : "#1C1428");
         UpdateRows();
         UpdateAppearanceButtons();
         UpdateDisplayControls();
@@ -278,9 +284,11 @@ public sealed partial class MainPage : Page
         var buttons = new[] { AutoButton, DarkButton, LightButton };
         for (var i = 0; i < buttons.Length; i++)
         {
-            buttons[i].Background = Brush(i == appearance ? IsLight ? "#E9DFF7" : "#40324E" : IsLight ? "#FFFFFF" : "#191C25");
+            buttons[i].Background = new SolidColorBrush(Colors.Transparent);
             buttons[i].Foreground = Brush(i == appearance ? IsLight ? "#623A8D" : "#EBD6FF" : IsLight ? "#716B80" : "#9C9CAF");
-            buttons[i].BorderThickness = new Thickness(0);
+            buttons[i].BorderBrush = i == appearance ? Brush(IsLight ? "#7854B5" : "#C9AEF3") : new SolidColorBrush(Colors.Transparent);
+            buttons[i].BorderThickness = new Thickness(0, 0, 0, 2);
+            buttons[i].FontWeight = i == appearance ? FontWeights.SemiBold : FontWeights.Normal;
         }
     }
 
@@ -595,17 +603,17 @@ public sealed partial class MainPage : Page
         public string Name { get; } = name;
         public string Description { get; } = description;
         public string Number { get; } = number;
-        public Brush Background { get; private set; } = MainPage.Brush("#191C25");
-        public Brush Outline { get; private set; } = MainPage.Brush("#303441");
+        public Brush Outline { get; private set; } = new SolidColorBrush(Colors.Transparent);
+        public FontWeight Weight { get; private set; } = FontWeights.Normal;
         public Brush Ink { get; private set; } = MainPage.Brush("#F1F1FA");
         public Brush Muted { get; private set; } = MainPage.Brush("#9C9CAF");
         public Brush Accent { get; private set; } = MainPage.Brush("#C9AEF3");
         public event PropertyChangedEventHandler? PropertyChanged;
         public void Update(bool light, bool selected)
         {
-            Background = MainPage.Brush(selected ? light ? "#F0E8FC" : "#30263F" : light ? "#FFFFFF" : "#191C25");
-            Outline = MainPage.Brush(selected ? light ? "#C4A4E4" : "#795C9D" : light ? "#ECE8F1" : "#242833");
-            Ink = MainPage.Brush(light ? "#242231" : "#F1F1FA");
+            Outline = selected ? MainPage.Brush(light ? "#7854B5" : "#C9AEF3") : new SolidColorBrush(Colors.Transparent);
+            Weight = selected ? FontWeights.SemiBold : FontWeights.Normal;
+            Ink = MainPage.Brush(selected ? light ? "#68468F" : "#D8BAFA" : light ? "#242231" : "#F1F1FA");
             Muted = MainPage.Brush(light ? "#716B80" : "#9C9CAF");
             Accent = MainPage.Brush(selected ? light ? "#7854B5" : "#D8BAFA" : light ? "#A89BB7" : "#686B80");
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(""));

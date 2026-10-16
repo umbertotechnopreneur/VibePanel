@@ -36,6 +36,7 @@ I am Umberto Giacobbi. Vibe Panel is my MIT-licensed holiday hobby project for c
 - Describe the origin honestly: I made it in a few days during my holiday, frustrated with the existing software, learning from others' public work. Credit those sources. Memory, performance and security checks remain on my list because I have not had time; do not claim them complete or blame their absence on AI.
 - Make the current theme warning easy to see: themes run Python code on the user's computer; for now, download them only from the official repository. Do not imply that this replaces the unfinished security review.
 - Use **Vibe Panel** as the product codename and **Umberto Giacobbi** as its author. Keep `VibePanel` for repository/code identifiers. Do not substitute VibeWare for either.
+- Keep the studio UI flat: hierarchy comes from type, spacing and alignment, not cards or nested framed panels. Use small selection marks and restrained dividers; retain clear light/dark states and real control affordances.
 - Keep the approved VibeWare floppy unchanged and a brief initiative link at the bottom of the README: `https://umbertogiacobbi.biz/vibeware/manifesto`. Omit the tagline and slogans from public project notes.
 - Keep the hobby/as-is/no-warranty disclosure short. Do not promise support, compatibility, verified security or performance. Record decisions in `lesson.md` and limits/evidence in `cave.md`.
 - Preserve the VibeWare markers `VBWR B` and `VBWR E` in first-party source and project files.
