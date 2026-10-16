@@ -23,4 +23,6 @@ On 16 October 2026, I built the Windows x64 app and ZIP. One approved check made
 
 On 17 October, I confirmed Aurora Glass worked on my display after a 20-second CLI trial. The new GUI controls, faster rates, other themes, live Codex activity and setup on a fresh PC still need checking.
 
+The new playback spectrum, stereo VU and Codex setup controls are not checked in live use yet. A successful build does not check them.
+
 This is my hobby project. No warranty.

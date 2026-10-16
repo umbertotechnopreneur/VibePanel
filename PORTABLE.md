@@ -12,11 +12,13 @@ To send it to the USB screen, choose the connected display and press **Show on d
 
 Choose updates every 1 second, 500, 250, 100 or 50 ms. Choose Low, Medium or High JPEG quality. The screen may update more slowly if drawing or USB takes longer.
 
-To see Codex activity, add the optional [plugin](plugins/vibepanel-codex/README.md).
+For Codex, pick **OpenAI Codex**, then **Prepare Codex plugin**. Finish installing the plugin and reviewing its hooks inside Codex. No extra login is needed. The app shows the last event it received. [More help](plugins/vibepanel-codex/README.md).
+
+**Log errors** saves a small local technical log. It starts off. Use **Open log** to read it.
 
 **Themes run code on your PC. For now, only get them from the [official repository](https://github.com/umbertotechnopreneur/VibePanel). I still need to check security, memory use and speed.**
 
-The app saves your settings on your PC. It does not record sound or change the volume.
+Music themes can show real frequency bars and stereo VU meters. They analyze Windows playback, not your microphone. No sound is saved or sent anywhere. The bars show the whole output mix, not just one app. The app never changes your volume.
 
 Windows only for now. Hobby project. No warranty.
 

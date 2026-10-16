@@ -53,6 +53,7 @@ public sealed class PythonThemeRenderer : IDisposable
                 ["album"] = media.Album,
                 ["source"] = media.Source,
                 ["playing"] = media.Playing,
+                ["playbackStatus"] = media.PlaybackStatus,
                 ["positionSeconds"] = media.PositionSeconds,
                 ["durationSeconds"] = media.DurationSeconds,
                 ["coverKey"] = artworkKey,

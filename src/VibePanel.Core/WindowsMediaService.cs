@@ -68,7 +68,14 @@ public sealed class WindowsMediaService
             if (double.IsFinite(advanced)) { position = advanced; }
         }
         if (duration > 0) { position = Math.Clamp(position, 0, duration); }
-        return metadata with { Playing = playing, PositionSeconds = position, DurationSeconds = duration, Shuffle = playback.IsShuffleActive };
+        return metadata with
+        {
+            Playing = playing,
+            PositionSeconds = position,
+            DurationSeconds = duration,
+            Shuffle = playback.IsShuffleActive,
+            PlaybackStatus = playback.PlaybackStatus.ToString()
+        };
     }
 
     /// <summary>Controls the selected local player only after a user invokes a media command.</summary>

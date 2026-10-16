@@ -7,7 +7,7 @@ namespace VibePanel.Core;
 
 /// <summary>Contains the current Windows media-session information without an external account.</summary>
 public sealed record NowPlaying(string Title, string Artist, string Album, string Source,
-    bool Playing, byte[]? Artwork, double PositionSeconds, double DurationSeconds, bool? Shuffle = null)
+    bool Playing, byte[]? Artwork, double PositionSeconds, double DurationSeconds, bool? Shuffle = null, string? PlaybackStatus = null)
 {
     public static NowPlaying Empty { get; } = new("Nothing playing yet", "Open a media player", "", "", false, null, 0, 0);
 }

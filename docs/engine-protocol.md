@@ -42,7 +42,19 @@ The GUI starts in preview mode each time. It never restores an active USB sessio
 
 `fontFamily` defaults to Cascadia Mono. `fontScale` is 0.65–1.6. `light` and `ambientDrift` default to false. Python keeps decoded artwork and static backgrounds cached. A failed preview retries after five seconds, except when settings change.
 
-Multimedia themes read generic Windows media/audio data. Codex themes skip those sources and read optional local hook activity. Missing data is not invented. The latest twelve observed Codex events are kept in memory; events between polls and real chat titles may be unavailable. No plugin is installed by this protocol.
+Multimedia themes read generic Windows media/audio data. Their audio analysis uses Windows playback loopback, never the microphone. PCM stays in bounded memory; it is not saved or sent. `audio.analysis` contains real log-frequency FFT bands and stereo peak/RMS values in dBFS. The source is `system-output`: the full playback mix, not an isolated app. App volume and session meters remain separate. Codex themes stop this analyzer and skip media/audio sources.
+
+The requested audio update target is 20 Hz. A 4096-sample FFT at 48 kHz spans about 85 ms; selecting 50 ms does not promise 50 ms audio latency or panel refresh. Missing or stale samples remain unavailable or silent, never made-up bars.
+
+Codex themes read optional local hook activity. The latest twelve observed events are kept in memory; events between polls and real chat titles may be unavailable.
+
+## Codex setup and local logs
+
+`codex.status` reads the local plugin, personal marketplace and latest event. It does not prove hooks are enabled or trusted. `codex.prepare` stages the bundled plugin and lists it locally, only after an explicit UI click or CLI command. The user must finish installation and review the hooks inside Codex. No extra account login is used.
+
+`diagnostics.status` returns `enabled` and `logPath`. `diagnostics.set` takes `{ "enabled": true }` or false. It starts off and remembers the choice. `diagnostics.open` opens the known local log on request. Logs are limited to 512 KiB plus one backup. They contain technical event metadata, not request payloads, song titles, prompts or audio.
+
+The engine caches that preference. If a separate CLI changes it while the GUI is open, reopen the GUI to pick it up.
 
 The engine resolves Python from `VIBEPANEL_PYTHON`, bundled `python/python.exe`, then PATH. It uses a persistent worker with a twelve-second render deadline. Themes are executable Python, not sandboxed documents.
 
@@ -51,6 +63,11 @@ The engine resolves Python from `VIBEPANEL_PYTHON`, bundled `python/python.exe`,
 ```powershell
 vp gui
 vp themes
+vp codex status
+vp codex prepare
+vp diagnostics on
+vp diagnostics open
+vp diagnostics off
 vp theme media.aurora --export frame.jpg --quality high
 vp theme media.aurora --device 1 --interval-ms 250 --quality medium --seconds 20
 ```

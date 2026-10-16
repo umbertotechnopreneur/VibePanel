@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import math
+import time
 from collections import OrderedDict
 from datetime import datetime
 
@@ -14,6 +15,7 @@ import skia
 _CACHE = OrderedDict()
 _COVERS = OrderedDict()
 _FONTS = OrderedDict()
+_METER_HISTORY = OrderedDict()
 FALLBACK_PALETTE = ("#6677CC", "#A575BC", "#4AABB1", "#C8A48C")
 SAMPLING = skia.SamplingOptions(skia.FilterMode.kLinear)
 # Each Codex composition has its own color identity. Wallpaper samples tint these
@@ -97,6 +99,97 @@ def duration(seconds):
     return f"{value // 60}:{value % 60:02}"
 
 
+def optional_number(value):
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        result = float(value)
+        return result if math.isfinite(result) else None
+    except (TypeError, ValueError):
+        return None
+
+
+def dbfs(value):
+    result = optional_number(value)
+    return max(-120, min(0, result)) if result is not None else None
+
+
+def db_label(value):
+    return "—" if value is None else f"{value:.1f}"
+
+
+class AudioAnalysis:
+    """Measured system-output data, with bounded display ballistics only.
+
+    This renderer does not capture audio or compute an FFT. Values and holds come
+    from the native provider. The smoother follows actual values; it never creates
+    random bands, waves, peaks, or a spectrum from a session's volume percentage.
+    """
+    def __init__(self, raw):
+        raw = raw if isinstance(raw, dict) else {}
+        self.available = raw.get("available") is True and raw.get("source") == "system-output"
+        self.status = clean(raw.get("status"), "Audio analysis unavailable")
+        self.sample_rate = max(0, int(number(raw.get("sampleRate"))))
+        self.fft_size = max(0, int(number(raw.get("fftSize"))))
+        self.channels = max(0, int(number(raw.get("channels"))))
+        self.updated_at = clean(raw.get("updatedAtUtc"))
+        self.source = "system-output"
+        self.bands, self.frequencies = [], []
+        values = raw.get("bandDbfs")
+        frequencies = raw.get("frequenciesHz")
+        if self.available and isinstance(values, list) and isinstance(frequencies, list) and len(values) == len(frequencies) == 32:
+            measured = [dbfs(value) for value in values]
+            centers = [optional_number(value) for value in frequencies]
+            if all(value is not None for value in measured) and all(value is not None and value > 0 for value in centers):
+                if all(centers[index] < centers[index + 1] for index in range(31)):
+                    self.bands, self.frequencies = measured, centers
+        self.rms = [dbfs(raw.get("leftRmsDbfs")), dbfs(raw.get("rightRmsDbfs"))]
+        self.peaks = [dbfs(raw.get("leftPeakDbfs")), dbfs(raw.get("rightPeakDbfs"))]
+        self.holds = [dbfs(raw.get("leftPeakHoldDbfs")), dbfs(raw.get("rightPeakHoldDbfs"))]
+        if self.channels < 2:
+            self.rms[1], self.peaks[1], self.holds[1] = None, None, None
+        if not self.available:
+            self.rms, self.peaks, self.holds = [None, None], [None, None], [None, None]
+        self.display_bands = list(self.bands)
+        self.display_rms = list(self.rms)
+        self.display_peaks = list(self.peaks)
+        key = (self.source, self.sample_rate, self.fft_size, self.channels)
+        if not self.available:
+            _METER_HISTORY.clear()
+            return
+        now = time.monotonic()
+        previous = _METER_HISTORY.get(key)
+        elapsed = now - previous["at"] if previous else 0
+        if previous and 0 < elapsed < 2:
+            def follow(values, old, attack, release):
+                if len(values) != len(old):
+                    return list(values)
+                result = []
+                for target, current in zip(values, old):
+                    if target is None or current is None:
+                        result.append(target)
+                    else:
+                        tau = attack if target > current else release
+                        result.append(current + (target - current) * (1 - math.exp(-elapsed / tau)))
+                return result
+            self.display_bands = follow(self.bands, previous["bands"], .025, .32)
+            self.display_rms = follow(self.rms, previous["rms"], .055, .36)
+            self.display_peaks = follow(self.peaks, previous["peaks"], .008, .45)
+        _METER_HISTORY[key] = {"at": now, "bands": self.display_bands,
+                               "rms": self.display_rms, "peaks": self.display_peaks}
+        _METER_HISTORY.move_to_end(key)
+        while len(_METER_HISTORY) > 4:
+            _METER_HISTORY.popitem(last=False)
+
+    def caption(self):
+        parts = ["SYSTEM OUTPUT"]
+        if self.sample_rate:
+            parts.append(f"{self.sample_rate / 1000:g} kHz")
+        if self.fft_size:
+            parts.append(f"FFT {self.fft_size}")
+        return " · ".join(parts)
+
+
 def decoded_cover(media):
     key = clean(media.get("coverKey"))
     encoded = media.get("coverBase64")
@@ -176,6 +269,7 @@ class ThemeContext:
         self.album = clean(self.media.get("album"))
         self.source = clean(self.media.get("source"), "MEDIA")
         self.playing = bool(self.media.get("playing"))
+        self.playback_state = clean(self.media.get("playbackStatus")).lower()
         self.has_media = bool(self.media.get("source") or self.cover or self.playing or number(self.media.get("durationSeconds")) > 0)
         self.shuffle = self.media.get("shuffle") if isinstance(self.media.get("shuffle"), bool) else None
         self.position = max(0, number(self.media.get("positionSeconds")))
@@ -183,6 +277,7 @@ class ThemeContext:
         self.progress = clip(self.position / self.length) if self.length else None
         self.volume = self.audio.get("volumePercent")
         self.peak = self.audio.get("peak")
+        self.analysis = AudioAnalysis(self.audio.get("analysis"))
         self.chat_title = clean(self.codex.get("chatTitle") or self.codex.get("chatName"), "OpenAI Codex")
         self.status = clean(self.codex.get("status"), "Waiting for Codex")
         self.last_status = self.status
@@ -238,7 +333,11 @@ class ThemeContext:
         return self.tool or self.event
 
     def playback_status(self):
-        return "PLAYING" if self.playing else "PAUSED" if self.has_media else "NO SESSION"
+        if self.playing:
+            return "PLAYING"
+        if not self.has_media:
+            return "NO SESSION"
+        return {"paused": "PAUSED", "stopped": "STOPPED", "closed": "CLOSED"}.get(self.playback_state, "NOT PLAYING")
 
     def events(self):
         items = self.codex.get("events") or []
@@ -337,7 +436,7 @@ class Canvas:
     def header(self, name=None, extended=False):
         if self.compact:
             self.label(name or self.ctx.category, 24, 28, 150)
-            self.text(self.ctx.now.strftime("%H:%M"), 456, 28, 22, align="right")
+            self.text(self.ctx.now.strftime("%H:%M"), 456, 30, min(22, 28 / self.ctx.font_scale), align="right")
             self.text(self.ctx.now.strftime("%d %b %Y"), 456, 54, 11, self.ctx.muted, align="right")
         else:
             self.label(name or self.ctx.category, 40, 35, 370)
@@ -536,6 +635,153 @@ class Canvas:
             value = f"{clip(self.ctx.volume, 0, 100):.0f}%" if self.ctx.volume is not None else "—"
             self.text(value, x + width + 16, y + height, 17, self.ctx.fg)
 
+    def app_volume(self, x, y, width=180, stacked=False):
+        """The media application's gain setting, never the system-output meter."""
+        value = optional_number(self.ctx.volume)
+        value = f"{clip(value, 0, 100):.0f}%" if value is not None else "—"
+        small = min(11, 12 / self.ctx.font_scale)
+        self.text("APP VOLUME", x, y, small, self.ctx.muted, width if stacked else width - 62)
+        self.text(value, x if stacked else x + width, y + 29 if stacked else y,
+                  min(25, 31 / self.ctx.font_scale) if stacked else min(16, 20 / self.ctx.font_scale),
+                  width=width if stacked else 58, align="left" if stacked else "right", bold=stacked)
+
+    def playback_indicators(self, x, y, size=36):
+        """Large read-only glyphs, drawn locally without icon fonts or controls."""
+        caption = min(10, 11 / self.ctx.font_scale)
+        tint = self.ctx.accent if self.ctx.playing else self.ctx.fg
+        if not self.ctx.has_media or (not self.ctx.playing and self.ctx.playback_state != "paused"):
+            self.circle(x + size / 2, y + size / 2, size * .42, self.ctx.muted, .6, 2)
+            self.line(x + size * .31, y + size / 2, x + size * .69, y + size / 2, self.ctx.muted, 2)
+        elif self.ctx.playing:
+            self.polygon([(x + size * .26, y + size * .10), (x + size * .26, y + size * .90),
+                          (x + size * .90, y + size * .50)], tint)
+        else:
+            self.rect(x + size * .20, y + size * .12, size * .20, size * .76, tint, 2)
+            self.rect(x + size * .60, y + size * .12, size * .20, size * .76, tint, 2)
+        self.text(self.ctx.playback_status(), x + size / 2, y + size + 17, caption,
+                  self.ctx.muted, 82, align="center")
+        left = x + size + 52
+        active = self.ctx.shuffle is True
+        known = self.ctx.shuffle is not None
+        tint = self.ctx.accent if active else self.ctx.muted
+        opacity = 1 if active else .6 if known else .35
+        for inverted in (False, True):
+            top, bottom = (.22, .78) if not inverted else (.78, .22)
+            path = skia.Path()
+            path.moveTo(left + size * .06, y + size * top)
+            path.cubicTo(left + size * .45, y + size * top,
+                         left + size * .48, y + size * bottom,
+                         left + size * .86, y + size * bottom)
+            self.native.drawPath(path, self.paint(tint, opacity, max(2, size * .065)))
+            self.polygon([(left + size, y + size * bottom),
+                          (left + size * .77, y + size * (bottom - .16)),
+                          (left + size * .77, y + size * (bottom + .16))], tint, opacity)
+        state = "ON" if active else "OFF" if known else "—"
+        self.text("SHUFFLE " + state, left + size / 2, y + size + 17, caption,
+                  tint, 82, align="center")
+
+    def spectrum(self, x, y, width, height=130):
+        """Measured 32-band log-frequency spectrum. No input means no bars."""
+        analysis = self.ctx.analysis
+        small = min(10, 11 / self.ctx.font_scale)
+        self.text(analysis.caption(), x, y + 11, small, self.ctx.muted, width - 52)
+        self.text("dBFS", x + width, y + 11, small, self.ctx.muted, 45, align="right")
+        left, top = x + 27, y + 26
+        plot_width, plot_height = width - 27, height - 47
+        bottom = top + plot_height
+        for level in (-60, -30, 0):
+            line_y = bottom - (level + 60) / 60 * plot_height
+            self.line(left, line_y, x + width, line_y, self.ctx.fg, opacity=.13)
+            self.text(str(level), left - 6, line_y + 3, min(8, 9 / self.ctx.font_scale),
+                      self.ctx.muted, 23, align="right")
+        if not analysis.bands:
+            self.text("Spectrum unavailable", left + plot_width / 2, top + plot_height * .48,
+                      min(14, 16 / self.ctx.font_scale), self.ctx.muted, plot_width - 16, align="center")
+            self.text(analysis.status, left + plot_width / 2, top + plot_height * .48 + 18,
+                      small, self.ctx.muted, plot_width - 16, align="center")
+            return
+        logs = [math.log10(value) for value in analysis.frequencies]
+        low, high = logs[0] - (logs[1] - logs[0]) / 2, logs[-1] + (logs[-1] - logs[-2]) / 2
+        span = high - low
+        shader = skia.GradientShader.MakeLinear([(left, top), (left, bottom)],
+            [color(blend(self.ctx.palette[1], "#F3BF73", .52)),
+             color(blend(self.ctx.palette[2], "#5DC9A1", .42))])
+        paint = skia.Paint(Shader=shader, AntiAlias=True)
+        for index, value in enumerate(analysis.display_bands):
+            a = low if index == 0 else (logs[index - 1] + logs[index]) / 2
+            b = high if index == 31 else (logs[index] + logs[index + 1]) / 2
+            bar_x = left + (a - low) / span * plot_width
+            bar_width = max(1, (b - a) / span * plot_width - 2)
+            bar_height = clip((value + 60) / 60) * plot_height
+            if bar_height > .1:
+                self.native.drawRoundRect(skia.Rect.MakeXYWH(bar_x + 1, bottom - bar_height,
+                                                            bar_width, bar_height), 1.5, 1.5, paint)
+        # Only frequency labels within the provider's measured range are shown.
+        first_x = left + (logs[0] - low) / span * plot_width
+        final_x = left + (logs[-1] - low) / span * plot_width
+        labels = [(analysis.frequencies[0], first_x, "left")]
+        last_x = first_x
+        for frequency in (100, 1000, 10000):
+            if analysis.frequencies[0] < frequency < analysis.frequencies[-1]:
+                label_x = left + (math.log10(frequency) - low) / span * plot_width
+                if label_x - last_x >= 42 and final_x - label_x >= 60:
+                    labels.append((frequency, label_x, "center"))
+                    last_x = label_x
+        labels.append((analysis.frequencies[-1], final_x, "right"))
+        for frequency, label_x, align in labels:
+            value = f"{frequency / 1000:.3g}k" if frequency >= 1000 else f"{frequency:.3g}"
+            if align == "right":
+                value += " Hz"
+            self.text(value, label_x, y + height - 4, small, self.ctx.muted, 64 if align == "right" else 45, align=align)
+
+    def stereo_vu(self, x, y, width, height=100):
+        """RMS fill, instantaneous peak line and provider peak-hold marker."""
+        analysis = self.ctx.analysis
+        small = min(10, 11 / self.ctx.font_scale)
+        numerical_width = 175 if width >= 600 else 145
+        meter_x = x + 23
+        meter_width = width - numerical_width - 37
+        title = "SYSTEM OUTPUT" + (" · FRONT L/R" if analysis.channels > 2 else "")
+        self.text(title, x, y + 11, small, self.ctx.muted, width - numerical_width - 12)
+        self.text("RMS / PK / HOLD · dBFS", x + width, y + 11,
+                  min(8, 9 / self.ctx.font_scale), self.ctx.muted, numerical_width, align="right")
+        row_height = (height - 38) / 2
+        bar_height = min(18, row_height * .63)
+        for index, channel in enumerate(("L", "R")):
+            bar_y = y + 23 + index * row_height
+            baseline = bar_y + bar_height - 1
+            self.text(channel, x, baseline, small, self.ctx.muted, 15)
+            self.rect(meter_x, bar_y, meter_width, bar_height, self.ctx.fg, 3, .09)
+            rms = analysis.display_rms[index]
+            if rms is not None and rms > -60:
+                fill = meter_width * clip((rms + 60) / 60)
+                self.native.save()
+                self.native.clipRect(skia.Rect.MakeXYWH(meter_x, bar_y, fill, bar_height))
+                self.gradient(meter_x, bar_y, meter_width, bar_height,
+                              [blend(self.ctx.palette[2], "#6FCA8A", .6), "#E6CD72", "#E99169"], radius=3)
+                self.native.restore()
+            peak, hold = analysis.display_peaks[index], analysis.holds[index]
+            if peak is not None and peak >= -60:
+                peak_x = meter_x + clip((peak + 60) / 60) * meter_width
+                self.line(peak_x, bar_y - 1, peak_x, bar_y + bar_height + 1, self.ctx.accent, 2)
+            if hold is not None and hold >= -60:
+                hold_x = meter_x + clip((hold + 60) / 60) * meter_width
+                self.line(hold_x, bar_y - 3, hold_x, bar_y + bar_height + 3, self.ctx.fg, 2)
+            values = " / ".join(db_label(value) for value in (analysis.rms[index], analysis.peaks[index], analysis.holds[index]))
+            self.text(values, x + width, baseline, small, self.ctx.fg, numerical_width, align="right")
+        for level in ((-60, -30, -12, 0) if meter_width >= 280 else (-60, -30, 0)):
+            tick_x = meter_x + (level + 60) / 60 * meter_width
+            self.line(tick_x, y + height - 17, tick_x, y + height - 14, self.ctx.muted, opacity=.5)
+            align = "left" if level == -60 else "right" if level == 0 else "center"
+            self.text(str(level), tick_x, y + height - 3, min(8, 9 / self.ctx.font_scale),
+                      self.ctx.muted, 30, align=align)
+        if not analysis.available:
+            self.text("UNAVAILABLE", x + width, y + height - 3, small, self.ctx.muted,
+                      numerical_width, align="right")
+        elif analysis.status and analysis.status != "Live":
+            self.text(analysis.status, x + width, y + height - 3, min(8, 9 / self.ctx.font_scale),
+                      self.ctx.muted, numerical_width, align="right")
+
     def ring(self, x, y, radius, value=None, tint=None, stroke=4, marker=False):
         self.circle(x, y, radius, self.ctx.fg, .13, stroke)
         if value is not None and value > 0:
@@ -546,13 +792,11 @@ class Canvas:
                 angle = math.radians(-90 + 360 * clip(value))
                 self.circle(x + math.cos(angle) * radius, y + math.sin(angle) * radius, 5.5, self.ctx.fg)
 
-    def footer(self, text=None):
+    def footer(self, text=None, width=None):
         text = text or ("DEMO DATA · PREVIEW" if self.ctx.preview else "VIBE PANEL")
         if self.ctx.preview and not text.startswith("DEMO DATA"):
             text = "DEMO DATA · PREVIEW · " + text
-        if self.ctx.category == "multimedia" and self.ctx.shuffle is not None:
-            text += " · SHUFFLE " + ("ON" if self.ctx.shuffle else "OFF")
-        self.label(text, 24 if self.compact else 40, 461, self.width - 80)
+        self.label(text, 24 if self.compact else 40, 461, width or self.width - 80)
 
     def media_text(self, x, y, width, title_size=44, album=True):
         # Keep a fixed-height title slot even with the font-size override.
@@ -596,21 +840,20 @@ class Canvas:
     def compact_media(self, variant):
         self.backdrop(variant)
         self.header("MEDIA / " + variant)
-        if variant in ("orbit", "halo"):
-            self.cover(154, 69, 172, circular=True)
-            self.ring(240, 155, 94, self.ctx.progress, stroke=3)
-        elif variant in ("editorial", "duotone"):
-            self.cover(280, 82, 156, radius=2)
-            self.label(self.ctx.source, 24, 102, 230)
-            self.text("NOW", 24, 151, 42, self.ctx.accent, 220, bold=True)
-            self.text(self.ctx.playback_status(), 24, 190, 25, self.ctx.fg, 230)
-        else:
-            self.cover(154, 67, 172, radius=20 if variant != "prism" else 2)
-        self.text(self.ctx.title, 24, 288, 27, width=432, bold=True)
-        self.text(self.ctx.artist, 24, 322, 19, self.ctx.muted, 432)
-        self.text(self.ctx.album, 24, 350, 13, self.ctx.muted, 432)
-        self.progress(24, 379, 432, 5)
-        self.vu(24, 428, 180, 13)
+        circular = variant in ("orbit", "halo")
+        self.cover(24, 75, 124, radius=2 if variant in ("editorial", "prism", "duotone") else 14,
+                   circular=circular)
+        if circular:
+            self.ring(86, 137, 69, self.ctx.progress, stroke=2)
+        self.text(self.ctx.title, 164, 107, min(23, 30 / self.ctx.font_scale), width=292, bold=True)
+        self.text(self.ctx.artist, 164, 141, min(16, 21 / self.ctx.font_scale), self.ctx.muted, 292)
+        self.text(self.ctx.album, 164, 168, min(11, 15 / self.ctx.font_scale), self.ctx.muted, 292)
+        self.text(self.ctx.timing(), 24, 223, min(11, 12 / self.ctx.font_scale), self.ctx.muted, 132)
+        self.playback_indicators(178, 184, 29)
+        self.app_volume(348, 189, 108, stacked=True)
+        self.spectrum(24, 245, 432, 88)
+        self.stereo_vu(24, 347, 432, 85)
+        self.progress(24, 439, 432, 4, labels=False)
         self.footer()
 
     def compact_codex(self, variant):
