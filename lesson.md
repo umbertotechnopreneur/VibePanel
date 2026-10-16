@@ -6,6 +6,8 @@
 - People can make their own themes.
 - I reuse pictures and backgrounds to save work.
 - I use type and space to organize the UI, not cards inside cards.
+- I keep the footer links and VibeWare logo visible on one line.
+- I fit the window to the screen and center it when it opens. Small windows can scroll instead of hiding controls.
 - If a detail is missing, I don't make it up.
 - Frequency bars use real Windows playback audio. No microphone. No audio files. System sound is not the same as one app's sound.
 - Preparing the Codex plugin does not install it or trust its hooks. That choice stays inside Codex.

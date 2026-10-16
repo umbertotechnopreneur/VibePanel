@@ -6,6 +6,8 @@
 
 Keep all the files in the same folder. Windows needs WebView2 to show the app.
 
+The window opens centered and fits the screen's free area. You can still resize it. On small screens, scroll to reach the controls. All links and the VibeWare manifesto logo stay on one line at the bottom.
+
 You can change the font, text size and light/dark colors. The window shows what your screen could look like.
 
 To send it to the USB screen, choose the connected display and press **Show on display**. Change themes while it runs. Press **Stop** to end it.

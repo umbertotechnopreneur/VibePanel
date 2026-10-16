@@ -22,7 +22,6 @@ public sealed partial class MainPage : Page
 {
     private readonly IPanelClient client;
     private readonly DispatcherTimer refresh = new() { Interval = TimeSpan.FromSeconds(1) };
-    private readonly DispatcherTimer footerDelay = new() { Interval = TimeSpan.FromSeconds(30) };
     private readonly string settingsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VibePanel", "presentation.json");
     private readonly List<CatalogRow> categoryRows = [];
     private readonly List<CatalogRow> themeRows = [];
@@ -42,8 +41,6 @@ public sealed partial class MainPage : Page
     private string? lastRenderedTheme;
     private byte[]? lastFrame;
     private Storyboard? fade;
-    private Storyboard? footerFade;
-    private bool footerHovered;
     private bool? appliedLight;
 
     public MainPage(IPanelClient client)
@@ -68,15 +65,10 @@ public sealed partial class MainPage : Page
             await RefreshDevicesAsync();
             await LoadDiagnosticsAsync();
             await RefreshAsync();
-            if (!unloaded) { refresh.Start(); footerDelay.Start(); }
+            if (!unloaded) { refresh.Start(); }
         };
-        Unloaded += (_, _) => { unloaded = true; refresh.Stop(); footerDelay.Stop(); fade?.Stop(); footerFade?.Stop(); };
+        Unloaded += (_, _) => { unloaded = true; refresh.Stop(); fade?.Stop(); };
         refresh.Tick += async (_, _) => await RefreshAsync();
-        footerDelay.Tick += (_, _) => FadeFooter();
-        FooterLinks.MouseEnter += (_, _) => { footerHovered = true; RevealFooter(); };
-        FooterLinks.MouseLeave += (_, _) => { footerHovered = false; footerDelay.Start(); };
-        FooterLinks.GotFocus += (_, _) => RevealFooter();
-        FooterLinks.LostFocus += (_, _) => footerDelay.Start();
         KeyDown += (_, args) =>
         {
             if (AboutOverlay.Visibility == Visibility.Visible)
@@ -85,7 +77,18 @@ public sealed partial class MainPage : Page
             if (args.Key == Key.PageUp) { Navigate(-1); args.Handled = true; }
             if (args.Key == Key.PageDown) { Navigate(1); args.Handled = true; }
         };
-        SizeChanged += (_, args) => LibraryColumn.Width = new GridLength(args.NewSize.Width < 1150 ? 232 : 264);
+        SizeChanged += (_, args) => ResizeStudio(args.NewSize.Width, args.NewSize.Height);
+    }
+
+    private void ResizeStudio(double width, double height)
+    {
+        if (width <= 0 || height <= 0) { return; }
+        // A short viewport scrolls instead of collapsing or clipping the preview and controls.
+        var verticalScroll = height < 800;
+        var horizontalScroll = width - (verticalScroll ? 18 : 0) < 1040;
+        Root.Width = Math.Max(1040, width - (verticalScroll ? 18 : 0));
+        Root.Height = Math.Max(800, height - (horizontalScroll ? 18 : 0));
+        LibraryColumn.Width = new GridLength(Root.Width < 1150 ? 232 : 264);
     }
 
     private async Task LoadCatalogAsync()
@@ -258,7 +261,7 @@ public sealed partial class MainPage : Page
         AboutFrame.BorderBrush = line;
         DisplayDivider.BorderBrush = line;
         foreach (var text in new[] { Heading, SelectedThemeText, LoadingTitle, PositionText, FontScaleText, AboutHeading, AboutAuthor, AboutDisclosureHeading, CodexStatusText }) { text.Foreground = ink; }
-        foreach (var text in new[] { Subtitle, Author, CatalogText, SourceText, StatusText, LoadingText, FontLabel, SizeLabel, GeometryLabel, DeviceLabel, RefreshLabel, QualityLabel, CodexEventText, CodexHelpText, FooterDot1, FooterDot2, AboutVersion, AboutDisclosure, AboutInitiative }) { text.Foreground = muted; }
+        foreach (var text in new[] { Subtitle, Author, CatalogText, SourceText, StatusText, LoadingText, FontLabel, SizeLabel, GeometryLabel, DeviceLabel, RefreshLabel, QualityLabel, CodexEventText, CodexHelpText, FooterDot1, FooterDot2, FooterDot3, AboutVersion, AboutDisclosure, AboutInitiative }) { text.Foreground = muted; }
         foreach (var text in new[] { Eyebrow, LibraryHeading, CategoryText, PreviewBadgeText, CodexSetupHeading }) { text.Foreground = accent; }
         foreach (var link in new[] { Manifesto, AboutLink, TermsLink, PrivacyLink, AboutManifesto, ProjectLink, InitiativeLink, WebsiteLink, AboutTerms, AboutPrivacy }) { link.Foreground = accent; }
         CategoriesBox.Background = ThemesBox.Background = transparent;
@@ -497,26 +500,9 @@ public sealed partial class MainPage : Page
     {
         AboutOverlay.Visibility = Visibility.Visible;
         CloseAboutButton.Focus();
-        RevealFooter();
     }
     private void CloseAbout_Click(object sender, RoutedEventArgs args) => CloseAbout();
     private void CloseAbout() { AboutOverlay.Visibility = Visibility.Collapsed; AboutLink.Focus(); }
-    private void RevealFooter() { footerDelay.Stop(); footerFade?.Stop(); FooterLinks.Opacity = 1; }
-    private void FadeFooter()
-    {
-        footerDelay.Stop();
-        if (footerHovered || AboutOverlay.Visibility == Visibility.Visible) { return; }
-        var focus = FocusManager.GetFocusedElement() as DependencyObject;
-        while (focus is not null)
-        {
-            if (focus == FooterLinks) { return; }
-            focus = VisualTreeHelper.GetParent(focus);
-        }
-        var animation = new DoubleAnimation { From = 1, To = 0, Duration = new Duration(TimeSpan.FromSeconds(3)) };
-        Storyboard.SetTarget(animation, FooterLinks);
-        Storyboard.SetTargetProperty(animation, new PropertyPath("Opacity"));
-        footerFade = new Storyboard(); footerFade.Children.Add(animation); footerFade.Begin();
-    }
 
     private void Category_Changed(object sender, SelectionChangedEventArgs args)
     {

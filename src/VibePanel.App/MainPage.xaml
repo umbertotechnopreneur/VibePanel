@@ -15,14 +15,18 @@ VBWR E -->
             </ControlTemplate></Setter.Value></Setter>
         </Style>
     </Page.Resources>
-    <Grid x:Name="Root" Background="#101218">
+    <ScrollViewer x:Name="StudioScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+    <Grid x:Name="Root" Background="#101218" MinWidth="1040" MinHeight="800">
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-        <Grid Margin="32,24,32,28">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-            <StackPanel>
-                <TextBlock x:Name="Eyebrow" Text="C O D E N A M E" FontSize="10"/>
-                <TextBlock x:Name="Heading" Text="Vibe Panel" FontSize="28" FontWeight="SemiBold" Margin="0,4,0,0"/>
-                <TextBlock x:Name="Subtitle" Text="Theme studio" FontSize="11" Margin="0,5,0,0"/>
+        <Grid Margin="32,20,32,22">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Image Source="/VibePanel.UI;component/Assets/vibepanel-icon.png" Width="62" Height="62" Stretch="Uniform" Margin="0,0,14,0"/>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock x:Name="Eyebrow" Text="C O D E N A M E" FontSize="9"/>
+                    <TextBlock x:Name="Heading" Text="Vibe Panel" FontSize="28" FontWeight="SemiBold" Margin="0,4,0,0"/>
+                    <TextBlock x:Name="Subtitle" Visibility="Collapsed"/>
+                </StackPanel>
             </StackPanel>
             <StackPanel Grid.Column="1" VerticalAlignment="Center">
                 <Grid x:Name="AppearanceFrame">
@@ -34,9 +38,6 @@ VBWR E -->
                 </Grid>
                 <TextBlock x:Name="Author" Text="by Umberto Giacobbi" FontSize="10" HorizontalAlignment="Right" Margin="0,8,0,0"/>
             </StackPanel>
-            <HyperlinkButton x:Name="InitiativeLogo" Grid.Column="2" NavigateUri="https://umbertogiacobbi.biz/vibeware/manifesto" TargetName="_blank" Margin="18,0,0,0" VerticalAlignment="Center" ToolTipService.ToolTip="Participates in VibeWare. Read the manifesto." AutomationProperties.Name="Participates in VibeWare. Read the manifesto">
-                <Image Source="/VibePanel.UI;component/Assets/vibeware-logo.png" Width="54" Height="54" Stretch="Uniform"/>
-            </HyperlinkButton>
         </Grid>
         <Grid Grid.Row="1" Margin="32,0,32,0">
             <Grid.ColumnDefinitions><ColumnDefinition x:Name="LibraryColumn" Width="264"/><ColumnDefinition Width="32"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -98,7 +99,7 @@ VBWR E -->
                         <TextBlock x:Name="PreviewBadgeText" Text="LOCAL PREVIEW" FontSize="10"/>
                     </Grid>
                 </Grid>
-                <Grid x:Name="PreviewFrame" Grid.Row="1" MinHeight="220">
+                <Grid x:Name="PreviewFrame" Grid.Row="1" MinHeight="300">
                     <Grid>
                         <Image x:Name="PreviousPreview" Stretch="Uniform"/>
                         <Image x:Name="PreviewImage" Stretch="Uniform"/>
@@ -163,21 +164,23 @@ VBWR E -->
                 </Grid>
             </Grid>
         </Grid>
-        <Grid Grid.Row="2" Margin="32,22,32,16">
+        <Grid Grid.Row="2" Margin="32,14,32,12">
             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
             <TextBlock x:Name="StatusText" Text="Local preview" FontSize="10" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
             <CheckBox x:Name="LogErrorsBox" Grid.Column="1" Content="Log errors" FontSize="10" VerticalAlignment="Center" Margin="12,0" Checked="Diagnostics_Changed" Unchecked="Diagnostics_Changed" ToolTipService.ToolTip="Local technical events only. No song titles, prompts, audio or transcripts."/>
             <Button x:Name="OpenLogButton" Grid.Column="2" Content="Open log" Click="OpenLog_Click" FontSize="10" Padding="8,4" IsEnabled="False"/>
-            <StackPanel x:Name="FooterLinks" Grid.Row="1" Grid.ColumnSpan="3" HorizontalAlignment="Center" Margin="0,8,0,0">
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+            <StackPanel x:Name="FooterLinks" Grid.Row="1" Grid.ColumnSpan="3" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
                     <HyperlinkButton x:Name="AboutLink" Content="About Vibe Panel" Click="About_Click" FontSize="10"/>
                     <TextBlock x:Name="FooterDot1" Text=" · " FontSize="10" VerticalAlignment="Center" Margin="6,0"/>
                     <HyperlinkButton x:Name="TermsLink" Content="Terms" NavigateUri="https://umbertogiacobbi.biz/terms/" TargetName="_blank" FontSize="10"/>
                     <TextBlock x:Name="FooterDot2" Text=" · " FontSize="10" VerticalAlignment="Center" Margin="6,0"/>
                     <HyperlinkButton x:Name="PrivacyLink" Content="Privacy" NavigateUri="https://umbertogiacobbi.biz/privacy/" TargetName="_blank" FontSize="10"/>
-                </StackPanel>
-                <HyperlinkButton x:Name="Manifesto" Content="This is VibeWare · Manifesto" NavigateUri="https://umbertogiacobbi.biz/vibeware/manifesto" TargetName="_blank" FontSize="10" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                    <TextBlock x:Name="FooterDot3" Text=" · " FontSize="10" VerticalAlignment="Center" Margin="6,0"/>
+                    <HyperlinkButton x:Name="Manifesto" Content="Manifesto" NavigateUri="https://umbertogiacobbi.biz/vibeware/manifesto" TargetName="_blank" FontSize="10"/>
+                    <HyperlinkButton x:Name="InitiativeLogo" NavigateUri="https://umbertogiacobbi.biz/vibeware/manifesto" TargetName="_blank" Margin="16,0,0,0" VerticalAlignment="Center" ToolTipService.ToolTip="VibeWare manifesto" AutomationProperties.Name="VibeWare manifesto">
+                        <Image Source="/VibePanel.UI;component/Assets/vibeware-logo.png" Width="48" Height="48" Stretch="Uniform"/>
+                    </HyperlinkButton>
             </StackPanel>
         </Grid>
         <Grid x:Name="AboutOverlay" Grid.RowSpan="3" Background="#B0000000" Visibility="Collapsed">
@@ -202,4 +205,5 @@ VBWR E -->
             </Border>
         </Grid>
     </Grid>
+    </ScrollViewer>
 </Page>
