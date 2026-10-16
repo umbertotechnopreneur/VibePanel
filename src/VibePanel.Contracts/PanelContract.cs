@@ -27,6 +27,9 @@ public sealed record PreviewOptions(string ProfileId = "wide-1280x480", string S
 public sealed record StartOptions(string DeviceId, string ProfileId = "auto", string? Scene = null, string? ThemeId = null);
 public sealed record DisplayStartResult(bool Accepted, string? ProfileId = null);
 public sealed record MediaOptions(string Action);
+public sealed record CodexSetupStatus(bool Prepared, bool Listed, bool ActivitySeen, string Status, string? LastEvent, string? LastEventUtc, string Instructions);
+public sealed record DiagnosticsStatus(bool Enabled, string LogPath);
+public sealed record SetDiagnosticsOptions(bool Enabled);
 public sealed record AudioLevelDto(string Id, string Name, double VolumePercent, bool Muted, double? Peak);
 public sealed record SystemDto(double? CpuUsage, double? CpuTemperature, double? GpuUsage, double? GpuTemperature, string GpuName, string CpuTemperatureSource);
 public sealed record NetworkDto(double? DownloadBytesPerSecond, double? UploadBytesPerSecond, long DownloadBytes, long UploadBytes, string Scope);

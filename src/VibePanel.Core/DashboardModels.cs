@@ -19,6 +19,12 @@ public sealed record AppVolume(string Key, string Name, int ProcessId, double Pe
 public sealed record MachineMetrics(double? CpuUsage, double? CpuTemperature, double? GpuUsage,
     double? GpuTemperature, string GpuName, string CpuTemperatureSource, string GpuSource);
 
+/// <summary>Local playback analysis of the system output mix, not an app or microphone recording.</summary>
+public sealed record PlaybackAnalysis(bool Available, string Source, int SampleRate, int FftSize, int Channels,
+    double[] BandDbfs, double[] FrequenciesHz, double? LeftPeakDbfs, double? RightPeakDbfs,
+    double? LeftRmsDbfs, double? RightRmsDbfs, double? LeftPeakHoldDbfs, double? RightPeakHoldDbfs,
+    DateTimeOffset? UpdatedAtUtc, string Status);
+
 /// <summary>A bounded snapshot used by the UI, CLI, and USB renderer.</summary>
 public sealed record DashboardSnapshot(NowPlaying Media, IReadOnlyList<AppVolume> Volumes,
-    MachineMetrics Metrics, IReadOnlyList<string> Notices, NetworkTraffic? Network = null);
+    MachineMetrics Metrics, IReadOnlyList<string> Notices, NetworkTraffic? Network = null, PlaybackAnalysis? Playback = null);

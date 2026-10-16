@@ -43,17 +43,23 @@ internal sealed class EngineServer : IDisposable
             while (await ReadRequestLineAsync() is { } line)
             {
                 var id = "";
+                var method = "unknown";
+                string? errorType = null;
+                var started = Stopwatch.GetTimestamp();
                 EngineResponse response;
                 try
                 {
                     var request = JsonSerializer.Deserialize<EngineRequest>(line, PanelContract.Json) ?? throw new ArgumentException("Expected a request object.");
                     id = request.Id;
+                    method = request.Method;
                     if (string.IsNullOrWhiteSpace(id) || id.Length > 64) { throw new ArgumentException("Request ID must contain 1 to 64 characters."); }
                     if (request.Version != PanelContract.Version) { throw new ArgumentException("Unsupported protocol version."); }
                     response = new(id, true, JsonSerializer.SerializeToElement(await engine.HandleAsync(request), PanelContract.Json));
                 }
                 catch (Exception error) when (error is not OutOfMemoryException)
-                { response = new(id, false, Error: error.Message); }
+                { errorType = error.GetType().Name; response = new(id, false, Error: error.Message); }
+                DiagnosticLog.Rpc(method, (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds, response.Ok, errorType,
+                    engine.themeOutput?.SubmittedFrames ?? 0);
                 await Console.Out.WriteLineAsync(JsonSerializer.Serialize(response, PanelContract.Json));
                 await Console.Out.FlushAsync();
             }
@@ -125,7 +131,12 @@ internal sealed class EngineServer : IDisposable
             case "media":
                 await dashboard.Media.ControlAsync(Parameters<MediaOptions>(request).Action);
                 return new { accepted = true };
-            default: throw new ArgumentException("Unknown method. Use hello, themes, devices, state, present, levels, start, stop, or media.");
+            case "codex.status": return CodexIntegration.Status();
+            case "codex.prepare": return await CodexIntegration.PrepareAsync();
+            case "diagnostics.status": return DiagnosticLog.Status();
+            case "diagnostics.set": return DiagnosticLog.SetEnabled(Parameters<SetDiagnosticsOptions>(request).Enabled);
+            case "diagnostics.open": return new { accepted = DiagnosticLog.Open() };
+            default: throw new ArgumentException("Unknown method. Use hello, themes, devices, state, present, levels, start, stop, media, codex.status, codex.prepare, or diagnostics.*.");
         }
     }
 
@@ -143,7 +154,7 @@ internal sealed class EngineServer : IDisposable
         var includeMedia = theme?.Category != "codex";
         if (lastSnapshot is null || snapshotIncludesSystem != includeSystem || snapshotIncludesMedia != includeMedia || Environment.TickCount64 - snapshotAt >= (theme is null ? 2000 : options.RefreshIntervalMilliseconds))
         {
-            lastSnapshot = await dashboard.ReadAsync(includeSystem, includeMedia);
+            lastSnapshot = await dashboard.ReadAsync(includeSystem, includeMedia, analyzePlayback: theme?.Category == "multimedia");
             snapshotAt = Environment.TickCount64;
             snapshotIncludesSystem = includeSystem;
             snapshotIncludesMedia = includeMedia;
@@ -173,7 +184,7 @@ internal sealed class EngineServer : IDisposable
                     previewNotice = null;
                 }
                 catch (Exception error) when (error is not OutOfMemoryException)
-                { previewNotice = "Theme preview: " + error.Message; }
+                { DiagnosticLog.ThemeRenderFailure(error.GetType().Name); previewNotice = "Theme preview: " + error.Message; }
             }
             previousFingerprint = fingerprint;
             previewAt = previewNotice is null ? renderingStartedAt : Environment.TickCount64;

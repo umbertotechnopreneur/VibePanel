@@ -54,21 +54,63 @@ def plugin_entry() -> dict[str, object]:
         "source": {"source": "local", "path": SOURCE_PATH},
         "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
         "category": "Productivity",
-        "interface": {"displayName": "VibePanel Codex"},
+        "interface": {"displayName": "Vibe Panel Codex"},
     }
+
+
+def stage_portable_python(destination: Path) -> bool:
+    """Keep the optional hook working after the portable Vibe Panel ZIP is moved."""
+    if os.name != "nt":
+        return False
+    runtime = Path(sys.executable).resolve().parent
+    tag = f"python{sys.version_info.major}{sys.version_info.minor}"
+    if not (runtime / f"{tag}.zip").is_file() or not (runtime / f"{tag}._pth").is_file():
+        return False  # A normal Python install remains the user's own prerequisite.
+    files = [item for item in runtime.iterdir() if item.is_file() and not item.is_symlink()
+             and (item.suffix.lower() in {".exe", ".dll", ".pyd", ".zip", ".txt"} or item.name == f"{tag}._pth")]
+    if len(files) > 128 or sum(item.stat().st_size for item in files) > 80 * 1024 * 1024:
+        raise ValueError("The bundled Python runtime is unexpectedly large; no hook runtime was staged.")
+    target = destination / "python"
+    target.mkdir(exist_ok=True)
+    for item in files:
+        shutil.copy2(item, target / item.name)
+    (target / f"{tag}._pth").write_text(f"{tag}.zip\n.\nimport site\n", encoding="ascii")
+    hooks_path = destination / "hooks" / "hooks.json"
+    hooks = json.loads(hooks_path.read_text(encoding="utf-8"))
+    interpreter = target / "python.exe"
+    script = destination / "hooks" / "vibepanel_hook.py"
+    if not interpreter.is_file() or not script.is_file():
+        raise ValueError("The staged portable hook runtime is incomplete.")
+    # Codex passes commandWindows to the session shell; Windows defaults to PowerShell.
+    # Its call operator is required when an executable path is quoted.
+    command = f'& "{interpreter}" -B "{script}"'
+    changed = False
+    for matchers in hooks.get("hooks", {}).values():
+        for matcher in matchers:
+            for hook in matcher.get("hooks", []):
+                if hook.get("type") == "command" and hook.get("commandWindows") != command:
+                    hook["commandWindows"] = command
+                    changed = True
+    if changed:
+        atomic_json(hooks_path, hooks)
+    return True
 
 
 def stage_plugin(source: Path, destination: Path) -> None:
     if destination.exists():
+        if destination.is_symlink():
+            raise ValueError("The plugin destination is a link; no changes were made.")
         manifest = destination / "plugin.json"
         if not manifest.is_file() or json.loads(manifest.read_text(encoding="utf-8")).get("name") != PLUGIN_NAME:
             raise ValueError("The destination already contains another plugin; no changes were made.")
+        stage_portable_python(destination)
         return
     destination.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=".vibepanel-", dir=destination.parent) as staging_root:
         staged = Path(staging_root) / PLUGIN_NAME
         shutil.copytree(source, staged, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
         os.replace(staged, destination)
+    stage_portable_python(destination)
 
 
 def prepare() -> None:
@@ -84,7 +126,7 @@ def prepare() -> None:
             if entry.get("source") != plugin_entry()["source"]:
                 raise ValueError("A different VibePanel Codex entry already exists; no changes were made.")
             stage_plugin(source, destination)
-            print("VibePanel Codex is already listed in the personal marketplace.")
+            print("Vibe Panel Codex is already listed in the personal marketplace.")
             return
     stage_plugin(source, destination)
     plugins.append(plugin_entry())
@@ -94,7 +136,7 @@ def prepare() -> None:
             shutil.copy2(marketplace_path, backup)
     atomic_json(marketplace_path, marketplace)
     print(f"Staged {destination}")
-    print("Restart Codex, install VibePanel Codex from your local Plugins Directory, then review and trust its hooks.")
+    print("Restart Codex, install Vibe Panel Codex from your local Plugins Directory, then review and trust its hooks.")
 
 
 def status() -> None:

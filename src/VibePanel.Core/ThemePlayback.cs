@@ -32,7 +32,8 @@ public static class ThemePlayback
             while (!token.IsCancellationRequested)
             {
                 var started = Environment.TickCount64;
-                var snapshot = await service.ReadAsync(includeSystem: false, includeMedia: theme.Category != "codex");
+                var snapshot = await service.ReadAsync(includeSystem: false, includeMedia: theme.Category != "codex",
+                    analyzePlayback: theme.Category == "multimedia");
                 token.ThrowIfCancellationRequested();
                 var jpeg = await renderer.RenderAsync(theme, snapshot, profile with { Encoding = PanelPixelEncoding.Jpeg, WireRotation = 0 },
                     light, ambientDrift, fontFamily, fontScale, jpegQuality, token);

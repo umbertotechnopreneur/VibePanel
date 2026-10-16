@@ -85,6 +85,7 @@ public sealed class PythonThemeRenderer : IDisposable
                         volumePercent = mediaVolume?.Percent,
                         peak = mediaVolume?.Peak,
                         muted = mediaVolume?.Muted,
+                        analysis = snapshot.Playback,
                         sessions = snapshot.Volumes.Select(volume => new { name = volume.Name, volumePercent = volume.Percent, muted = volume.Muted, peak = volume.Peak })
                     },
                     clock = new { iso = now.ToString("O", CultureInfo.InvariantCulture), locale = CultureInfo.CurrentCulture.Name },

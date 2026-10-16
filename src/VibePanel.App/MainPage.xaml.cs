@@ -30,6 +30,8 @@ public sealed partial class MainPage : Page
     private ThemeCatalogDto? catalog;
     private bool refreshing, unloaded, ready, updatingChoices, refreshAgain, catalogLoading;
     private bool displayActive, displayBusy, devicesLoading;
+    private bool codexLoading, codexPreparing, diagnosticsChanging, diagnosticsEnabled;
+    private long codexStatusAt;
     private int refreshMilliseconds = 1000;
     private string jpegQuality = "high";
     private string profileSelection = "auto";
@@ -64,6 +66,7 @@ public sealed partial class MainPage : Page
             unloaded = false;
             await LoadCatalogAsync();
             await RefreshDevicesAsync();
+            await LoadDiagnosticsAsync();
             await RefreshAsync();
             if (!unloaded) { refresh.Start(); footerDelay.Start(); }
         };
@@ -135,6 +138,7 @@ public sealed partial class MainPage : Page
         try
         {
             ApplyAppearance();
+            if (selectedCategory == "codex") { await RefreshCodexStatusAsync(); }
             if (CycleBox.IsChecked == true && Environment.TickCount64 - lastChange >= 20000) { Navigate(1); }
             var requestedTheme = selectedTheme;
             var requestedProfile = selectedProfile;
@@ -247,12 +251,12 @@ public sealed partial class MainPage : Page
         var ink = Brush(light ? "#242231" : "#F1F1FA");
         var muted = Brush(light ? "#716B80" : "#9C9CAF");
         var accent = Brush(light ? "#7854B5" : "#C9AEF3");
-        foreach (var border in new[] { LibraryFrame, AppearanceFrame, OptionsFrame, DisplayFrame, PreviewBadge, AboutFrame }) { border.Background = surface; border.BorderBrush = line; }
+        foreach (var border in new[] { LibraryFrame, AppearanceFrame, OptionsFrame, DisplayFrame, CodexSetupFrame, PreviewBadge, AboutFrame }) { border.Background = surface; border.BorderBrush = line; }
         PreviewFrame.Background = Brush(light ? "#E6E3EE" : "#0A0D13");
         PreviewFrame.BorderBrush = line;
-        foreach (var text in new[] { Heading, SelectedThemeText, LoadingTitle, PositionText, FontScaleText, AboutHeading, AboutAuthor, AboutDisclosureHeading }) { text.Foreground = ink; }
-        foreach (var text in new[] { Subtitle, Author, CatalogText, SourceText, StatusText, LoadingText, FontLabel, SizeLabel, GeometryLabel, DeviceLabel, RefreshLabel, QualityLabel, FooterDot1, FooterDot2, AboutVersion, AboutDisclosure, AboutInitiative }) { text.Foreground = muted; }
-        foreach (var text in new[] { Eyebrow, LibraryHeading, CategoryText, PreviewBadgeText }) { text.Foreground = accent; }
+        foreach (var text in new[] { Heading, SelectedThemeText, LoadingTitle, PositionText, FontScaleText, AboutHeading, AboutAuthor, AboutDisclosureHeading, CodexStatusText }) { text.Foreground = ink; }
+        foreach (var text in new[] { Subtitle, Author, CatalogText, SourceText, StatusText, LoadingText, FontLabel, SizeLabel, GeometryLabel, DeviceLabel, RefreshLabel, QualityLabel, CodexEventText, CodexHelpText, FooterDot1, FooterDot2, AboutVersion, AboutDisclosure, AboutInitiative }) { text.Foreground = muted; }
+        foreach (var text in new[] { Eyebrow, LibraryHeading, CategoryText, PreviewBadgeText, CodexSetupHeading }) { text.Foreground = accent; }
         foreach (var link in new[] { Manifesto, AboutLink, TermsLink, PrivacyLink, AboutManifesto, ProjectLink, InitiativeLink, WebsiteLink, AboutTerms, AboutPrivacy }) { link.Foreground = accent; }
         CategoriesBox.Background = ThemesBox.Background = surface;
         FontBox.Background = ProfilesBox.Background = Brush(light ? "#F6F4FA" : "#11141D");
@@ -261,7 +265,8 @@ public sealed partial class MainPage : Page
         foreach (var combo in new[] { DevicesBox, RefreshBox, QualityBox })
         { combo.Background = Brush(light ? "#F6F4FA" : "#11141D"); combo.Foreground = ink; combo.BorderBrush = line; }
         CycleBox.Foreground = muted;
-        foreach (var button in new[] { ReloadButton, PreviousButton, NextButton, ApplyFontButton, SmallerButton, LargerButton, CloseAboutButton, RefreshDevicesButton, StartDisplayButton, StopDisplayButton })
+        LogErrorsBox.Foreground = muted;
+        foreach (var button in new[] { ReloadButton, PreviousButton, NextButton, ApplyFontButton, SmallerButton, LargerButton, CloseAboutButton, RefreshDevicesButton, StartDisplayButton, StopDisplayButton, CodexRefreshButton, CodexPrepareButton, OpenLogButton })
         { button.Background = surface; button.Foreground = ink; button.BorderBrush = line; }
         UpdateRows();
         UpdateAppearanceButtons();
@@ -287,6 +292,7 @@ public sealed partial class MainPage : Page
 
     private void UpdateSelection()
     {
+        CodexSetupFrame.Visibility = selectedCategory == "codex" ? Visibility.Visible : Visibility.Collapsed;
         CategoryText.Text = (categoryRows.FirstOrDefault(row => row.Id == selectedCategory)?.Name ?? selectedCategory).ToUpperInvariant();
         SelectedThemeText.Text = themeRows.FirstOrDefault(row => row.Id == selectedTheme)?.Name ?? "No themes installed";
         PositionText.Text = $"{ThemesBox.SelectedIndex + 1:00} / {themeRows.Count:00}";
@@ -369,6 +375,99 @@ public sealed partial class MainPage : Page
     }
 
     private async void RefreshDevices_Click(object sender, RoutedEventArgs args) => await RefreshDevicesAsync();
+
+    private async Task RefreshCodexStatusAsync(bool force = false)
+    {
+        if (codexLoading || codexPreparing || !force && Environment.TickCount64 - codexStatusAt < 5000) { return; }
+        codexLoading = true;
+        CodexRefreshButton.IsEnabled = false;
+        try
+        {
+            var status = await client.RequestAsync<CodexSetupStatus>("codex.status");
+            if (unloaded) { return; }
+            ShowCodexStatus(status);
+            codexStatusAt = Environment.TickCount64;
+        }
+        catch (Exception error) { CodexStatusText.Text = error.Message; }
+        finally { codexLoading = false; CodexRefreshButton.IsEnabled = !codexPreparing; }
+    }
+
+    private void ShowCodexStatus(CodexSetupStatus status)
+    {
+        CodexStatusText.Text = status.Status;
+        CodexEventText.Text = status.LastEvent is { } last ? $"Last event: {last}\n{status.LastEventUtc}" : "No events received yet.";
+        CodexHelpText.Text = status.Instructions;
+        CodexPrepareButton.Content = status.Prepared && status.Listed ? "Plugin prepared" : "Prepare Codex plugin";
+        CodexPrepareButton.IsEnabled = !codexPreparing && !(status.Prepared && status.Listed);
+    }
+
+    private async void CodexPrepare_Click(object sender, RoutedEventArgs args)
+    {
+        if (codexPreparing) { return; }
+        string? preparationError = null;
+        codexPreparing = true;
+        CodexPrepareButton.IsEnabled = CodexRefreshButton.IsEnabled = false;
+        CodexStatusText.Text = "Preparing the local plugin…";
+        try
+        {
+            var status = await client.RequestAsync<CodexSetupStatus>("codex.prepare");
+            if (!unloaded) { ShowCodexStatus(status); codexStatusAt = Environment.TickCount64; }
+        }
+        catch (Exception error) { preparationError = error.Message; }
+        finally
+        {
+            codexPreparing = false;
+            CodexRefreshButton.IsEnabled = true;
+            await RefreshCodexStatusAsync(force: true);
+            if (preparationError is not null) { CodexStatusText.Text = preparationError; }
+        }
+    }
+
+    private async void CodexRefresh_Click(object sender, RoutedEventArgs args) => await RefreshCodexStatusAsync(force: true);
+
+    private async Task LoadDiagnosticsAsync()
+    {
+        diagnosticsChanging = true;
+        try
+        {
+            var status = await client.RequestAsync<DiagnosticsStatus>("diagnostics.status");
+            diagnosticsEnabled = status.Enabled;
+            LogErrorsBox.IsChecked = status.Enabled;
+            OpenLogButton.IsEnabled = status.Enabled;
+            ToolTipService.SetToolTip(OpenLogButton, status.LogPath);
+        }
+        catch (Exception error) { StatusText.Text = error.Message; }
+        finally { diagnosticsChanging = false; }
+    }
+
+    private async void Diagnostics_Changed(object sender, RoutedEventArgs args)
+    {
+        if (!ready || diagnosticsChanging) { return; }
+        diagnosticsChanging = true;
+        LogErrorsBox.IsEnabled = false;
+        try
+        {
+            var status = await client.RequestAsync<DiagnosticsStatus>("diagnostics.set", new SetDiagnosticsOptions(LogErrorsBox.IsChecked == true));
+            diagnosticsEnabled = status.Enabled;
+            LogErrorsBox.IsChecked = status.Enabled;
+            OpenLogButton.IsEnabled = status.Enabled;
+            ToolTipService.SetToolTip(OpenLogButton, status.LogPath);
+        }
+        catch (Exception error) { LogErrorsBox.IsChecked = diagnosticsEnabled; StatusText.Text = error.Message; }
+        finally { diagnosticsChanging = false; LogErrorsBox.IsEnabled = true; }
+    }
+
+    private async void OpenLog_Click(object sender, RoutedEventArgs args)
+    {
+        try
+        {
+            var result = await client.RequestAsync<JsonElement>("diagnostics.open");
+            if (!result.TryGetProperty("accepted", out var accepted) || accepted.ValueKind != JsonValueKind.True)
+            { StatusText.Text = "No log file yet. Leave Log errors on, then try again."; }
+        }
+        catch (Exception error) { StatusText.Text = error.Message; }
+    }
+
     private void Device_Changed(object sender, SelectionChangedEventArgs args) { if (ready) { UpdateDisplayControls(); } }
     private void Refresh_Changed(object sender, SelectionChangedEventArgs args)
     {

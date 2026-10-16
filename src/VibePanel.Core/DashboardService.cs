@@ -12,9 +12,14 @@ public sealed class DashboardService : IDisposable
     public WindowsVolumeService Audio { get; } = new();
     private readonly WindowsMetricsService metrics = new();
     private readonly NetworkTrafficService network = new();
+    private readonly WindowsPlaybackAnalyzer playback = new();
 
-    public async Task<DashboardSnapshot> ReadAsync(bool includeSystem = true, bool includeMedia = true)
+    public async Task<DashboardSnapshot> ReadAsync(bool includeSystem = true, bool includeMedia = true, bool analyzePlayback = false)
     {
+        var includePlayback = analyzePlayback && includeMedia;
+        // The constructor does not open an audio device. Only this explicit multimedia path does.
+        if (includePlayback) { await Task.Run(playback.Read); }
+        else { await Task.Run(playback.Stop); }
         var notices = new List<string>();
         var media = NowPlaying.Empty;
         IReadOnlyList<AppVolume> volumes = [];
@@ -28,7 +33,8 @@ public sealed class DashboardService : IDisposable
         }
         if (!includeSystem)
         {
-            return new(media, volumes, new(null, null, null, null, "", "Not sampled for themes", "Not sampled for themes"), notices);
+            return new(media, volumes, new(null, null, null, null, "", "Not sampled for themes", "Not sampled for themes"), notices,
+                Playback: includePlayback ? playback.Snapshot() : null);
         }
         try { machine = await Task.Run(metrics.Read); }
         catch (Exception error)
@@ -39,8 +45,16 @@ public sealed class DashboardService : IDisposable
         NetworkTraffic? traffic = null;
         try { traffic = network.Read(); }
         catch (Exception error) { notices.Add($"Network counters unavailable: {error.Message}"); }
-        return new(media, volumes, machine, notices, traffic);
+        return new(media, volumes, machine, notices, traffic, includePlayback ? playback.Snapshot() : null);
     }
 
-    public void Dispose() { Audio.Dispose(); metrics.Dispose(); }
+    public void Dispose()
+    {
+        try { playback.Dispose(); }
+        finally
+        {
+            try { Audio.Dispose(); }
+            finally { metrics.Dispose(); }
+        }
+    }
 }

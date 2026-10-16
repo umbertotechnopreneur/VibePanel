@@ -36,6 +36,8 @@ internal static class VibePanelCli
                 "scenes" => Scenes(),
                 "themes" => Themes(),
                 "theme" => Theme(args),
+                "codex" => Codex(args),
+                "diagnostics" => Diagnostics(args),
                 "gui" => Gui(),
                 "help" or "--help" or "-h" or null => Help(),
                 _ => Fail("I do not know that command. Run 'vp help'.")
@@ -170,6 +172,39 @@ internal static class VibePanelCli
         AnsiConsole.WriteLine($"My packs: {ThemeCatalog.UserThemesPath}");
         AnsiConsole.WriteLine("Theme folders are listed from manifests. Scripts are only loaded for an explicit preview.");
         return catalog.Themes.Count > 0 ? 0 : 1;
+    }
+
+    private static int Codex(IReadOnlyList<string> args)
+    {
+        if (args.Count != 2 || args[1] is not ("status" or "prepare"))
+        { return Fail("Usage: vp codex status|prepare"); }
+        var result = args[1] == "prepare" ? CodexIntegration.PrepareAsync().GetAwaiter().GetResult() : CodexIntegration.Status();
+        AnsiConsole.MarkupLine($"[bold]Vibe Panel Codex:[/] {Markup.Escape(result.Status)}");
+        AnsiConsole.WriteLine($"Plugin files: {(result.Prepared ? "prepared" : "not prepared")}; personal marketplace: {(result.Listed ? "listed" : "not listed")}.");
+        if (result.ActivitySeen) { AnsiConsole.WriteLine($"Last local event: {result.LastEvent} at {result.LastEventUtc}"); }
+        AnsiConsole.WriteLine(result.Instructions);
+        return 0;
+    }
+
+    private static int Diagnostics(IReadOnlyList<string> args)
+    {
+        if (args.Count != 2 || args[1] is not ("status" or "on" or "off" or "open"))
+        { return Fail("Usage: vp diagnostics status|on|off|open"); }
+        if (args[1] == "open")
+        {
+            if (!DiagnosticLog.Open()) { return Fail("No local engine log exists yet."); }
+            AnsiConsole.WriteLine("Opened the local engine log.");
+            return 0;
+        }
+        var result = args[1] switch
+        {
+            "on" => DiagnosticLog.SetEnabled(true),
+            "off" => DiagnosticLog.SetEnabled(false),
+            _ => DiagnosticLog.Status()
+        };
+        AnsiConsole.WriteLine($"Error logging: {(result.Enabled ? "on" : "off")}. {result.LogPath}");
+        AnsiConsole.WriteLine("Local only. The log omits prompts, chat titles, commands, tool arguments and results.");
+        return 0;
     }
 
     private static int Theme(IReadOnlyList<string> args)
@@ -446,6 +481,8 @@ internal static class VibePanelCli
         commands.AddRow("vp discover / vp profiles", "List connected panels / supported geometries.");
         commands.AddRow("vp scenes", "Eight layouts; five rotate with a short fade. --scene <ID> locks one.");
         commands.AddRow("vp themes", "List installed Multimedia and OpenAI Codex themes from their folders.");
+        commands.AddRow("vp codex status|prepare", "Check or prepare my optional Codex plugin. Trust its hooks in Codex.");
+        commands.AddRow("vp diagnostics status|on|off|open", "Opt-in local error log, capped at 512 KiB plus one backup.");
         commands.AddRow("vp gui", "Open the desktop window from the portable folder.");
         commands.AddRow("vp theme media.aurora --export frame.jpg", "Render a Python/Skia theme to a new file. No USB writes.");
         commands.AddRow("vp theme <id> --export frame.jpg --font <name> --light", "Use the same font and light-mode options as the UI.");

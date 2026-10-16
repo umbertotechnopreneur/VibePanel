@@ -13,6 +13,7 @@ VBWR E -->
     <Platforms>x64;ARM64</Platforms>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../VibePanel.Contracts/VibePanel.Contracts.csproj" />
     <PackageReference Include="System.Drawing.Common" Version="10.0.10" />
     <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
     <PackageReference Include="System.Management" Version="10.0.10" />

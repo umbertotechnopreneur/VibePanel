@@ -42,7 +42,7 @@ VBWR E -->
             <Grid.ColumnDefinitions><ColumnDefinition x:Name="LibraryColumn" Width="284"/><ColumnDefinition Width="18"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
             <Border x:Name="LibraryFrame" CornerRadius="16" BorderThickness="1" Padding="14">
                 <Grid>
-                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                     <Grid Margin="4,2,0,14">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <TextBlock x:Name="LibraryHeading" Text="THEME LIBRARY" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
@@ -71,6 +71,19 @@ VBWR E -->
                         </DataTemplate></ListBox.ItemTemplate>
                     </ListBox>
                     <TextBlock x:Name="CatalogText" Grid.Row="3" FontSize="10" Margin="4,10,0,0" Text="Discovering local themes…" TextWrapping="Wrap"/>
+                    <Border x:Name="CodexSetupFrame" Grid.Row="4" CornerRadius="10" BorderThickness="1" Padding="10" Margin="0,12,0,0" Visibility="Collapsed">
+                        <StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <TextBlock x:Name="CodexSetupHeading" Text="CODEX CONNECTION" FontSize="9" VerticalAlignment="Center"/>
+                                <Button x:Name="CodexRefreshButton" Grid.Column="1" Content="↻" Click="CodexRefresh_Click" Width="26" Height="24" ToolTipService.ToolTip="Check plugin and incoming events"/>
+                            </Grid>
+                            <TextBlock x:Name="CodexStatusText" Text="Checking the local plugin…" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                            <TextBlock x:Name="CodexEventText" FontSize="9" TextWrapping="Wrap" Margin="0,5,0,0"/>
+                            <Button x:Name="CodexPrepareButton" Content="Prepare Codex plugin" Click="CodexPrepare_Click" Height="30" FontSize="11" Margin="0,10,0,0" ToolTipService.ToolTip="Copy the plugin locally. Finish installation and review its hooks in Codex."/>
+                            <TextBlock x:Name="CodexHelpText" Text="Prepare here. Then install the plugin and review its hooks inside Codex." FontSize="9" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                        </StackPanel>
+                    </Border>
                 </Grid>
             </Border>
             <Grid Grid.Column="2">
@@ -151,8 +164,11 @@ VBWR E -->
         </Grid>
         <Grid Grid.Row="2" Margin="30,14,28,16">
             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
             <TextBlock x:Name="StatusText" Text="Local preview" FontSize="10" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-            <StackPanel x:Name="FooterLinks" Grid.Row="1" HorizontalAlignment="Center" Margin="0,8,0,0">
+            <CheckBox x:Name="LogErrorsBox" Grid.Column="1" Content="Log errors" FontSize="10" VerticalAlignment="Center" Margin="12,0" Checked="Diagnostics_Changed" Unchecked="Diagnostics_Changed" ToolTipService.ToolTip="Local technical events only. No song titles, prompts, audio or transcripts."/>
+            <Button x:Name="OpenLogButton" Grid.Column="2" Content="Open log" Click="OpenLog_Click" FontSize="10" Padding="8,4" IsEnabled="False"/>
+            <StackPanel x:Name="FooterLinks" Grid.Row="1" Grid.ColumnSpan="3" HorizontalAlignment="Center" Margin="0,8,0,0">
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                     <HyperlinkButton x:Name="AboutLink" Content="About Vibe Panel" Click="About_Click" FontSize="10"/>
                     <TextBlock x:Name="FooterDot1" Text=" · " FontSize="10" VerticalAlignment="Center" Margin="6,0"/>
