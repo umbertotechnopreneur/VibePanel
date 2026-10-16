@@ -1,33 +1,19 @@
-# Vibe Panel portable preview
+# Use Vibe Panel
 
-Extract the whole ZIP and run `VibePanel.exe`, or `engine/vp.exe help` in a terminal. Keep the folder together: `engine`, `wwwroot`, Python, themes and their dependencies are not optional loose files.
+1. Unzip the file.
+2. Open `VibePanel.exe`.
+3. Pick Music or Codex, then a theme. Music is called **Multimedia** in the app.
 
-## What's included
+Keep all the files in the same folder. Windows needs WebView2 to show the app.
 
-The Windows x64/ARM64 package includes .NET and an isolated Python runtime with pinned Skia/NumPy dependencies. It does not change the machine's Python installation. Windows WebView2 Evergreen is required and is not auto-installed.
+You can change the font, text size and light/dark colors. The window shows what your screen could look like.
 
-No installer, drivers, services, startup entries or monitoring tools are added. The viewer never starts USB output. Physical commands remain explicit CLI operations.
+To send it to the USB screen, use a [display command](docs/theme-packs.md#cli-and-shared-settings). To see Codex activity, add the optional [plugin](plugins/vibepanel-codex/README.md).
 
-## Theme studio
+**Themes run code on your PC. For now, only get them from the [official repository](https://github.com/umbertotechnopreneur/VibePanel). I still need to check security, memory use and speed.**
 
-Choose **Multimedia** or **OpenAI Codex**, then one of ten themes in that category. Previous/next or Page Up/Page Down navigate themes; optional cycling changes the selection every 20 seconds. Auto appearance uses local time: light 07:00–19:00, dark otherwise. Manual light/dark, category, selected theme, geometry, font and text size are saved.
+The app saves your settings on your PC. It does not record sound or change the volume.
 
-The preview requests a frame once a second, with a short fade when switching themes. Fonts use installed families with a monospace fallback. Source themes are editable under `engine/themes`; the shared canvas and worker live under `engine/theme-runtime`. Add personal packs under `%LOCALAPPDATA%\VibePanel\themes`, then click Reload. See [theme pack structure](docs/theme-packs.md).
+Windows only for now. Hobby project. No warranty.
 
-The screen canvas is offscreen Python/Skia. OpenSilver/Photino uses a webview for the **desktop configuration UI**, not for rendering the panel themes.
-
-## Data and optional plugins
-
-Media comes from generic Windows APIs. There is no Spotify login/API dependency. Audio volume and peak meters are read-only; no microphone or audio is recorded. Unavailable quality, shuffle or volume is not fabricated.
-
-Codex themes can be selected without installing Codex. They show a waiting state until the optional plugin supplies local events. Preparing and trusting the plugin is a separate opt-in action; it is not enabled by launching Vibe Panel. Its preparation helper currently uses system Python; the bundled renderer runtime does not automatically register Codex hooks. See [plugin instructions](plugins/vibepanel-codex/README.md).
-
-Settings and derived-color caches stay under `%LOCALAPPDATA%\VibePanel`. Portable means no installer, not zero local state. Themes are executable Python: only load code you trust. Removing a pack does not uninstall its data provider.
-
-## Compatibility and evidence
-
-The native engine currently supports Windows. Linux/macOS media, audio and USB providers remain pending. A Linux UI build is not hardware compatibility.
-
-Twenty wide layouts are individually composed for 1280 × 480. Square/narrow profiles use a shared compact fallback with each theme's visual motif. Build, local JPEG rendering and physical panel validation are reported separately in [cave.md](cave.md).
-
-I maintain this as a hobby project, provided as is without warranty. Keep `LICENSE`, `THIRD_PARTY_NOTICES.md` and `licenses` with redistributed copies.
+[What's left to do](cave.md) · [Build it yourself](docs/build.md) · [More about themes](docs/theme-packs.md)

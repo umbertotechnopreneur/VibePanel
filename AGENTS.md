@@ -30,8 +30,11 @@ I am Umberto Giacobbi. Vibe Panel is my MIT-licensed holiday hobby project for c
 
 - Keep original public copy in plain English, with the concrete problem and solution before architecture.
 - Write as the solo maintainer using first-person singular when author voice is needed.
+- Keep public notes very short. Use short sentences and common words a child could understand. No slogans or long branding explanations. Put commands and architecture in linked guides.
+- Describe the origin honestly: I made it in a few days during my holiday, frustrated with the existing software, learning from others' public work. Credit those sources. Memory, performance and security checks remain on my list because I have not had time; do not claim them complete or blame their absence on AI.
+- Make the current theme warning easy to see: themes run Python code on the user's computer; for now, download them only from the official repository. Do not imply that this replaces the unfinished security review.
 - Use **Vibe Panel** as the product codename and **Umberto Giacobbi** as its author. Keep `VibePanel` for repository/code identifiers. Do not substitute VibeWare for either.
-- Keep the approved VibeWare floppy unchanged, link it to `https://umbertogiacobbi.biz/vibeware/manifesto`, and put the initiative section at the bottom of the README. The tagline is `Human intent, AI execution, and plenty of tokens`.
+- Keep the approved VibeWare floppy unchanged and a brief initiative link at the bottom of the README: `https://umbertogiacobbi.biz/vibeware/manifesto`. Omit the tagline and slogans from public project notes.
 - Keep the hobby/as-is/no-warranty disclosure short. Do not promise support, compatibility, verified security or performance. Record decisions in `lesson.md` and limits/evidence in `cave.md`.
 - Preserve the VibeWare markers `VBWR B` and `VBWR E` in first-party source and project files.
 - The VibePanel name and visual identity are not granted by the MIT license; see `TRADEMARKS.md`.
