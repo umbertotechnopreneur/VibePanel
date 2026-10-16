@@ -9,7 +9,9 @@ param(
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
 $runtime = 'win-' + $Architecture.ToLowerInvariant()
-$destination = Join-Path $repo "artifacts/portable/VibePanel-$runtime"
+$packageName = "VibePanel-$runtime-preview"
+$stagingRoot = Join-Path $repo 'artifacts/staging'
+$destination = Join-Path $stagingRoot ("$packageName-" + [Guid]::NewGuid().ToString('N'))
 $engine = Join-Path $destination 'engine'
 $env:NUGET_HTTP_CACHE_PATH = Join-Path $repo 'artifacts/nuget-http'
 foreach ($target in @(@{ Project = 'Cli'; Folder = $engine }, @{ Project = 'Photino'; Folder = $destination })) {
@@ -41,7 +43,7 @@ foreach ($folder in @('docs', 'plugins/vibepanel-codex')) {
 }
 $packages = Join-Path $repo 'artifacts/packages'
 New-Item -ItemType Directory -Path $packages -Force | Out-Null
-$archive = Join-Path $packages "VibePanel-$runtime-preview.zip"
+$archive = Join-Path $packages "$packageName.zip"
 Compress-Archive -LiteralPath $destination -DestinationPath $archive -Force
 Get-FileHash -LiteralPath $archive -Algorithm SHA256 | Format-List
-Write-Host "Portable ZIP: $archive. No tests or USB commands executed."
+Write-Host "Portable ZIP: $archive. Staging: $destination. No tests or USB commands executed."
