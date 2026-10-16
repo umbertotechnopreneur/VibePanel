@@ -64,13 +64,19 @@ These are twenty separate wide compositions. Narrow/square panels share a compac
 
 ```powershell
 vp themes
+vp gui
 vp theme media.aurora --export frame.jpg
+vp theme media.aurora --device 1 --interval-ms 250 --quality medium
 vp theme codex.beacon --export activity.jpg --light --font "Consolas" --font-scale 1.1
 ```
 
 Export never opens USB and refuses to overwrite a file. `--profile` selects geometry. `--font` and `--font-scale` affect the screen; the supported scale range is 0.65–1.6. The UI offers 70–150% in convenient 10% steps.
 
-Only an explicit `--device N` starts physical playback, for example `vp theme media.aurora --device 1 --seconds 20`. It cannot be combined with export. Never use it as an automatic renderer check.
+In the GUI, choose a USB display and press **Show on display**. Theme, font, quality and rate changes then reach the panel. **Stop** ends the session. Opening the window alone never starts USB output.
+
+The update choices are 1 second, 500, 250, 100 and 50 ms. Low/Medium/High JPEG targets are 50/75/90, reduced if needed to fit the frame limit. Actual speed depends on rendering and USB; frames do not queue up.
+
+In the CLI, only an explicit `--device N` starts physical playback, for example `vp theme media.aurora --device 1 --seconds 20`. It cannot be combined with export. Never use it as an automatic renderer check.
 
 ## Rendering contract
 

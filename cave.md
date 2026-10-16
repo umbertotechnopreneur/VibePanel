@@ -21,6 +21,6 @@ An earlier picture worked on my Thermalright display.
 
 On 16 October 2026, I built the Windows x64 app and ZIP. One approved check made all 40 theme pictures: 20 themes, light and dark. I looked at the overview images. They used made-up demo data.
 
-The new themes still need a trial on the real display. More settings, live Codex activity and setup on a fresh PC still need checking.
+On 17 October, I confirmed Aurora Glass worked on my display after a 20-second CLI trial. The new GUI controls, faster rates, other themes, live Codex activity and setup on a fresh PC still need checking.
 
 This is my hobby project. No warranty.
