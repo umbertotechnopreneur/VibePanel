@@ -7,7 +7,7 @@ def render(c, s):
     c.header("MEDIA / NOCTURNE")
     c.rect(0, 66, 1280, 365, s.base, opacity=.3)
     c.cover(70, 100, 265, radius=12)
-    c.label(s.source, 397, 124, 800)
+    c.label(s.playback_status() + " · " + s.source, 397, 124, 800, s.accent)
     c.text(s.title, 397, 197, 46, width=798, bold=True)
     c.text(s.artist, 397, 246, 25, s.muted, 798)
     c.text(s.album, 397, 284, 16, s.muted, 798)

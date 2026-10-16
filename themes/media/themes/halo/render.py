@@ -7,7 +7,7 @@ def render(c, s):
     c.header("MEDIA / HALO")
     c.cover(490, 115, 252, circular=True)
     c.ring(616, 241, 143, s.progress, stroke=3)
-    c.label("NOW PLAYING" if s.playing else "MEDIA", 44, 155, 390, s.accent)
+    c.label(s.playback_status(), 44, 155, 390, s.accent)
     c.text(s.title, 44, 208, 36, width=386, bold=True)
     c.text(s.artist, 44, 251, 21, s.muted, 386)
     c.text(s.album, 44, 285, 15, s.muted, 386)

@@ -5,9 +5,10 @@ def render(c, s):
         return
     c.backdrop("aurora", artwork=True)
     c.header("MEDIA / AURORA GLASS")
-    c.cover(48, 80, 280, radius=18)
-    c.media_text(376, 173, 820, 48)
-    c.progress(48, 401, 1180, 7)
-    c.vu(930, 428, 225, 16)
+    c.cover(48, 72, 300, radius=16)
+    c.media_text(398, 192, 818, 49)
+    c.progress(48, 401, 1180, 8, labels=False)
+    c.text(s.timing(), 48, 437, 15, s.muted, 600)
+    c.vu(930, 427, 225, 18)
     c.footer(s.source)
 # VBWR E

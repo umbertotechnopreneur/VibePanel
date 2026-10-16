@@ -55,6 +55,10 @@ def render(request: dict) -> dict:
         raise RuntimeError("Python theme dependencies are missing. Install theme-runtime/requirements.txt in the configured Python runtime. " + IMPORT_ERROR)
     if request.get("version", 1) != 1 or request.get("method", "render") != "render":
         raise ValueError("Unsupported theme worker request.")
+    quality_name = request.get("jpegQuality", "high")
+    if quality_name not in ("low", "medium", "high"):
+        raise ValueError("JPEG quality must be low, medium, or high.")
+    target_quality = {"low": 50, "medium": 75, "high": 90}[quality_name]
     width, height = int(request.get("width", 1280)), int(request.get("height", 480))
     if not (128 <= width <= 4096 and 128 <= height <= 4096 and width * height <= 8_388_608):
         raise ValueError("Canvas dimensions must be 128–4096 pixels and at most 8 megapixels.")
@@ -75,7 +79,8 @@ def render(request: dict) -> dict:
     canvas.finish()
     snapshot = surface.makeImageSnapshot()
     # Keep the physical profile resolution exact; reduce JPEG quality, never resize.
-    for quality in (90, 82, 72, 60, 45, 30, 18, 8):
+    qualities = (target_quality,) + tuple(value for value in (82, 72, 60, 45, 30, 18, 8) if value < target_quality)
+    for quality in qualities:
         data = snapshot.encodeToData(skia.EncodedImageFormat.kJPEG, quality)
         if data is not None and data.size() <= MAX_JPEG:
             return {"version": 1, "id": request.get("id"), "ok": True,

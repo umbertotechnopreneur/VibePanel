@@ -5,11 +5,11 @@ def render(c, s):
         return
     c.backdrop("orbit")
     c.header("MEDIA / ORBIT")
-    c.cover(86, 87, 300, circular=True)
-    c.ring(236, 237, 163, s.progress, stroke=4)
-    c.media_text(470, 176, 734, 43)
-    c.label(s.source, 470, 329, 720)
-    c.text(s.timing(), 236, 438, 16, s.muted, 385, align="center")
-    c.vu(470, 382, 620, 26)
+    c.cover(136, 74, 332, circular=True)
+    c.ring(302, 240, 181, s.progress, stroke=3, marker=True)
+    c.media_text(548, 188, 664, 42)
+    c.label(s.source, 548, 337, 664)
+    c.text(s.timing(), 302, 443, 16, s.muted, 400, align="center")
+    c.vu(548, 375, 570, 25)
     c.footer()
 # VBWR E

@@ -16,6 +16,32 @@ _COVERS = OrderedDict()
 _FONTS = OrderedDict()
 FALLBACK_PALETTE = ("#6677CC", "#A575BC", "#4AABB1", "#C8A48C")
 SAMPLING = skia.SamplingOptions(skia.FilterMode.kLinear)
+# Each Codex composition has its own color identity. Wallpaper samples tint these
+# anchors gently rather than giving all ten themes the same four colors.
+CODEX_IDENTITIES = {
+    "beacon": ("#111629", "#F0F2FC", ("#7395FF", "#B694EC", "#4DBDCA", "#D8ADD9")),
+    "timeline": ("#271C29", "#FFF9F2", ("#DB9D8D", "#BB9ADB", "#C9AA91", "#F2C5B4")),
+    "terminal": ("#071713", "#EEF8EE", ("#56BC94", "#77BBA7", "#2D8174", "#A8C797")),
+    "focus": ("#291D31", "#FFF1F5", ("#C394D8", "#EB96BA", "#A494D2", "#E6B4AA")),
+    "pulse": ("#081B2C", "#EFFAFF", ("#46BEE7", "#466BC8", "#A27DE3", "#64D6C5")),
+    "approval": ("#201329", "#FFF4E8", ("#9778BC", "#5F467D", "#CC9C83", "#754E85")),
+    "flow": ("#261F36", "#FFFBF5", ("#A28BE6", "#F29D96", "#C1A7ED", "#F3BAAB")),
+    "quiet": ("#102521", "#F1F7F2", ("#8BBDA8", "#75A6A4", "#D1CCAA", "#94A0C1")),
+    "dispatch": ("#10242F", "#F0F5F4", ("#63A4B8", "#CF9270", "#597BA5", "#99C1B2")),
+    "chronicle": ("#2B241E", "#FCF5E9", ("#C3A070", "#A9B797", "#C69079", "#869D9B")),
+}
+MEDIA_TREATMENTS = {
+    "aurora": {"photo": True, "blur": 21, "dark": .24, "light": .48, "blob": .18},
+    "editorial": {"photo": False, "blob": .50},
+    "cinematic": {"photo": True, "blur": 5, "dark": .14, "light": .42, "blob": .05},
+    "signal": {"photo": False, "blob": .27},
+    "orbit": {"photo": True, "blur": 48, "dark": .28, "light": .44, "blob": .32},
+    "prism": {"photo": False, "blob": .65},
+    "ribbon": {"photo": False, "blob": .42},
+    "nocturne": {"photo": True, "blur": 34, "dark": .34, "light": .50, "blob": .14},
+    "halo": {"photo": False, "blob": .50},
+    "duotone": {"photo": True, "blur": 40, "dark": .28, "light": .48, "blob": .25},
+}
 
 
 def cached(key, factory):
@@ -125,22 +151,32 @@ class ThemeContext:
         self.font_scale = clip(request.get("fontScale", 1), .65, 1.6)
         self.ambient_drift = bool(request.get("ambientDrift"))
         self.category = manifest.get("category", "multimedia")
+        self.style = str(manifest.get("id", "")).rsplit(".", 1)[-1]
         self.theme_directory = str(request.get("themePath", ""))
         self.preview = bool(state.get("preview") or self.codex.get("preview"))
         self.cover, self.cover_key, cover_palette, self.dominant = decoded_cover(self.media)
         desktop_palette = self.desktop.get("palette")
         desktop_palette = tuple(desktop_palette[:4]) if isinstance(desktop_palette, list) and desktop_palette else FALLBACK_PALETTE
-        self.palette = cover_palette if self.category == "multimedia" and self.cover else desktop_palette
-        self.palette = tuple(self.palette[i % len(self.palette)] for i in range(4))
+        source_palette = cover_palette if self.category == "multimedia" and self.cover else desktop_palette
+        self.palette = tuple(source_palette[i % len(source_palette)] for i in range(4))
         self.fg = "#182133" if self.light else "#F5F5FC"
         self.muted = "#586378" if self.light else "#ACB7CD"
         self.base = "#F2F1ED" if self.light else "#101522"
+        if self.category == "codex":
+            dark_base, light_base, anchors = CODEX_IDENTITIES.get(self.style, CODEX_IDENTITIES["beacon"])
+            self.palette = tuple(blend(anchor, self.palette[index], .22) for index, anchor in enumerate(anchors))
+            self.base = light_base if self.light else dark_base
+            self.fg = blend("#172035" if self.light else "#F9F8FD", anchors[0], .10)
+            self.muted = blend("#626471" if self.light else "#B9BBCD", anchors[2], .18)
+        elif self.style in ("editorial", "orbit", "duotone"):
+            self.base = "#FFF7ED" if self.light else blend("#101924", self.dominant, .18)
         self.accent = blend(self.palette[0], "#193B68" if self.light else "#CBEAFF", .42)
         self.title = clean(self.media.get("title"), "Nothing playing")
         self.artist = clean(self.media.get("artist"), "Waiting for a media session")
         self.album = clean(self.media.get("album"))
         self.source = clean(self.media.get("source"), "MEDIA")
         self.playing = bool(self.media.get("playing"))
+        self.has_media = bool(self.media.get("source") or self.cover or self.playing or number(self.media.get("durationSeconds")) > 0)
         self.shuffle = self.media.get("shuffle") if isinstance(self.media.get("shuffle"), bool) else None
         self.position = max(0, number(self.media.get("positionSeconds")))
         self.length = max(0, number(self.media.get("durationSeconds")))
@@ -149,15 +185,37 @@ class ThemeContext:
         self.peak = self.audio.get("peak")
         self.chat_title = clean(self.codex.get("chatTitle") or self.codex.get("chatName"), "OpenAI Codex")
         self.status = clean(self.codex.get("status"), "Waiting for Codex")
+        self.last_status = self.status
         self.event = clean(self.codex.get("event"))
         self.phase = clean(self.codex.get("phase"))
         self.is_live = bool(self.codex.get("isLive"))
         self.stale = bool(self.codex.get("stale"))
+        if not self.event and not self.preview:
+            self.status = "Waiting for Codex"
+            self.is_live = False
+        elif self.stale:
+            self.status = "Last activity"
+            self.is_live = False
+        elif self.event == "SessionEnd":
+            self.status = "Session closed"
+            self.is_live = False
+        elif self.event == "Interrupt":
+            self.status = "Interrupted"
+            self.is_live = False
         self.tool = clean(self.codex.get("tool") or self.codex.get("toolKind"))
         self.model = clean(self.codex.get("model"))
         self.approval = self.event == "PermissionRequest" and self.is_live and not self.stale
         self.ready = self.event == "Stop" and not self.stale
-        self.signal = ("#B7691F" if self.light else "#FFBD75") if self.approval else self.accent
+        if self.approval:
+            self.signal = "#9E5218" if self.light else "#FFC16E"
+        elif self.ready:
+            self.signal = "#26754D" if self.light else "#8DE2AE"
+        elif self.event == "Interrupt" and not self.stale:
+            self.signal = "#AA3950" if self.light else "#F7A4AC"
+        elif not self.event or self.stale or self.event == "SessionEnd":
+            self.signal = self.muted
+        else:
+            self.signal = self.accent
         try:
             self.now = datetime.fromisoformat(str(self.clock.get("iso", "")).replace("Z", "+00:00"))
         except ValueError:
@@ -167,15 +225,20 @@ class ThemeContext:
         return duration(self.position) + " / " + (duration(self.length) if self.length else "—")
 
     def activity_detail(self):
-        if self.preview:
-            return "DEMO DATA · local preview"
         if self.approval:
             return "Respond on your computer"
         if self.stale:
-            return "Last received activity · connection may be idle"
+            return self.last_status + " · last received event"
         if not self.event:
             return "Connect the Codex hooks to see activity"
+        if self.event == "SessionEnd":
+            return "No active session"
+        if self.event == "Interrupt":
+            return "Work was interrupted"
         return self.tool or self.event
+
+    def playback_status(self):
+        return "PLAYING" if self.playing else "PAUSED" if self.has_media else "NO SESSION"
 
     def events(self):
         items = self.codex.get("events") or []
@@ -264,6 +327,8 @@ class Canvas:
             x -= measured
         elif align == "center":
             x -= measured / 2
+        if not self.ctx.light and self.ctx.category == "multimedia" and MEDIA_TREATMENTS.get(self.ctx.style, {}).get("photo"):
+            self.native.drawString(value, x + 1, y + 2, font, self.paint("#000000", .55))
         self.native.drawString(value, x, y, font, self.paint(tint or self.ctx.fg))
 
     def label(self, value, x, y, width=None, tint=None):
@@ -284,52 +349,136 @@ class Canvas:
                 date = f"{self.ctx.now.day} {months[self.ctx.now.month - 1]} {self.ctx.now.year}"
                 if extended:
                     date = days[self.ctx.now.weekday()] + " " + date
-            self.text(date.upper(), 1120, 39, 13, self.ctx.muted, 670, align="right")
+            date_right = 1240 - 170 * self.ctx.font_scale
+            self.text(date.upper(), date_right, 39, 13, self.ctx.muted, date_right - 450, align="right")
 
-    def backdrop(self, style="aurora", artwork=False):
+    def backdrop(self, style="aurora", artwork=None):
         ctx = self.ctx
-        key = ("background", self.width, style, ctx.light, ctx.palette, ctx.cover_key if artwork else "")
+        treatment = MEDIA_TREATMENTS.get(style, {}) if ctx.category == "multimedia" else {}
+        use_art = treatment.get("photo", False) if artwork is None else bool(artwork)
+        use_art = bool(use_art and ctx.cover)
+        key = ("background-v2", self.width, style, ctx.light, ctx.base, ctx.palette,
+               ctx.cover_key if use_art else "", ctx.dominant if ctx.category == "multimedia" else "",
+               ctx.signal if ctx.category == "codex" and (ctx.approval or ctx.ready) else "")
         def create():
-            surface = skia.Surface(self.width + 48, self.height + 48)
+            # Only cached ambience is half-resolution. Cover and glyphs stay sharp.
+            full_width, full_height = self.width + 48, self.height + 48
+            surface = skia.Surface(full_width // 2, full_height // 2)
             native = surface.getCanvas()
             native.clear(color(ctx.base))
-            if artwork and ctx.cover:
-                paint = self.paint(ctx.base, .20 if ctx.light else .32)
-                paint.setImageFilter(skia.ImageFilters.Blur(30, 30))
-                native.drawImageRect(ctx.cover, skia.Rect.MakeWH(self.width + 48, self.height + 48), SAMPLING, paint)
-                native.drawColor(color(ctx.base, .58 if ctx.light else .46))
-            positions = ((.08, .23), (.74, .11), (.94, .88), (.39, .94))
+            native.scale(.5, .5)
+            if use_art:
+                image = ctx.cover
+                ratio = max(full_width / image.width(), full_height / image.height())
+                crop_width, crop_height = full_width / ratio, full_height / ratio
+                source = skia.Rect.MakeXYWH((image.width() - crop_width) / 2,
+                    (image.height() - crop_height) / 2, crop_width, crop_height)
+                paint = self.paint("#FFFFFF")
+                paint.setImageFilter(skia.ImageFilters.Blur(treatment.get("blur", 25), treatment.get("blur", 25)))
+                # Aspect-fill at full opacity; the earlier double-opacity layer hid it.
+                native.drawImageRect(image, source, skia.Rect.MakeWH(full_width, full_height), SAMPLING, paint)
+                native.drawColor(color(ctx.base, treatment.get("light" if ctx.light else "dark", .30)))
+                if not ctx.light:
+                    scrim = skia.GradientShader.MakeLinear([(0, 0), (0, full_height)],
+                        [color("#08101C", .05), color("#08101C", .62 if style == "cinematic" else .23)])
+                    native.drawPaint(skia.Paint(Shader=scrim))
+            arrangements = {
+                "aurora": ((.05, .12), (.75, -.1), (1.05, .85), (.35, 1.15)),
+                "editorial": ((-.1, .92), (.75, 1.25), (1.05, .9), (.1, 1.4)),
+                "orbit": ((-.05, .15), (.1, 1.05), (.84, .3), (.56, 1.4)),
+                "prism": ((.1, .1), (.76, -.12), (1.05, .96), (.54, 1.3)),
+                "signal": ((-.2, .3), (1.15, .6), (.5, 1.6), (.6, -.9)),
+                "halo": ((.5, .5), (.5, -.3), (1.1, .7), (-.1, .9)),
+                "beacon": ((-.12, .1), (.78, -.25), (.02, 1.1), (1.15, 1.1)),
+                "timeline": ((-.1, .6), (.8, 1.2), (1.1, -.1), (.5, 1.4)),
+                "terminal": ((-.3, -.5), (1.3, 1.4), (.0, 1.7), (1.3, -.5)),
+                "focus": ((.5, 1.3), (1.1, .0), (-.15, .2), (.5, -.8)),
+                "pulse": ((.16, .53), (.2, .5), (.35, .6), (.96, 1.5)),
+                "approval": ((.1, .0), (.56, -.5), (1.04, .75), (.02, 1.1)),
+                "flow": ((-.08, 1.1), (1.1, .9), (.0, -.2), (.9, 1.4)),
+                "quiet": ((-.3, .8), (1.2, 1.2), (.5, -1.0), (1.3, -.5)),
+                "dispatch": ((-.1, .15), (.85, 1.1), (1.0, -.4), (.1, 1.5)),
+                "chronicle": ((-.15, .4), (.7, 1.4), (1.1, -.1), (.6, -1.0)),
+            }
+            positions = arrangements.get(style, ((.08, .23), (.74, .11), (.94, .88), (.39, .94)))
+            strength = treatment.get("blob", .45 if ctx.light else .60)
+            if style in ("quiet", "terminal"):
+                strength = .25
             for index, (left, top) in enumerate(positions):
                 shade = ctx.palette[index]
-                radius = self.width * (.38 if index % 2 else .48)
+                radius = self.width * (.30 if index % 2 else .43)
+                if style == "orbit" and index < 2:
+                    shade = blend(ctx.dominant, "#FFF2D8", .62 if index == 0 else .30)
+                    radius = self.width * .43
                 shader = skia.GradientShader.MakeRadial((left * self.width, top * self.height), radius,
-                    [color(shade, .30 if ctx.light else .40), color(shade, 0)])
+                    [color(shade, .78 if style == "orbit" and index < 2 else strength), color(shade, 0)])
                 native.drawPaint(skia.Paint(Shader=shader, AntiAlias=True))
+            if use_art and style in ("aurora", "orbit", "nocturne") and not ctx.light:
+                scrim = skia.GradientShader.MakeLinear([(self.width * .28, 0), (full_width, 0)],
+                    [color("#07111D", 0), color("#07111D", .40)])
+                native.drawPaint(skia.Paint(Shader=scrim))
             if style in ("prism", "duotone", "dispatch"):
                 path = skia.Path()
-                path.moveTo(self.width * .3, 0)
-                path.lineTo(self.width * .73, self.height)
-                path.lineTo(self.width, self.height * .24)
-                path.lineTo(self.width, 0)
+                path.moveTo(self.width * .24, 0)
+                path.lineTo(self.width * .63, self.height)
+                path.lineTo(full_width, self.height * .20)
+                path.lineTo(full_width, 0)
                 path.close()
-                native.drawPath(path, self.paint(ctx.fg, .045))
-            if style in ("ribbon", "flow", "halo"):
+                native.drawPath(path, self.paint(ctx.palette[1], .17 if ctx.light else .24))
+                path = skia.Path()
+                path.moveTo(0, full_height)
+                path.lineTo(self.width * .70, self.height * .18)
+                path.lineTo(self.width * .44, full_height)
+                path.close()
+                native.drawPath(path, self.paint(ctx.fg, .065))
+            if style in ("ribbon", "halo"):
                 path = skia.Path()
                 path.moveTo(-70, 420)
                 path.cubicTo(350, -100, 850, 650, self.width + 100, 170)
-                paint = self.paint(ctx.palette[1], .25, 86)
+                paint = self.paint(ctx.palette[1], .48, 94)
                 paint.setImageFilter(skia.ImageFilters.Blur(28, 28))
                 native.drawPath(path, paint)
+            if style == "terminal":
+                for column in range(0, full_width, 80):
+                    native.drawLine(column, 0, column, full_height, self.paint(ctx.palette[0], .07, 1))
+                for row in range(0, full_height, 60):
+                    native.drawLine(0, row, full_width, row, self.paint(ctx.palette[0], .06, 1))
+            if ctx.category == "codex" and (ctx.approval or ctx.ready):
+                glow_color = "#FFA83D" if ctx.approval else "#57C88D"
+                for left, top, radius in ((1.03, .24, .44), (-.10, .93, .35)):
+                    shader = skia.GradientShader.MakeRadial((left * self.width, top * self.height), self.width * radius,
+                        [color(glow_color, .58 if ctx.light else .72), color(glow_color, 0)])
+                    native.drawPaint(skia.Paint(Shader=shader, AntiAlias=True))
+                if style == "approval":
+                    for left, top, radius in ((.92, .25, 34), (.05, .80, 25), (.72, .08, 20), (1.02, .72, 42)):
+                        paint = self.paint(glow_color, .55)
+                        paint.setImageFilter(skia.ImageFilters.Blur(18, 18))
+                        native.drawCircle(left * self.width, top * self.height, radius, paint)
             return surface.makeImageSnapshot()
         image = cached(key, create)
         # Translate one cached layer by <=1 pixel per second; no repeated blur.
         tick = int(self.ctx.now.timestamp()) % 48
         drift = (tick if tick <= 24 else 48 - tick) if ctx.ambient_drift else 12
-        self.native.drawImage(image, -drift, -12)
+        self.native.drawImageRect(image, skia.Rect.MakeXYWH(-drift, -12, self.width + 48, self.height + 48), SAMPLING)
 
-    def panel(self, x, y, width, height, radius=24):
-        self.rect(x, y, width, height, "#FFFFFF" if self.ctx.light else "#0B1020", radius, .55)
-        self.rect(x, y, width, height, self.ctx.fg, radius, .12, 1)
+    def panel(self, x, y, width, height, radius=24, opacity=None):
+        opacity = opacity if opacity is not None else (.58 if self.ctx.light else .38)
+        self.rect(x, y + 8, width, height, "#000000", radius, .06 if self.ctx.light else .12)
+        self.rect(x, y, width, height, "#FFFFFF" if self.ctx.light else self.ctx.base, radius, opacity)
+        self.rect(x, y, width, height, self.ctx.fg, radius, .19 if self.ctx.light else .15, 1)
+
+    def glow(self, x, y, radius, tint=None, opacity=.45):
+        tint = tint or self.ctx.signal
+        size = max(2, int(radius * 2))
+        key = ("glow", size, tint, opacity)
+        def create():
+            surface = skia.Surface(size // 2, size // 2)
+            surface.getCanvas().clear(skia.ColorTRANSPARENT)
+            shader = skia.GradientShader.MakeRadial((size / 4, size / 4), size / 4,
+                [color(tint, opacity), color(tint, 0)])
+            surface.getCanvas().drawPaint(skia.Paint(Shader=shader, AntiAlias=True))
+            return surface.makeImageSnapshot()
+        self.native.drawImageRect(cached(key, create), skia.Rect.MakeXYWH(x - radius, y - radius, radius * 2, radius * 2), SAMPLING)
 
     def cover(self, x, y, size, radius=16, circular=False, shadow=True):
         if shadow:
@@ -371,6 +520,12 @@ class Canvas:
 
     def vu(self, x, y, width=190, height=18, label=True):
         peak = self.ctx.peak
+        if peak is None:
+            self.text("LEVEL —", x, y + height, min(12, height), self.ctx.muted, width)
+            if label:
+                value = f"{clip(self.ctx.volume, 0, 100):.0f}%" if self.ctx.volume is not None else "—"
+                self.text(value, x + width + 16, y + height, 17, self.ctx.fg)
+            return
         normalized = clip((20 * math.log10(max(.001, number(peak))) + 60) / 60) if peak is not None else 0
         count = max(8, min(48, int(width / 9)))
         for index in range(count):
@@ -381,12 +536,15 @@ class Canvas:
             value = f"{clip(self.ctx.volume, 0, 100):.0f}%" if self.ctx.volume is not None else "—"
             self.text(value, x + width + 16, y + height, 17, self.ctx.fg)
 
-    def ring(self, x, y, radius, value=None, tint=None, stroke=4):
+    def ring(self, x, y, radius, value=None, tint=None, stroke=4, marker=False):
         self.circle(x, y, radius, self.ctx.fg, .13, stroke)
         if value is not None and value > 0:
             paint = self.paint(tint or self.ctx.accent, 1, stroke)
             paint.setStrokeCap(skia.Paint.kRound_Cap)
             self.native.drawArc(skia.Rect.MakeXYWH(x - radius, y - radius, radius * 2, radius * 2), -90, 360 * clip(value), False, paint)
+            if marker:
+                angle = math.radians(-90 + 360 * clip(value))
+                self.circle(x + math.cos(angle) * radius, y + math.sin(angle) * radius, 5.5, self.ctx.fg)
 
     def footer(self, text=None):
         text = text or ("DEMO DATA · PREVIEW" if self.ctx.preview else "VIBE PANEL")
@@ -397,9 +555,12 @@ class Canvas:
         self.label(text, 24 if self.compact else 40, 461, self.width - 80)
 
     def media_text(self, x, y, width, title_size=44, album=True):
-        self.label("PLAYING" if self.ctx.playing else "PAUSED" if self.ctx.media.get("title") else "MEDIA", x, y - 35, width, self.ctx.accent)
-        self.text(self.ctx.title, x, y + 12, title_size, width=width, bold=True)
-        self.text(self.ctx.artist, x, y + 57, 24, self.ctx.muted, width)
+        # Keep a fixed-height title slot even with the font-size override.
+        safe_title_size = min(title_size, 58 / self.ctx.font_scale)
+        safe_artist_size = min(24, 32 / self.ctx.font_scale)
+        self.label(self.ctx.playback_status(), x, y - 44, width, self.ctx.accent)
+        self.text(self.ctx.title, x, y + 12, safe_title_size, width=width, bold=True)
+        self.text(self.ctx.artist, x, y + 57, safe_artist_size, self.ctx.muted, width)
         if album and self.ctx.album:
             self.text(self.ctx.album, x, y + 92, 17, self.ctx.muted, width)
 
@@ -412,6 +573,8 @@ class Canvas:
         elif self.ctx.ready:
             self.line(x - radius * .38, y, x - radius * .08, y + radius * .25, self.ctx.signal, 6)
             self.line(x - radius * .08, y + radius * .25, x + radius * .42, y - radius * .30, self.ctx.signal, 6)
+        elif self.ctx.stale or not self.ctx.event or self.ctx.event in ("SessionEnd", "Interrupt"):
+            self.line(x - radius * .26, y, x + radius * .26, y, self.ctx.signal, 4)
         else:
             for offset in (-.28, 0, .28):
                 self.circle(x + radius * offset, y, 4, self.ctx.signal, .8)
@@ -431,7 +594,7 @@ class Canvas:
             self.text(detail, x + 26, top + 38, 12, self.ctx.muted, width - 35)
 
     def compact_media(self, variant):
-        self.backdrop(variant, artwork=variant in ("aurora", "cinematic", "nocturne"))
+        self.backdrop(variant)
         self.header("MEDIA / " + variant)
         if variant in ("orbit", "halo"):
             self.cover(154, 69, 172, circular=True)
@@ -440,7 +603,7 @@ class Canvas:
             self.cover(280, 82, 156, radius=2)
             self.label(self.ctx.source, 24, 102, 230)
             self.text("NOW", 24, 151, 42, self.ctx.accent, 220, bold=True)
-            self.text("PLAYING" if self.ctx.playing else "PAUSED", 24, 190, 25, self.ctx.fg, 230)
+            self.text(self.ctx.playback_status(), 24, 190, 25, self.ctx.fg, 230)
         else:
             self.cover(154, 67, 172, radius=20 if variant != "prism" else 2)
         self.text(self.ctx.title, 24, 288, 27, width=432, bold=True)

@@ -5,22 +5,28 @@ def render(c, s):
         return
     c.backdrop("flow")
     c.header("OPENAI CODEX / FLOW", extended=True)
-    c.text(s.chat_title, 48, 121, 28, width=1180, bold=True)
-    c.text(s.status, 48, 175, 39, s.signal, 1180)
+    c.text(s.chat_title, 40, 104, 24, width=1180, bold=True)
     events = s.events()
-    if events:
-        count = len(events)
-        tile = 1160 / count
-        for index, event in enumerate(events):
-            x = 58 + index * tile
-            c.line(x + 16, 248, x + tile - 30, 248, s.signal, 2, .3)
-            c.circle(x + 16, 248, 8, s.signal, 1 if index == count - 1 else .4)
-            c.label(str(index + 1).zfill(2), x, 218, tile - 30)
-            c.text(event.get("status") or event.get("event"), x, 299, 23, width=tile - 26, bold=True)
-            c.text(event.get("tool") or event.get("event"), x, 335, 14, s.muted, tile - 26)
-    else:
-        c.text("No activity received yet", 48, 282, 27, s.muted, 1180)
-    c.line(48, 390, 1232, 390, s.fg, opacity=.1)
-    c.text(s.activity_detail(), 48, 425, 18, s.muted, 1180)
-    c.footer()
+    for index in range(4):
+        x = 160 + index * 320
+        event = events[index] if index < len(events) else None
+        current = event is not None and index == len(events) - 1 and not s.stale and bool(s.event)
+        shade = s.signal if current and (s.approval or s.ready) else s.palette[1] if current and s.is_live else s.palette[0]
+        if index < 3:
+            c.line(x + 53, 205, x + 267, 205, s.muted, 1, .45)
+        if event:
+            if current:
+                c.glow(x, 205, 78, shade, .35)
+            c.circle(x, 205, 41, shade, .9 if current else .74)
+            c.circle(x, 205, 21, s.fg, .6, 2)
+            c.circle(x, 205, 7, s.fg, .95)
+            c.text(event.get("status") or event.get("event"), x, 279, min(21, 28 / s.font_scale), width=280, align="center", bold=True)
+            c.text(event.get("tool") or event.get("event"), x, 313, 12, s.muted, 278, align="center")
+        else:
+            c.circle(x, 205, 41, s.muted, .45, 1.5)
+            c.line(x - 10, 205, x + 10, 205, s.muted, 3, .6)
+            c.text("No event yet", x, 279, 18, s.muted, 280, align="center")
+    c.label("CURRENT STATUS", 40, 364, 1120)
+    c.text(s.status, 40, 416, min(38, 52 / s.font_scale), s.signal, 1160, bold=True)
+    c.footer(s.event or "WAITING FOR CODEX")
 # VBWR E

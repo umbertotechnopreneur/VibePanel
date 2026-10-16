@@ -215,6 +215,7 @@ def main():
     parser.add_argument("--output", type=Path)
     parser.add_argument("--python", type=Path, default=Path(sys.executable))
     parser.add_argument("--timeout", type=float, default=20)
+    parser.add_argument("--compare-quality", action="store_true", help="Add three Aurora JPEG samples: Low, Medium and High. Requires owner approval too.")
     args = parser.parse_args()
     repo = args.repo.resolve(strict=True)
     output = (args.output or repo / "artifacts" / "theme-review").resolve()
@@ -227,6 +228,7 @@ def main():
     cover_key, cover_base64 = fixture_artwork()
     fixture = base_state(cover_key)
     results, attempted, cover_sent = [], 0, False
+    quality_samples = []
     worker = ReviewWorker(args.python, repo / "theme-runtime" / "worker.py", args.timeout)
     fatal = None
     started = time.monotonic()
@@ -271,6 +273,32 @@ def main():
                                 cover_sent = True
                 results.append(item)
                 print(f"[{attempted:02}/40] {request_id}: {'OK' if item['ok'] else item.get('error')}", file=sys.stderr, flush=True)
+        if args.compare_quality:
+            sample_theme = next(theme for theme in catalog if theme["id"] == "media.aurora")
+            for quality in ("low", "medium", "high"):
+                state = copy.deepcopy(fixture)
+                state["media"]["coverBase64"] = cover_base64
+                request_id = f"quality-{quality}"
+                payload = {"version": 1, "id": request_id, "method": "render",
+                           "themePath": str(sample_theme["folder"]), "width": WIDTH, "height": HEIGHT,
+                           "light": False, "fontFamily": "Cascadia Mono", "fontScale": 1.0,
+                           "ambientDrift": False, "jpegQuality": quality, "state": state}
+                response = worker.request(payload)
+                item = {"quality": quality, "ok": False}
+                if response.get("ok") is not True:
+                    item["error"] = response.get("error", "JPEG quality sample failed.")
+                else:
+                    raw = base64.b64decode(response["jpegBase64"], validate=True)
+                    image = skia.Image.MakeFromEncoded(skia.Data.MakeWithCopy(raw))
+                    if len(raw) > MAX_JPEG or not raw.startswith(b"\xff\xd8") or not raw.endswith(b"\xff\xd9") or image is None or image.width() != WIDTH or image.height() != HEIGHT:
+                        item["error"] = "Invalid JPEG quality sample."
+                    else:
+                        filename = request_id + ".jpg"
+                        with (output / filename).open("xb") as handle:
+                            handle.write(raw)
+                        item.update(ok=True, file=filename, bytes=len(raw))
+                quality_samples.append(item)
+                print(f"[quality] {quality}: {'OK' if item['ok'] else item.get('error')}", file=sys.stderr, flush=True)
     except Exception as exc:
         fatal = f"{type(exc).__name__}: {exc}"
     finally:
@@ -281,7 +309,9 @@ def main():
                "complete": attempted == 40 and len(results) == 40 and passed == 40,
                "elapsedSeconds": round(time.monotonic() - started, 3), "output": str(output),
                "fatalError": fatal, "workerDiagnostics": list(worker.diagnostics), "frames": results,
-               "contactSheets": []}
+               "contactSheets": [], "qualitySamples": quality_samples}
+    if args.compare_quality and (len(quality_samples) != 3 or not all(item["ok"] for item in quality_samples)):
+        summary["complete"] = False
     if len(results) == 40:
         try:
             summary["contactSheets"] = draw_contacts(output, results)

@@ -8,7 +8,7 @@ def render(c, s):
     c.rect(460, 65, 820, 365, s.base, opacity=.4)
     c.header("MEDIA / DUOTONE")
     c.cover(87, 105, 280, radius=0)
-    c.label(s.source, 505, 123, 710, s.accent)
+    c.label(s.playback_status() + " · " + s.source, 505, 123, 710, s.accent)
     c.text(s.title, 505, 201, 53, width=710, bold=True)
     c.text(s.artist, 505, 255, 26, s.muted, 710)
     c.text(s.album, 505, 294, 17, s.muted, 710)

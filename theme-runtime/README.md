@@ -15,7 +15,7 @@ The upstream [Skia package](https://pypi.org/project/skia-python/144.0.post2/) p
 One UTF-8 JSON object per line, request and response IDs preserved:
 
 ```json
-{"version":1,"id":"frame-1","method":"render","themePath":"/themes/media/themes/aurora","width":1280,"height":480,"light":false,"fontFamily":"Cascadia Mono","fontScale":1.0,"ambientDrift":false,"state":{"media":{"title":"","artist":"","album":"","source":"","playing":false,"positionSeconds":0,"durationSeconds":0,"coverKey":"","coverBase64":null},"audio":{"volumePercent":null,"peak":null,"sessions":[]},"clock":{"iso":"2026-10-16T21:42:00+07:00","locale":"en-US"},"desktop":{"palette":["#6677CC","#A575BC","#4AABB1","#C8A48C"]},"codex":{"status":"Waiting for Codex","isLive":false,"events":[]}}}
+{"version":1,"id":"frame-1","method":"render","themePath":"/themes/media/themes/aurora","width":1280,"height":480,"light":false,"fontFamily":"Cascadia Mono","fontScale":1.0,"ambientDrift":false,"jpegQuality":"high","state":{"media":{"title":"","artist":"","album":"","source":"","playing":false,"positionSeconds":0,"durationSeconds":0,"coverKey":"","coverBase64":null},"audio":{"volumePercent":null,"peak":null,"sessions":[]},"clock":{"iso":"2026-10-16T21:42:00+07:00","locale":"en-US"},"desktop":{"palette":["#6677CC","#A575BC","#4AABB1","#C8A48C"]},"codex":{"status":"Waiting for Codex","isLive":false,"events":[]}}}
 ```
 
 ```json
@@ -26,7 +26,7 @@ Errors are `{ "version": 1, "id": "frame-1", "ok": false, "error": "..." }`. All
 
 `coverKey` stays in each media snapshot. Send `coverBase64` when that key changes or when the worker starts. Omit it on later frames to reuse the cached image; explicitly send `null` to clear it. Media metadata, elapsed position, volume and peak are actual provider values. `null` is unavailable, not zero. Audio peak is an instantaneous linear amplitude, not spectrum data.
 
-Codex accepts `chatTitle`, `status`, `event`, `phase`, `tool`, `model`, `isLive`, `stale`, `atUtc`, and `events`. Missing events show a waiting state. A permission prompt highlights the screen only when the actual latest event is `PermissionRequest`, is live and is not stale. No theme sends approvals. History uses only received events. Set `state.preview` for explicitly illustrative snapshots; the frame identifies demo data.
+Codex accepts `chatTitle`, `status`, `event`, `phase`, `tool`, `model`, `isLive`, `stale`, `atUtc`, and `events`. Missing events show a waiting state. A permission prompt highlights the screen amber only when the actual latest event is `PermissionRequest`, is live and is not stale. A received `Stop` event has a green ready signal. Stale data, interruption and session closure are shown explicitly. No theme sends approvals. History uses only received events; empty Flow slots say “No event yet.” Set `state.preview` for illustrative snapshots; the footer identifies demo data while keeping the semantic status visible.
 
 ## Drawing a theme
 
@@ -48,11 +48,15 @@ Each script owns its composition. `Canvas` supplies text with width-aware ellips
 
 All twenty scripts have separate wide compositions. At aspect ratios below 2:1 they explicitly switch to a shared 480×480 compact composition, preserving each theme's motif. Other aspect ratios are centered with uniform scaling and background fill; artwork and typography are never stretched. The JPEG always has exactly the requested physical dimensions. This fallback is intentionally documented rather than claiming twenty individually designed square compositions.
 
-The 16-pixel artwork shadow uses the average of the most frequent quantized color cluster. Four quadrant averages supply the background palette. Both are calculated once when artwork changes using a 16×16 native resize and NumPy. Backgrounds, curves, glow and shadows are cached; optional drift moves an existing layer at one logical pixel per second in a ping-pong motion. The worker retains up to four decoded covers, twelve static layers and ninety-six fonts. It never loops over frame pixels in Python.
+The 16-pixel artwork shadow uses the average of the most frequent quantized color cluster. Four quadrant averages supply the background palette. Both are calculated once when artwork changes using a 16×16 native resize and NumPy. Full-bleed artwork is aspect-filled at full opacity before a light/dark overlay; it is not stretched or hidden under multiple opaque layers. Aurora uses a broad blur, Cinematic keeps more image detail, and Orbit has a dominant-color glow. Only cached ambience is drawn at half resolution. Covers and type remain sharp at the output size.
+
+Each Codex theme has its own color anchors, tinted 22% by the desktop samples: blue Beacon, peach Timeline, green Terminal, rose Focus, cyan Pulse, plum Approval, cream/coral/purple Flow, mint Quiet, petrol/copper Dispatch and warm Chronicle. Amber/green state glows are layered over those identities only when the corresponding real event is present.
+
+Backgrounds, curves, glow and shadows are cached; optional drift moves an existing layer at one logical pixel per second in a ping-pong motion. The worker retains up to four decoded covers, twelve static layers and ninety-six fonts. It never loops over frame pixels in Python. Background rebuilds depend on artwork, theme, appearance, palette or the semantic status color, not on every clock tick.
 
 Fonts use the selected installed family with the platform monospace fallback. A pack does not ship proprietary fonts or artwork. Light/dark and font scale 0.65–1.6 apply to every theme. The helper reserves fixed slots and truncates long labels; elaborate scripts can use other layouts or assets. A read-only shuffle label appears only when the provider supplies a non-null boolean value; quality is omitted while unavailable.
 
-JPEG quality is reduced adaptively to stay at or below 450,000 bytes without changing physical resolution. If even the lowest quality exceeds the cap, the worker reports it. This encoding limit does not guarantee a refresh rate or validate any USB device.
+`jpegQuality` accepts `low`, `medium` or `high`, with initial JPEG qualities 50, 75 and 90. Omitting it selects `high`; unsupported values are rejected. Quality is reduced adaptively from the selected target, down to 8 if needed, to stay at or below 450,000 bytes without changing physical resolution. If even the lowest quality exceeds the cap, the worker reports it. This controls JPEG compression, not the audio source quality, and does not guarantee a refresh rate or validate any USB device.
 
 ## Sources and validation boundary
 
