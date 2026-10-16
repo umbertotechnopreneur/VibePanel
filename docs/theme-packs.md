@@ -1,87 +1,55 @@
-# Vibe Panel theme packs
+# Make a theme
 
-I keep the product name **Vibe Panel**; `VibePanel` is the repository/code identifier. Themes are Python scripts drawing onto an offscreen Skia canvas, not HTML pages.
+A theme is a small Python file that draws a screen. I include 10 music themes and 10 Codex themes. A music pack does not need Codex.
 
-## Categories and folders
+Start by copying a theme from `themes/media` or `themes/codex`. Give it a new ID and name in `theme.json`.
 
-The first categories are stable internal IDs: `multimedia` → Multimedia and `codex` → OpenAI Codex. Each theme declares its category in a manifest. Folder names are not translated category names.
-
-A pack may contain one category or both. A Multimedia-only pack does not need Codex, and installing a theme never installs or enables a data provider.
+Keep this folder shape:
 
 ```text
-themes/
-  my-pack/
-    pack.json
-    themes/
-      my-theme/
-        theme.json
-        render.py
+my-pack/
+  pack.json
+  themes/
+    my-theme/
+      theme.json
+      render.py
 ```
 
-`pack.json`:
+Put the pack in `%LOCALAPPDATA%\VibePanel\themes`. Press **Reload** in the app.
 
-```json
-{ "schema": 1, "id": "my-pack", "name": "My themes" }
+## Colors and fades
+
+The theme starts with the colors chosen in the app. It can change them:
+
+```python
+def render(c, s):
+    c.backdrop("aurora", artwork=True)
+    c.header("MY MUSIC")
+    c.media_text(60, 150, 1100)
+
+    s.colors.saturation_percent = 120  # More color.
+    s.colors.hue_degrees = 0          # Same hues.
+    s.colors.brightness_percent = 5   # A little lighter.
+    s.colors.contrast_percent = 110   # Stronger contrast.
+    s.colors.fade(min(1, s.elapsed_seconds / 0.5))  # Fade in.
 ```
 
-`theme.json`:
+For fade out, use `1 - min(1, s.elapsed_seconds / 0.5)`. Changes affect this frame. They do not change saved settings.
 
-```json
-{
-  "schema": 1,
-  "id": "my-pack.media",
-  "name": "My media screen",
-  "category": "multimedia",
-  "description": "My own layout.",
-  "entry": "render.py",
-  "author": "Your name",
-  "license": "MIT"
-}
-```
+Saturation and contrast: 0–200. Hue: -180–180. Brightness: -100–100. Fade: 0 is black; 1 is fully visible.
 
-Copy a pack into `%LOCALAPPDATA%\VibePanel\themes` and click **Reload**. In a portable build, bundled packs are in `engine/themes`; in the repository, `themes`. The engine sends the same catalog to UI and CLI. Listing manifests does not execute Python. Duplicate IDs are reported and the first definition wins; bundled packs precede personal packs. Give custom themes unique IDs.
+Use `s.show_spectrum` to respect the sound-bars checkbox. `c.spectrum(...)` already does this. Declare `settings.showSpectrum` as `{ "type": "boolean", "default": true }` in the manifest to enable the checkbox.
 
-There is no ZIP marketplace installer yet. The current install workflow is local-folder copy; no dependency or provider is installed behind it.
-
-## Included themes
-
-| Multimedia | OpenAI Codex |
-| --- | --- |
-| Aurora Glass | Beacon |
-| Editorial | Timeline |
-| Cinematic | Terminal |
-| Signal | Focus |
-| Orbit | Pulse |
-| Prism | Approval |
-| Ribbon | Flow |
-| Nocturne | Quiet |
-| Halo | Dispatch |
-| Duotone | Chronicle |
-
-These are twenty separate wide compositions. Narrow/square panels share a compact fallback with each theme's motif, without stretching typography or cover art.
-
-## CLI and shared settings
+## CLI
 
 ```powershell
+vp fonts
 vp themes
-vp gui
-vp theme media.aurora --export frame.jpg
-vp theme media.aurora --device 1 --interval-ms 250 --quality medium
-vp theme codex.beacon --export activity.jpg --light --font "Consolas" --font-scale 1.1
+vp theme media.aurora --export new-picture.jpg --saturation 120
 ```
 
-Export never opens USB and refuses to overwrite a file. `--profile` selects geometry. `--font` and `--font-scale` affect the screen; the supported scale range is 0.65–1.6. The UI offers 70–150% in convenient 10% steps.
+Export makes a new picture on the PC. It does not open USB. Only use `--device N` when you want to send pictures to a screen.
 
-In the GUI, choose a USB display and press **Show on display**. Theme, font, quality and rate changes then reach the panel. **Stop** ends the session. Opening the window alone never starts USB output.
+**Themes run code on your PC. For now, only get them from the official repo.**
 
-The update choices are 1 second, 500, 250, 100 and 50 ms. Low/Medium/High JPEG targets are 50/75/90, reduced if needed to fit the frame limit. Actual speed depends on rendering and USB; frames do not queue up.
-
-In the CLI, only an explicit `--device N` starts physical playback, for example `vp theme media.aurora --device 1 --seconds 20`. It cannot be combined with export. Never use it as an automatic renderer check.
-
-## Rendering contract
-
-Each script defines `render(canvas, context)`. It receives generic `media`, `audio`, `clock`, `desktop` and `codex` snapshots. The engine owns native providers and USB. Themes do not query Spotify or control media volume.
-
-A persistent worker keeps cover decoding, palette extraction, backgrounds and fonts cached. Artwork supplies the dominant-colored blur/shadow; wallpaper supplies four sampled colors. Light/dark and font settings are shared. Missing data stays missing; a VU peak is not a spectrum.
-
-Full API, caching and JSONL details: [Python runtime source documentation](https://github.com/umbertotechnopreneur/VibePanel/blob/codex/usb-transport/theme-runtime/README.md), also included at `engine/theme-runtime/README.md` in the portable folder. The worker is not a Python sandbox: load only trusted themes.
+[Full drawing API](https://github.com/umbertotechnopreneur/VibePanel/blob/codex/usb-transport/theme-runtime/README.md) · [Engine commands](engine-protocol.md). In the ZIP, the full API guide is in `engine/theme-runtime/README.md`.

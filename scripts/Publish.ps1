@@ -18,7 +18,7 @@ foreach ($target in @(@{ Project = 'Cli'; Folder = $engine }, @{ Project = 'Phot
     if ($LASTEXITCODE -ne 0) { throw "Publish failed: $($target.Project) / $runtime" }
 }
 & (Join-Path $PSScriptRoot 'Bundle-Python.ps1') -Architecture $Architecture -HostPython $HostPython
-foreach ($document in @('LICENSE', 'THIRD_PARTY_NOTICES.md', 'TRADEMARKS.md', 'PORTABLE.md', 'cave.md', 'lesson.md')) {
+foreach ($document in @('README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'TRADEMARKS.md', 'PORTABLE.md', 'cave.md', 'lesson.md')) {
     Copy-Item -LiteralPath (Join-Path $repo $document) -Destination $destination -Force
 }
 Copy-Item -LiteralPath (Join-Path $repo 'licenses') -Destination $destination -Recurse -Force

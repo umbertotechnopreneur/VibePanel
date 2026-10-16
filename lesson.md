@@ -10,7 +10,7 @@
 - I keep the footer links and VibeWare logo visible on one line.
 - I open a smaller, centered window. The preview fits the space; only the theme list scrolls.
 - If a detail is missing, I don't make it up.
-- Frequency bars use real Windows playback audio. No microphone. No audio files. System sound is not the same as one app's sound.
+- I use the PC's sound for the bars. I don't record it or use the microphone.
 - Preparing the Codex plugin does not install it or trust its hooks. That choice stays inside Codex.
 - A picture on my PC does not prove it works on the USB screen.
 - I ask before each test, hardware trial or new branch or workspace.
