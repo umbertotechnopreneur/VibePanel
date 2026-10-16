@@ -14,6 +14,7 @@ internal sealed class EngineServer : IDisposable
 {
     private readonly DashboardService dashboard = new();
     private readonly DashboardRenderer renderer = new();
+    private readonly PythonThemeRenderer themeRenderer = new();
     private readonly Dictionary<string, DisplayDevice> devices = [];
     private CancellationTokenSource? playbackCancellation;
     private Task? playback;
@@ -23,6 +24,11 @@ internal sealed class EngineServer : IDisposable
     private long discoveredAt;
     private DashboardSnapshot? lastSnapshot;
     private long snapshotAt;
+    private bool snapshotIncludesSystem;
+    private bool snapshotIncludesMedia;
+    private ThemeCatalogSnapshot? themeCatalog;
+    private long previewAt;
+    private string? previewNotice;
 
     public static async Task<int> RunAsync()
     {
@@ -73,6 +79,14 @@ internal sealed class EngineServer : IDisposable
         switch (request.Method)
         {
             case "hello": return new { protocol = PanelContract.Version, platform = "windows", usbWritesRequireStart = true };
+            case "themes":
+                themeCatalog = ThemeCatalog.Read();
+                // An explicit refresh can replace a pack at the same ID; discard frames from the previous catalog.
+                previousFingerprint = null;
+                preview = null;
+                previewNotice = null;
+                return new ThemeCatalogDto([new("multimedia", "Multimedia"), new("codex", "OpenAI Codex")],
+                    themeCatalog.Themes.Select(theme => new ThemeChoiceDto(theme.Id, theme.Name, theme.Category, theme.Description, theme.PackId)).ToArray(), themeCatalog.Notices);
             case "state": return await StateAsync(Parameters<PreviewOptions>(request, new()));
             case "levels": return dashboard.Audio.ReadLevels();
             case "start":
@@ -93,16 +107,29 @@ internal sealed class EngineServer : IDisposable
             case "media":
                 await dashboard.Media.ControlAsync(Parameters<MediaOptions>(request).Action);
                 return new { accepted = true };
-            default: throw new ArgumentException("Unknown method. Use hello, state, levels, start, stop, or media.");
+            default: throw new ArgumentException("Unknown method. Use hello, themes, state, levels, start, stop, or media.");
         }
     }
 
     private async Task<PanelState> StateAsync(PreviewOptions options)
     {
-        var scene = DashboardScenes.Parse(options.Scene);
+        ThemeDefinition? theme = null;
+        if (options.ThemeId is not null)
+        {
+            theme = (themeCatalog ??= ThemeCatalog.Read()).Themes.FirstOrDefault(item => item.Id == options.ThemeId)
+                ?? throw new ArgumentException("Theme not found. Refresh the theme catalog.");
+        }
+        var scene = theme is null ? DashboardScenes.Parse(options.Scene) : DashboardScene.Music;
         var profile = DisplayProfileCatalog.GetRequired(options.ProfileId) with { Encoding = PanelPixelEncoding.Jpeg, WireRotation = 0 };
-        if (lastSnapshot is null || Environment.TickCount64 - snapshotAt >= 2000)
-        { lastSnapshot = await dashboard.ReadAsync(); snapshotAt = Environment.TickCount64; }
+        var includeSystem = theme is null;
+        var includeMedia = theme?.Category != "codex";
+        if (lastSnapshot is null || snapshotIncludesSystem != includeSystem || snapshotIncludesMedia != includeMedia || Environment.TickCount64 - snapshotAt >= (theme is null ? 2000 : 1000))
+        {
+            lastSnapshot = await dashboard.ReadAsync(includeSystem, includeMedia);
+            snapshotAt = Environment.TickCount64;
+            snapshotIncludesSystem = includeSystem;
+            snapshotIncludesMedia = includeMedia;
+        }
         var snapshot = lastSnapshot;
         if (options.IncludeDevices && (discoveredAt == 0 || Environment.TickCount64 - discoveredAt >= 5000))
         {
@@ -115,22 +142,40 @@ internal sealed class EngineServer : IDisposable
             discoveredAt = Environment.TickCount64;
         }
         int? drift = options.AmbientDrift ? DashboardRenderer.AmbientOffset() : null;
-        var fingerprint = DashboardRenderer.Fingerprint(snapshot, scene) + profile.Id + options.Light + drift;
-        if (options.IncludeFrame && previousFingerprint != fingerprint)
+        var fingerprint = theme is null
+            ? DashboardRenderer.Fingerprint(snapshot, scene) + profile.Id + options.Light + drift
+            : $"{theme.Id}|{profile.Id}|{options.Light}|{options.AmbientDrift}|{options.FontFamily}|{options.FontScale}";
+        var configurationChanged = previousFingerprint != fingerprint;
+        var refreshInterval = previewNotice is null ? 1000 : 5000;
+        if (options.IncludeFrame && (configurationChanged || theme is not null && Environment.TickCount64 - previewAt >= refreshInterval))
         {
-            preview = renderer.Render(snapshot, profile, scene, options.Light, drift);
+            if (theme is null)
+            { preview = renderer.Render(snapshot, profile, scene, options.Light, drift); previewNotice = null; }
+            else
+            {
+                if (configurationChanged) { preview = null; }
+                try
+                {
+                    preview = await themeRenderer.RenderAsync(theme, snapshot, profile, options.Light, options.AmbientDrift, options.FontFamily, options.FontScale);
+                    previewNotice = null;
+                }
+                catch (Exception error) when (error is not OutOfMemoryException)
+                { previewNotice = "Theme preview: " + error.Message; }
+            }
             previousFingerprint = fingerprint;
+            previewAt = Environment.TickCount64;
         }
         var metrics = snapshot.Metrics;
         return new(snapshot.Media.Title, snapshot.Media.Artist, snapshot.Media.Album, snapshot.Media.Playing,
-            snapshot.Media.Source.Contains("spotify", StringComparison.OrdinalIgnoreCase) ? "Spotify" : snapshot.Media.Source,
+            snapshot.Media.Source,
             snapshot.Volumes.Select(item => new AudioLevelDto(item.Key, item.Name, item.Percent, item.Muted, item.Peak)).ToArray(),
             new(metrics.CpuUsage, metrics.CpuTemperature, metrics.GpuUsage, metrics.GpuTemperature, metrics.GpuName, metrics.CpuTemperatureSource),
             snapshot.Network is { } network ? new(network.DownloadBytesPerSecond, network.UploadBytesPerSecond, network.DownloadBytes, network.UploadBytes, "Since engine start; adapter counters may overlap on VPN/bridges") : null,
             devices.Select(item => new PanelChoice(item.Key, $"{item.Value.Id} · {item.Value.Connection}")).ToArray(),
             DisplayProfileCatalog.All.Select(item => new PanelChoice(item.Id, item.Name)).ToArray(),
             Enum.GetValues<DashboardScene>().Select(item => new PanelChoice(item.ToString(), DashboardScenes.Name(item))).ToArray(),
-            playback is { IsCompleted: false }, Volatile.Read(ref status), options.IncludeFrame ? preview : null, snapshot.Notices);
+            playback is { IsCompleted: false }, Volatile.Read(ref status), options.IncludeFrame ? preview : null,
+            previewNotice is null ? snapshot.Notices : snapshot.Notices.Concat([previewNotice]).ToArray());
     }
 
     private async Task RunDisplayAsync(DisplayDevice device, string profile, DashboardScene? scene, CancellationToken cancellationToken)
@@ -152,6 +197,6 @@ internal sealed class EngineServer : IDisposable
     private static T Parameters<T>(EngineRequest request, T? fallback = default) where T : class =>
         request.Parameters?.Deserialize<T>(PanelContract.Json) ?? fallback ?? throw new ArgumentException("Missing parameters.");
 
-    public void Dispose() { playbackCancellation?.Cancel(); playbackCancellation?.Dispose(); dashboard.Dispose(); }
+    public void Dispose() { playbackCancellation?.Cancel(); playbackCancellation?.Dispose(); themeRenderer.Dispose(); dashboard.Dispose(); }
     private sealed class StatusProgress(Action<string> report) : IProgress<string> { public void Report(string value) => report(value); }
 }

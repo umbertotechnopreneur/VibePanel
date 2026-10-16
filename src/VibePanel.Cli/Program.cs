@@ -6,6 +6,7 @@
 using VibePanel.Core;
 using Spectre.Console;
 using System.Text;
+using System.Globalization;
 
 return args is ["--stdio"] ? await EngineServer.RunAsync() : await VibePanelCli.RunAsync(args);
 
@@ -33,6 +34,8 @@ internal static class VibePanelCli
                 "media" => Media(args),
                 "volumes" => Volumes(),
                 "scenes" => Scenes(),
+                "themes" => Themes(),
+                "theme" => Theme(args),
                 "help" or "--help" or "-h" or null => Help(),
                 _ => Fail("I do not know that command. Run 'vp help'.")
             });
@@ -45,7 +48,7 @@ internal static class VibePanelCli
 
     private static void Banner()
     {
-        AnsiConsole.Write(new FigletText("VibePanel").Color(new Color(199, 123, 211)));
+        AnsiConsole.Write(new FigletText("Vibe Panel").Color(new Color(199, 123, 211)));
         AnsiConsole.MarkupLine("[bold white]My music. My apps. My little screen.[/]  [grey]by Umberto Giacobbi[/]");
         AnsiConsole.MarkupLine("[rgb(221,176,235)]I stand with the VibeWare movement.[/]");
         AnsiConsole.Write(new Rule().RuleStyle("grey"));
@@ -142,6 +145,76 @@ internal static class VibePanelCli
         AnsiConsole.Write(table);
         AnsiConsole.WriteLine("Five scenes, 20 seconds each, short crossfades. --scene Music locks a single layout.");
         return 0;
+    }
+
+    private static int Themes()
+    {
+        var catalog = ThemeCatalog.Read();
+        var table = new Table().Border(TableBorder.Rounded).AddColumn("Theme ID").AddColumn("Name").AddColumn("Category").AddColumn("Pack");
+        foreach (var theme in catalog.Themes)
+        { table.AddRow(Markup.Escape(theme.Id), Markup.Escape(theme.Name), theme.Category == "codex" ? "OpenAI Codex" : "Multimedia", Markup.Escape(theme.PackId)); }
+        AnsiConsole.Write(table);
+        foreach (var notice in catalog.Notices) { AnsiConsole.WriteLine(notice); }
+        AnsiConsole.WriteLine($"My packs: {ThemeCatalog.UserThemesPath}");
+        AnsiConsole.WriteLine("Theme folders are listed from manifests. Scripts are only loaded for an explicit preview.");
+        return catalog.Themes.Count > 0 ? 0 : 1;
+    }
+
+    private static int Theme(IReadOnlyList<string> args)
+    {
+        var export = GetOption(args, "--export");
+        var deviceNumber = GetOption(args, "--device");
+        if (args.Count < 2 || args[1].StartsWith("--", StringComparison.Ordinal) || (export is null) == (deviceNumber is null))
+        { return Fail("Usage: vp theme <id> (--export <new.jpg> | --device <number>) [--profile <id>] [--font \"Cascadia Mono\"] [--font-scale 1] [--light] [--seconds N]"); }
+        var theme = ThemeCatalog.Read().Themes.FirstOrDefault(item => item.Id == args[1])
+            ?? throw new ArgumentException("Theme not found. Run 'vp themes'.");
+        var font = GetOption(args, "--font") ?? "Cascadia Mono";
+        var scaleText = GetOption(args, "--font-scale") ?? "1";
+        if (!double.TryParse(scaleText, NumberStyles.Float, CultureInfo.InvariantCulture, out var scale))
+        { throw new ArgumentException("--font-scale must be a number from 0.65 to 1.6 (use a decimal point)."); }
+        if (deviceNumber is not null)
+        {
+            if (!double.IsFinite(scale) || scale is < 0.65 or > 1.6 || font.Length is 0 or > 128 || font.Any(char.IsControl))
+            { throw new ArgumentException("Choose a printable font name and --font-scale between 0.65 and 1.6."); }
+            var device = GetDevice(new[] { "theme", deviceNumber });
+            var profileId = GetOption(args, "--profile") ?? "auto";
+            TimeSpan? duration = null;
+            if (GetOption(args, "--seconds") is { } secondsText)
+            {
+                if (!int.TryParse(secondsText, out var seconds) || seconds is < 1 or > 86400)
+                { throw new ArgumentException("--seconds must be between 1 and 86400."); }
+                duration = TimeSpan.FromSeconds(seconds);
+            }
+            using var cancellation = new CancellationTokenSource();
+            ConsoleCancelEventHandler cancel = (_, eventArgs) => { eventArgs.Cancel = true; cancellation.Cancel(); };
+            Console.CancelKeyPress += cancel;
+            try
+            {
+                AnsiConsole.WriteLine($"Sending theme {theme.Name} to device {device.Id}. Profile: {profileId}.");
+                ThemePlayback.RunAsync(theme, device, profileId, duration, new ThemeProgress(), cancellation.Token,
+                    args.Contains("--light"), args.Contains("--ambient-drift"), font, scale).GetAwaiter().GetResult();
+            }
+            finally { Console.CancelKeyPress -= cancel; }
+            return 0;
+        }
+        if (GetOption(args, "--seconds") is not null) { throw new ArgumentException("--seconds applies only to explicit --device playback."); }
+        var profile = DisplayProfileCatalog.GetRequired(GetOption(args, "--profile") ?? "wide-1280x480") with { Encoding = PanelPixelEncoding.Jpeg, WireRotation = 0 };
+        var path = Path.GetFullPath(export!);
+        if (File.Exists(path)) { throw new IOException("The export file already exists. Choose a new path."); }
+        using var service = new DashboardService();
+        using var renderer = new PythonThemeRenderer();
+        var snapshot = service.ReadAsync(includeSystem: false, includeMedia: theme.Category != "codex").GetAwaiter().GetResult();
+        var frame = renderer.RenderAsync(theme, snapshot, profile, args.Contains("--light"), args.Contains("--ambient-drift"), font, scale).GetAwaiter().GetResult();
+        using var output = new FileStream(path, FileMode.CreateNew);
+        output.Write(frame);
+        AnsiConsole.WriteLine($"{theme.Name}: {profile.Width} × {profile.Height} preview saved to {path}");
+        foreach (var notice in snapshot.Notices) { AnsiConsole.WriteLine(notice); }
+        return 0;
+    }
+
+    private sealed class ThemeProgress : IProgress<string>
+    {
+        public void Report(string value) => AnsiConsole.WriteLine(value);
     }
 
     private static int Volumes()
@@ -351,10 +424,14 @@ internal static class VibePanelCli
         commands.AddRow("vp dashboard --watch", "Refresh the terminal every 2 seconds. Ctrl+C stops.");
         commands.AddRow("vp dashboard --export frame.jpg", "Save a real-data JPEG preview; cache wallpaper palette once.");
         commands.AddRow("vp dashboard --device 1", "Explicitly stream to a USB panel. Optional --profile <id>.");
-        commands.AddRow("vp media toggle|play|pause|next|previous", "Control Spotify, or the current Windows media session.");
+        commands.AddRow("vp media toggle|play|pause|next|previous", "Control the current generic Windows media session.");
         commands.AddRow("vp volumes", "Read-only app volume percentages and colored peak meters.");
         commands.AddRow("vp discover / vp profiles", "List connected panels / supported geometries.");
         commands.AddRow("vp scenes", "Eight layouts; five rotate with a short fade. --scene <ID> locks one.");
+        commands.AddRow("vp themes", "List installed Multimedia and OpenAI Codex themes from their folders.");
+        commands.AddRow("vp theme media.aurora --export frame.jpg", "Render a Python/Skia theme to a new file. No USB writes.");
+        commands.AddRow("vp theme <id> --export frame.jpg --font <name> --light", "Use the same font and light-mode options as the UI.");
+        commands.AddRow("vp theme media.aurora --device 1 --seconds 60", "Explicitly stream a theme to one panel at a target 1 fps; Ctrl+C stops.");
         commands.AddRow("vp --stdio", "JSON Lines engine v1. No banner, no network listener, explicit USB start.");
         AnsiConsole.Write(commands);
         AnsiConsole.MarkupLine("[grey]Panel tools (these touch hardware only when explicitly invoked):[/]");

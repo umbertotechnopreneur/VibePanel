@@ -18,4 +18,8 @@ VBWR E -->
     <ProjectReference Include="../VibePanel.Core/VibePanel.Core.csproj" />
     <PackageReference Include="Spectre.Console" Version="0.57.2" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="../../themes/**/*" Exclude="../../themes/**/__pycache__/**;../../themes/**/*.pyc" Link="themes/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../../theme-runtime/**/*" Exclude="../../theme-runtime/**/__pycache__/**;../../theme-runtime/**/*.pyc" Link="theme-runtime/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

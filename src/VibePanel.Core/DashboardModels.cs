@@ -7,9 +7,9 @@ namespace VibePanel.Core;
 
 /// <summary>Contains the current Windows media-session information without an external account.</summary>
 public sealed record NowPlaying(string Title, string Artist, string Album, string Source,
-    bool Playing, byte[]? Artwork, double PositionSeconds, double DurationSeconds)
+    bool Playing, byte[]? Artwork, double PositionSeconds, double DurationSeconds, bool? Shuffle = null)
 {
-    public static NowPlaying Empty { get; } = new("Open Spotify and play something", "Your music appears here", "", "", false, null, 0, 0);
+    public static NowPlaying Empty { get; } = new("Nothing playing yet", "Open a media player", "", "", false, null, 0, 0);
 }
 
 /// <summary>Read-only volume and instantaneous peak of one Windows playback session, never microphone audio.</summary>

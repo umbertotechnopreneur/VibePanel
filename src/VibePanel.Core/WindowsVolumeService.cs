@@ -36,8 +36,7 @@ public sealed class WindowsVolumeService : IDisposable
                 }
                 catch (COMException) { refreshed = DateTime.MinValue; }
             }
-            return result.OrderByDescending(item => item.Name.Contains("spotify", StringComparison.OrdinalIgnoreCase))
-                .ThenBy(item => item.Name, StringComparer.OrdinalIgnoreCase).ToList();
+            return result.OrderBy(item => item.Name, StringComparer.OrdinalIgnoreCase).ToList();
         }
     }
 

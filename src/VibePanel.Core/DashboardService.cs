@@ -13,16 +13,23 @@ public sealed class DashboardService : IDisposable
     private readonly WindowsMetricsService metrics = new();
     private readonly NetworkTrafficService network = new();
 
-    public async Task<DashboardSnapshot> ReadAsync()
+    public async Task<DashboardSnapshot> ReadAsync(bool includeSystem = true, bool includeMedia = true)
     {
         var notices = new List<string>();
         var media = NowPlaying.Empty;
         IReadOnlyList<AppVolume> volumes = [];
         MachineMetrics machine;
-        try { media = await Media.ReadAsync(); }
-        catch (Exception error) { notices.Add($"Media unavailable: {error.Message}"); }
-        try { volumes = await Task.Run(Audio.Read); }
-        catch (Exception error) { notices.Add($"Mixer unavailable: {error.Message}"); }
+        if (includeMedia)
+        {
+            try { media = await Media.ReadAsync(); }
+            catch (Exception error) { notices.Add($"Media unavailable: {error.Message}"); }
+            try { volumes = await Task.Run(Audio.Read); }
+            catch (Exception error) { notices.Add($"Mixer unavailable: {error.Message}"); }
+        }
+        if (!includeSystem)
+        {
+            return new(media, volumes, new(null, null, null, null, "", "Not sampled for themes", "Not sampled for themes"), notices);
+        }
         try { machine = await Task.Run(metrics.Read); }
         catch (Exception error)
         {

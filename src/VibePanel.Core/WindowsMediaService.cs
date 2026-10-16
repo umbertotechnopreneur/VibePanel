@@ -8,7 +8,7 @@ using Windows.Storage.Streams;
 
 namespace VibePanel.Core;
 
-/// <summary>Uses Windows' local media-session API, preferring Spotify over other players.</summary>
+/// <summary>Uses the current generic Windows media session without a service-specific account.</summary>
 public sealed class WindowsMediaService
 {
     private GlobalSystemMediaTransportControlsSessionManager? manager;
@@ -18,8 +18,9 @@ public sealed class WindowsMediaService
     private async Task<GlobalSystemMediaTransportControlsSession?> SessionAsync(CancellationToken cancellationToken)
     {
         manager ??= await GlobalSystemMediaTransportControlsSessionManager.RequestAsync().AsTask(cancellationToken);
-        return manager.GetSessions().FirstOrDefault(session => session.SourceAppUserModelId.Contains("spotify", StringComparison.OrdinalIgnoreCase))
-            ?? manager.GetCurrentSession();
+        return manager.GetCurrentSession()
+            ?? manager.GetSessions().FirstOrDefault(session => session.GetPlaybackInfo().PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing)
+            ?? manager.GetSessions().FirstOrDefault();
     }
 
     /// <summary>Reads current metadata; thumbnail bytes are reloaded only when the track identity changes.</summary>
@@ -48,17 +49,26 @@ public sealed class WindowsMediaService
             artworkKey = key;
         }
         var timeline = session.GetTimelineProperties();
+        var playback = session.GetPlaybackInfo();
+        var playing = playback.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
+        var position = Math.Max(0, (timeline.Position - timeline.StartTime).TotalSeconds);
+        var duration = Math.Max(0, (timeline.EndTime - timeline.StartTime).TotalSeconds);
+        // Windows defines Position at LastUpdatedTime; advance only when the session provides a playback rate.
+        if (playing && playback.PlaybackRate is { } rate && double.IsFinite(rate) && rate > 0 && timeline.LastUpdatedTime > DateTimeOffset.UnixEpoch)
+        {
+            var advanced = position + Math.Max(0, (DateTimeOffset.UtcNow - timeline.LastUpdatedTime).TotalSeconds) * rate;
+            if (double.IsFinite(advanced)) { position = advanced; }
+        }
+        if (duration > 0) { position = Math.Clamp(position, 0, duration); }
         return new NowPlaying(properties.Title, properties.Artist, properties.AlbumTitle, session.SourceAppUserModelId,
-            session.GetPlaybackInfo().PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing,
-            cachedArtwork, Math.Max(0, (timeline.Position - timeline.StartTime).TotalSeconds),
-            Math.Max(0, (timeline.EndTime - timeline.StartTime).TotalSeconds));
+            playing, cachedArtwork, position, duration, playback.IsShuffleActive);
     }
 
     /// <summary>Controls the selected local player only after a user invokes a media command.</summary>
     public async Task ControlAsync(string action)
     {
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(3));
-        var session = await SessionAsync(deadline.Token) ?? throw new InvalidOperationException("No Windows media session is available. Open Spotify first.");
+        var session = await SessionAsync(deadline.Token) ?? throw new InvalidOperationException("No Windows media session is available. Open a media player first.");
         var accepted = action switch
         {
             "toggle" => await session.TryTogglePlayPauseAsync().AsTask(deadline.Token),
