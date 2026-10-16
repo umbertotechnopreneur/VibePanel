@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "id": "codex.beacon",
+  "category": "codex",
+  "name": "Beacon",
+  "description": "A large activity beacon and an immediately readable status.",
+  "entry": "render.py",
+  "version": "1.0.0",
+  "author": "Umberto Giacobbi",
+  "license": "MIT",
+  "canvas": {
+    "width": 1280,
+    "height": 480,
+    "compact": "480x480, centered without distortion for aspect ratios below 2:1"
+  },
+  "requires": [
+    "codex",
+    "clock"
+  ],
+  "optional": [
+    "desktop"
+  ],
+  "appearance": [
+    "light",
+    "dark"
+  ],
+  "settings": {
+    "fontFamily": {
+      "type": "font",
+      "default": "Cascadia Mono"
+    },
+    "fontScale": {
+      "type": "number",
+      "default": 1,
+      "minimum": 0.65,
+      "maximum": 1.6
+    },
+    "ambientDrift": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "branding": {
+    "begin": "VBWR B",
+    "end": "VBWR E"
+  }
+}

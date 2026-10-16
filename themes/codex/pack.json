@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "id": "vibepanel.codex",
+  "name": "Vibe Panel · OpenAI Codex",
+  "version": "1.0.0",
+  "author": "Umberto Giacobbi",
+  "license": "MIT",
+  "description": "Ten themes for optional local Codex activity.",
+  "categories": [
+    "codex"
+  ],
+  "themes": [
+    "themes/beacon",
+    "themes/timeline",
+    "themes/terminal",
+    "themes/focus",
+    "themes/pulse",
+    "themes/approval",
+    "themes/flow",
+    "themes/quiet",
+    "themes/dispatch",
+    "themes/chronicle"
+  ],
+  "branding": {
+    "begin": "VBWR B",
+    "end": "VBWR E"
+  }
+}

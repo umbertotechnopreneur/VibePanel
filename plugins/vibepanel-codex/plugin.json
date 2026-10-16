@@ -1,0 +1,24 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "vibepanel-codex",
+  "version": "0.1.0",
+  "description": "I show my Codex activity on Vibe Panel using local lifecycle status only.",
+  "author": {
+    "name": "Umberto Giacobbi",
+    "url": "https://umbertogiacobbi.biz/vibeware/manifesto"
+  },
+  "repository": "https://github.com/umbertotechnopreneur/VibePanel",
+  "license": "MIT",
+  "keywords": ["vibeware", "codex", "display"],
+  "extensions": {
+    "com.openai": {
+      "hooks": "./hooks/hooks.json",
+      "interface": {
+        "displayName": "Vibe Panel Codex",
+        "shortDescription": "Local Codex status for my display",
+        "developerName": "Umberto Giacobbi",
+        "category": "Productivity"
+      }
+    }
+  }
+}
