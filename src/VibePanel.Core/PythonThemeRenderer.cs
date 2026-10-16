@@ -26,19 +26,19 @@ public sealed class PythonThemeRenderer : IDisposable
 
     public async Task<byte[]> RenderAsync(ThemeDefinition theme, DashboardSnapshot snapshot, DisplayProfile profile,
         bool light = false, bool ambientDrift = false, string fontFamily = "Cascadia Mono", double fontScale = 1,
-        string jpegQuality = "high", CancellationToken cancellationToken = default)
+        string jpegQuality = "high", CancellationToken cancellationToken = default,
+        double saturationPercent = 100, double hueDegrees = 0, bool showSpectrum = true,
+        double brightnessPercent = 0, double contrastPercent = 100)
     {
         if (string.IsNullOrWhiteSpace(fontFamily) || fontFamily.Length > 128 || fontFamily.Any(char.IsControl)) { throw new ArgumentException("Choose a font family of 1–128 printable characters."); }
         if (!double.IsFinite(fontScale) || fontScale is < 0.65 or > 1.6) { throw new ArgumentException("Font scale must be between 0.65 and 1.6."); }
-        if (jpegQuality is not ("low" or "medium" or "high")) { throw new ArgumentException("JPEG quality must be low, medium or high."); }
+        if (jpegQuality is not ("poor" or "low" or "medium" or "high")) { throw new ArgumentException("JPEG quality must be poor, low, medium or high."); }
+        ValidateColorAdjustments(saturationPercent, hueDegrees, brightnessPercent, contrastPercent);
         await gate.WaitAsync(cancellationToken);
         try
         {
             ObjectDisposedException.ThrowIf(disposed, this);
             EnsureWorker();
-            using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            deadline.CancelAfter(TimeSpan.FromSeconds(12));
-            var token = deadline.Token;
             var id = Guid.NewGuid().ToString("N");
             var media = snapshot.Media;
             if (!ReferenceEquals(artwork, media.Artwork))
@@ -78,6 +78,11 @@ public sealed class PythonThemeRenderer : IDisposable
                 fontFamily,
                 fontScale,
                 jpegQuality,
+                saturationPercent,
+                hueDegrees,
+                showSpectrum,
+                brightnessPercent,
+                contrastPercent,
                 state = new
                 {
                     media = mediaState,
@@ -96,10 +101,83 @@ public sealed class PythonThemeRenderer : IDisposable
             };
             try
             {
-                await worker!.StandardInput.WriteLineAsync(JsonSerializer.Serialize(request, Json).AsMemory(), token);
-                await worker.StandardInput.FlushAsync(token);
-                var line = await ReadResponseAsync(worker.StandardOutput.BaseStream, token);
-                using var response = JsonDocument.Parse(line);
+                using var response = await ExchangeAsync(request, id, "Theme rendering", cancellationToken);
+                var root = response.RootElement;
+                var jpeg = Convert.FromBase64String(root.GetProperty("jpegBase64").GetString() ?? "");
+                if (jpeg.Length is < 4 or > 450_000 || jpeg[0] != 0xff || jpeg[1] != 0xd8 || jpeg[^2] != 0xff || jpeg[^1] != 0xd9)
+                { throw new IOException("Python theme returned an invalid or oversized JPEG."); }
+                sentArtworkKey = artworkKey;
+                return jpeg;
+            }
+            catch { StopWorker(); throw; }
+        }
+        finally { gate.Release(); }
+    }
+
+    /// <summary>Lists the same monospace fonts the renderer can use, without loading a theme.</summary>
+    public async Task<(IReadOnlyList<string> Families, string? Notice)> ListFontsAsync(CancellationToken cancellationToken = default)
+    {
+        await gate.WaitAsync(cancellationToken);
+        try
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            EnsureWorker();
+            var id = Guid.NewGuid().ToString("N");
+            try
+            {
+                using var response = await ExchangeAsync(new { version = 1, id, method = "fonts" }, id, "Font discovery", cancellationToken);
+                var root = response.RootElement;
+                if (!root.TryGetProperty("families", out var values) || values.ValueKind != JsonValueKind.Array || values.GetArrayLength() > 512)
+                { throw new IOException("Python worker returned an invalid font catalog."); }
+                var families = new List<string>();
+                foreach (var value in values.EnumerateArray())
+                {
+                    var family = value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+                    if (string.IsNullOrWhiteSpace(family) || family.Length > 128 || family.Any(char.IsControl))
+                    { throw new IOException("Python worker returned an invalid font family."); }
+                    families.Add(family);
+                }
+                string? notice = null;
+                if (root.TryGetProperty("notice", out var message) && message.ValueKind != JsonValueKind.Null)
+                {
+                    if (message.ValueKind != JsonValueKind.String || message.GetString()!.Length > 1000)
+                    { throw new IOException("Python worker returned an invalid font notice."); }
+                    notice = message.GetString();
+                }
+                return (families.Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(value => value, StringComparer.OrdinalIgnoreCase).ToArray(), notice);
+            }
+            catch { StopWorker(); throw; }
+        }
+        finally { gate.Release(); }
+    }
+
+    public static void ValidateColorAdjustments(double saturationPercent, double hueDegrees,
+        double brightnessPercent = 0, double contrastPercent = 100)
+    {
+        if (!double.IsFinite(saturationPercent) || saturationPercent is < 0 or > 200)
+        { throw new ArgumentOutOfRangeException(nameof(saturationPercent), "Saturation must be a finite percentage from 0 to 200."); }
+        if (!double.IsFinite(hueDegrees) || hueDegrees is < -180 or > 180)
+        { throw new ArgumentOutOfRangeException(nameof(hueDegrees), "Hue must be a finite angle from -180 to 180 degrees."); }
+        if (!double.IsFinite(brightnessPercent) || brightnessPercent is < -100 or > 100)
+        { throw new ArgumentOutOfRangeException(nameof(brightnessPercent), "Brightness must be a finite percentage from -100 to 100."); }
+        if (!double.IsFinite(contrastPercent) || contrastPercent is < 0 or > 200)
+        { throw new ArgumentOutOfRangeException(nameof(contrastPercent), "Contrast must be a finite percentage from 0 to 200."); }
+    }
+
+    // Both operations share the caller's gate, process, framing checks and bounded deadline.
+    private async Task<JsonDocument> ExchangeAsync(object request, string id, string operation, CancellationToken cancellationToken)
+    {
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(TimeSpan.FromSeconds(12));
+        var token = deadline.Token;
+        try
+        {
+            await worker!.StandardInput.WriteLineAsync(JsonSerializer.Serialize(request, Json).AsMemory(), token);
+            await worker.StandardInput.FlushAsync(token);
+            var line = await ReadResponseAsync(worker.StandardOutput.BaseStream, token);
+            var response = JsonDocument.Parse(line);
+            try
+            {
                 var root = response.RootElement;
                 if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("version", out var version)
                     || version.ValueKind != JsonValueKind.Number || !version.TryGetInt32(out var number) || number != 1)
@@ -107,18 +185,16 @@ public sealed class PythonThemeRenderer : IDisposable
                 if (!root.TryGetProperty("id", out var responseId) || responseId.ValueKind != JsonValueKind.String || responseId.GetString() != id)
                 { throw new IOException("Python worker response ID did not match."); }
                 if (!root.TryGetProperty("ok", out var ok) || ok.ValueKind != JsonValueKind.True)
-                { throw new IOException(root.TryGetProperty("error", out var error) ? error.GetString() : "Python theme failed."); }
-                var jpeg = Convert.FromBase64String(root.GetProperty("jpegBase64").GetString() ?? "");
-                if (jpeg.Length is < 4 or > 450_000 || jpeg[0] != 0xff || jpeg[1] != 0xd8 || jpeg[^2] != 0xff || jpeg[^1] != 0xd9)
-                { throw new IOException("Python theme returned an invalid or oversized JPEG."); }
-                sentArtworkKey = artworkKey;
-                return jpeg;
+                {
+                    var message = root.TryGetProperty("error", out var error) && error.ValueKind == JsonValueKind.String ? error.GetString() : "Python worker failed.";
+                    throw new IOException(message);
+                }
+                return response;
             }
-            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-            { StopWorker(); throw new TimeoutException("Theme rendering exceeded 12 seconds. The worker will restart on the next request."); }
-            catch { StopWorker(); throw; }
+            catch { response.Dispose(); throw; }
         }
-        finally { gate.Release(); }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        { throw new TimeoutException($"{operation} exceeded 12 seconds. The worker will restart on the next request."); }
     }
 
     private void EnsureWorker()

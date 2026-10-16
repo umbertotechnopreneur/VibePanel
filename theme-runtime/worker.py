@@ -22,6 +22,8 @@ try:
     with contextlib.redirect_stdout(sys.stderr):
         import skia
         from canvas import Canvas, ThemeContext
+        from color_adjustments import apply_color_adjustments
+        from font_catalog import list_monospace_fonts
 except ImportError as exc:
     IMPORT_ERROR = str(exc)
 
@@ -55,10 +57,29 @@ def render(request: dict) -> dict:
         raise RuntimeError("Python theme dependencies are missing. Install theme-runtime/requirements.txt in the configured Python runtime. " + IMPORT_ERROR)
     if request.get("version", 1) != 1 or request.get("method", "render") != "render":
         raise ValueError("Unsupported theme worker request.")
+    # Reject invalid controls before importing a theme. The resolved theme overrides
+    # are checked again by the native filter helper after render/finish.
+    for name, default, minimum, maximum in (
+        ("saturationPercent", 100, 0, 200),
+        ("hueDegrees", 0, -180, 180),
+        ("brightnessPercent", 0, -100, 100),
+        ("contrastPercent", 100, 0, 200),
+    ):
+        value = request.get(name, default)
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError(f"{name} must be a finite number from {minimum} to {maximum}.")
+        try:
+            value = float(value)
+        except (OverflowError, ValueError):
+            raise ValueError(f"{name} must be a finite number from {minimum} to {maximum}.") from None
+        if not math.isfinite(value) or not minimum <= value <= maximum:
+            raise ValueError(f"{name} must be a finite number from {minimum} to {maximum}.")
+    if not isinstance(request.get("showSpectrum", True), bool):
+        raise ValueError("showSpectrum must be a boolean.")
     quality_name = request.get("jpegQuality", "high")
-    if quality_name not in ("low", "medium", "high"):
-        raise ValueError("JPEG quality must be low, medium, or high.")
-    target_quality = {"low": 50, "medium": 75, "high": 90}[quality_name]
+    if quality_name not in ("poor", "low", "medium", "high"):
+        raise ValueError("JPEG quality must be poor, low, medium, or high.")
+    target_quality = {"poor": 20, "low": 50, "medium": 75, "high": 90}[quality_name]
     width, height = int(request.get("width", 1280)), int(request.get("height", 480))
     if not (128 <= width <= 4096 and 128 <= height <= 4096 and width * height <= 8_388_608):
         raise ValueError("Canvas dimensions must be 128–4096 pixels and at most 8 megapixels.")
@@ -77,7 +98,11 @@ def render(request: dict) -> dict:
     canvas = Canvas(surface.getCanvas(), width, height, context)
     module.render(canvas, context)
     canvas.finish()
-    snapshot = surface.makeImageSnapshot()
+    # A fresh context starts from the UI/CLI controls on each frame. Themes may
+    # override context.colors; those values do not change the host's controls.
+    colors = context.colors
+    snapshot = apply_color_adjustments(surface.makeImageSnapshot(), colors.saturation_percent,
+                                      colors.hue_degrees, colors.brightness_percent, colors.contrast_percent)
     # Keep the physical profile resolution exact; reduce JPEG quality, never resize.
     qualities = (target_quality,) + tuple(value for value in (82, 72, 60, 45, 30, 18, 8) if value < target_quality)
     for quality in qualities:
@@ -86,6 +111,21 @@ def render(request: dict) -> dict:
             return {"version": 1, "id": request.get("id"), "ok": True,
                     "jpegBase64": base64.b64encode(bytes(data)).decode("ascii")}
     raise ValueError("Rendered frame exceeds the panel's 450,000-byte JPEG limit.")
+
+
+def dispatch(request: dict) -> dict:
+    if request.get("version", 1) != 1:
+        raise ValueError("Unsupported theme worker request.")
+    method = request.get("method", "render")
+    if method == "fonts":
+        if IMPORT_ERROR:
+            raise RuntimeError("Python theme dependencies are missing. Install theme-runtime/requirements.txt in the configured Python runtime. " + IMPORT_ERROR)
+        result = list_monospace_fonts()
+        return {"version": 1, "id": request.get("id"), "ok": True,
+                "families": result["families"], "notice": result.get("notice")}
+    if method == "render":
+        return render(request)
+    raise ValueError("Unsupported theme worker method.")
 
 
 def main():
@@ -107,7 +147,7 @@ def main():
                 request = {}
                 raise ValueError("Theme request must be an object.")
             with contextlib.redirect_stdout(sys.stderr):
-                result = render(request)
+                result = dispatch(request)
         except Exception as exc:
             result = {"version": 1, "id": request.get("id"), "ok": False,
                       "error": f"{type(exc).__name__}: {exc}"[:1000]}

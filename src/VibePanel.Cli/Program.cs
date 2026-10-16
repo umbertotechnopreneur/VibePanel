@@ -35,6 +35,7 @@ internal static class VibePanelCli
                 "volumes" => Volumes(),
                 "scenes" => Scenes(),
                 "themes" => Themes(),
+                "fonts" => Fonts(),
                 "theme" => Theme(args),
                 "codex" => Codex(args),
                 "diagnostics" => Diagnostics(args),
@@ -174,6 +175,18 @@ internal static class VibePanelCli
         return catalog.Themes.Count > 0 ? 0 : 1;
     }
 
+    private static int Fonts()
+    {
+        using var renderer = new PythonThemeRenderer();
+        var catalog = renderer.ListFontsAsync().GetAwaiter().GetResult();
+        var table = new Table().Border(TableBorder.Rounded).AddColumn("Monospace font family");
+        foreach (var family in catalog.Families) { table.AddRow(Markup.Escape(family)); }
+        AnsiConsole.Write(table);
+        if (catalog.Notice is not null) { AnsiConsole.WriteLine(catalog.Notice); }
+        AnsiConsole.WriteLine("Local renderer fonts. No theme, audio source or USB panel was opened.");
+        return 0;
+    }
+
     private static int Codex(IReadOnlyList<string> args)
     {
         if (args.Count != 2 || args[1] is not ("status" or "prepare"))
@@ -212,16 +225,22 @@ internal static class VibePanelCli
         var export = GetOption(args, "--export");
         var deviceNumber = GetOption(args, "--device");
         if (args.Count < 2 || args[1].StartsWith("--", StringComparison.Ordinal) || (export is null) == (deviceNumber is null))
-        { return Fail("Usage: vp theme <id> (--export <new.jpg> | --device <number>) [--profile <id>] [--font \"Cascadia Mono\"] [--font-scale 1] [--light] [--seconds N] [--interval-ms 1000]"); }
+        { return Fail("Usage: vp theme <id> (--export <new.jpg> | --device <number>) [--profile <id>] [--font \"Cascadia Mono\"] [--font-scale 1] [--light] [--saturation 100] [--hue 0] [--brightness 0] [--contrast 100] [--no-spectrum] [--seconds N] [--interval-ms 1000] [--quality high]"); }
         var theme = ThemeCatalog.Read().Themes.FirstOrDefault(item => item.Id == args[1])
             ?? throw new ArgumentException("Theme not found. Run 'vp themes'.");
         var font = GetOption(args, "--font") ?? "Cascadia Mono";
         var scaleText = GetOption(args, "--font-scale") ?? "1";
         var intervalText = GetOption(args, "--interval-ms") ?? "1000";
         var quality = (GetOption(args, "--quality") ?? "high").ToLowerInvariant();
-        if (quality is not ("low" or "medium" or "high")) { throw new ArgumentException("--quality must be low, medium or high."); }
-        if (!int.TryParse(intervalText, out var interval) || interval is < 50 or > 1000)
-        { throw new ArgumentException("--interval-ms must be between 50 and 1000."); }
+        var saturation = GetColorOption(args, "--saturation", 100);
+        var hue = GetColorOption(args, "--hue", 0);
+        var brightness = GetColorOption(args, "--brightness", 0);
+        var contrast = GetColorOption(args, "--contrast", 100);
+        PythonThemeRenderer.ValidateColorAdjustments(saturation, hue, brightness, contrast);
+        var showSpectrum = !args.Contains("--no-spectrum");
+        if (quality is not ("poor" or "low" or "medium" or "high")) { throw new ArgumentException("--quality must be poor, low, medium or high."); }
+        if (!int.TryParse(intervalText, out var interval) || interval is < 25 or > 1000)
+        { throw new ArgumentException("--interval-ms must be between 25 and 1000."); }
         if (!double.TryParse(scaleText, NumberStyles.Float, CultureInfo.InvariantCulture, out var scale))
         { throw new ArgumentException("--font-scale must be a number from 0.65 to 1.6 (use a decimal point)."); }
         if (deviceNumber is not null)
@@ -244,7 +263,8 @@ internal static class VibePanelCli
             {
                 AnsiConsole.WriteLine($"Sending theme {theme.Name} to device {device.Id}. Profile: {profileId}.");
                 ThemePlayback.RunAsync(theme, device, profileId, duration, new ThemeProgress(), cancellation.Token,
-                    args.Contains("--light"), args.Contains("--ambient-drift"), font, scale, interval, quality).GetAwaiter().GetResult();
+                    args.Contains("--light"), args.Contains("--ambient-drift"), font, scale, interval, quality,
+                    saturation, hue, showSpectrum, brightness, contrast).GetAwaiter().GetResult();
             }
             finally { Console.CancelKeyPress -= cancel; }
             return 0;
@@ -256,7 +276,9 @@ internal static class VibePanelCli
         using var service = new DashboardService();
         using var renderer = new PythonThemeRenderer();
         var snapshot = service.ReadAsync(includeSystem: false, includeMedia: theme.Category != "codex").GetAwaiter().GetResult();
-        var frame = renderer.RenderAsync(theme, snapshot, profile, args.Contains("--light"), args.Contains("--ambient-drift"), font, scale, quality).GetAwaiter().GetResult();
+        var frame = renderer.RenderAsync(theme, snapshot, profile, args.Contains("--light"), args.Contains("--ambient-drift"), font, scale, quality,
+            saturationPercent: saturation, hueDegrees: hue, showSpectrum: showSpectrum,
+            brightnessPercent: brightness, contrastPercent: contrast).GetAwaiter().GetResult();
         using var output = new FileStream(path, FileMode.CreateNew);
         output.Write(frame);
         AnsiConsole.WriteLine($"{theme.Name}: {profile.Width} × {profile.Height} preview saved to {path}");
@@ -469,6 +491,15 @@ internal static class VibePanelCli
         return null;
     }
 
+    private static double GetColorOption(IReadOnlyList<string> args, string option, double fallback)
+    {
+        var text = GetOption(args, option);
+        if (text is null && !args.Contains(option)) { return fallback; }
+        if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) || !double.IsFinite(value))
+        { throw new ArgumentException($"{option} needs a finite number (use a decimal point)."); }
+        return value;
+    }
+
     private static int Help()
     {
         var commands = new Table().Border(TableBorder.Rounded).AddColumn("Command").AddColumn("What it does");
@@ -481,6 +512,7 @@ internal static class VibePanelCli
         commands.AddRow("vp discover / vp profiles", "List connected panels / supported geometries.");
         commands.AddRow("vp scenes", "Eight layouts; five rotate with a short fade. --scene <ID> locks one.");
         commands.AddRow("vp themes", "List installed Multimedia and OpenAI Codex themes from their folders.");
+        commands.AddRow("vp fonts", "List installed monospace families available to the Python/Skia renderer.");
         commands.AddRow("vp codex status|prepare", "Check or prepare my optional Codex plugin. Trust its hooks in Codex.");
         commands.AddRow("vp diagnostics status|on|off|open", "Opt-in local error log, capped at 512 KiB plus one backup.");
         commands.AddRow("vp gui", "Open the desktop window from the portable folder.");
@@ -488,7 +520,11 @@ internal static class VibePanelCli
         commands.AddRow("vp theme <id> --export frame.jpg --font <name> --light", "Use the same font and light-mode options as the UI.");
         commands.AddRow("vp theme media.aurora --device 1 --seconds 60", "Explicitly stream a theme to one panel at a target 1 fps; Ctrl+C stops.");
         commands.AddRow("vp theme media.aurora --device 1 --interval-ms 250", "Request updates every 250 ms; rendering and USB can be slower.");
-        commands.AddRow("vp theme media.aurora --device 1 --quality medium", "JPEG quality: low, medium or high. The panel size limit still applies.");
+        commands.AddRow("vp theme media.aurora --device 1 --quality medium", "JPEG quality: poor, low, medium or high. The panel size limit still applies.");
+        commands.AddRow("vp theme media.aurora --device 1 --interval-ms 25 --quality poor", "Aggressive requested interval, very strong JPEG compression. Actual updates can be slower.");
+        commands.AddRow("vp theme <id> --export frame.jpg --saturation 120 --hue -20", "Adjust saturation (0–200%) and hue (-180–180°). Also works with --device.");
+        commands.AddRow("vp theme <id> --export frame.jpg --brightness 10 --contrast 115", "Adjust brightness (-100–100%) and contrast (0–200%). Themes can override color values in Python.");
+        commands.AddRow("vp theme <id> --device 1 --no-spectrum", "Hide FFT bars in themes that support it. Keep VU meters and decibel values.");
         commands.AddRow("vp --stdio", "JSON Lines engine v1. No banner, no network listener, explicit USB start.");
         AnsiConsole.Write(commands);
         AnsiConsole.MarkupLine("[grey]Panel tools (these touch hardware only when explicitly invoked):[/]");

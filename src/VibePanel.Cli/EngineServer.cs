@@ -95,7 +95,10 @@ internal sealed class EngineServer : IDisposable
                 preview = null;
                 previewNotice = null;
                 return new ThemeCatalogDto([new("multimedia", "Multimedia"), new("codex", "OpenAI Codex")],
-                    themeCatalog.Themes.Select(theme => new ThemeChoiceDto(theme.Id, theme.Name, theme.Category, theme.Description, theme.PackId)).ToArray(), themeCatalog.Notices);
+                    themeCatalog.Themes.Select(theme => new ThemeChoiceDto(theme.Id, theme.Name, theme.Category, theme.Description, theme.PackId, theme.SupportsSpectrum)).ToArray(), themeCatalog.Notices);
+            case "fonts":
+                var fonts = await themeRenderer.ListFontsAsync();
+                return new FontCatalogDto(fonts.Families, fonts.Notice);
             case "state": return await StateAsync(Parameters<PreviewOptions>(request, new()));
             case "present": return await PresentAsync(Parameters<PreviewOptions>(request));
             case "devices":
@@ -136,13 +139,14 @@ internal sealed class EngineServer : IDisposable
             case "diagnostics.status": return DiagnosticLog.Status();
             case "diagnostics.set": return DiagnosticLog.SetEnabled(Parameters<SetDiagnosticsOptions>(request).Enabled);
             case "diagnostics.open": return new { accepted = DiagnosticLog.Open() };
-            default: throw new ArgumentException("Unknown method. Use hello, themes, devices, state, present, levels, start, stop, media, codex.status, codex.prepare, or diagnostics.*.");
+            default: throw new ArgumentException("Unknown method. Use hello, themes, fonts, devices, state, present, levels, start, stop, media, codex.status, codex.prepare, or diagnostics.*.");
         }
     }
 
     private async Task<PanelState> StateAsync(PreviewOptions options)
     {
-        if (options.RefreshIntervalMilliseconds is < 50 or > 1000) { throw new ArgumentException("Refresh interval must be between 50 and 1000 ms."); }
+        if (options.RefreshIntervalMilliseconds is < 25 or > 1000) { throw new ArgumentException("Refresh interval must be between 25 and 1000 ms."); }
+        PythonThemeRenderer.ValidateColorAdjustments(options.SaturationPercent, options.HueDegrees, options.BrightnessPercent, options.ContrastPercent);
         ThemeDefinition? theme = null;
         if (options.ThemeId is not null)
         {
@@ -167,7 +171,7 @@ internal sealed class EngineServer : IDisposable
         int? drift = options.AmbientDrift ? DashboardRenderer.AmbientOffset() : null;
         var fingerprint = theme is null
             ? DashboardRenderer.Fingerprint(snapshot, scene) + profile.Id + options.Light + drift
-            : $"{theme.Id}|{profile.Id}|{options.Light}|{options.AmbientDrift}|{options.FontFamily}|{options.FontScale}|{options.JpegQuality}";
+            : $"{theme.Id}|{profile.Id}|{options.Light}|{options.AmbientDrift}|{options.FontFamily}|{options.FontScale}|{options.JpegQuality}|{options.SaturationPercent}|{options.HueDegrees}|{options.ShowSpectrum}|{options.BrightnessPercent}|{options.ContrastPercent}";
         var configurationChanged = previousFingerprint != fingerprint;
         var refreshInterval = previewNotice is null ? options.RefreshIntervalMilliseconds : 5000;
         if (options.IncludeFrame && (configurationChanged || theme is not null && Environment.TickCount64 - previewAt >= refreshInterval))
@@ -180,7 +184,9 @@ internal sealed class EngineServer : IDisposable
                 if (configurationChanged) { preview = null; }
                 try
                 {
-                    preview = await themeRenderer.RenderAsync(theme, snapshot, profile, options.Light, options.AmbientDrift, options.FontFamily, options.FontScale, options.JpegQuality);
+                    preview = await themeRenderer.RenderAsync(theme, snapshot, profile, options.Light, options.AmbientDrift, options.FontFamily, options.FontScale, options.JpegQuality,
+                        saturationPercent: options.SaturationPercent, hueDegrees: options.HueDegrees, showSpectrum: options.ShowSpectrum,
+                        brightnessPercent: options.BrightnessPercent, contrastPercent: options.ContrastPercent);
                     previewNotice = null;
                 }
                 catch (Exception error) when (error is not OutOfMemoryException)

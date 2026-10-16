@@ -24,6 +24,45 @@ One UTF-8 JSON object per line, request and response IDs preserved:
 
 Errors are `{ "version": 1, "id": "frame-1", "ok": false, "error": "..." }`. All diagnostics and accidental theme prints go to stderr. A missing Python dependency is reported for each request rather than corrupting stdout. A malformed or unsupported theme produces an error, never a fabricated scene.
 
+Render requests also accept `saturationPercent` (0–200, default 100), `hueDegrees` (-180–180, default 0), `brightnessPercent` (-100–100, default 0), `contrastPercent` (0–200, default 100) and `showSpectrum` (boolean, default true). Numeric settings must be finite. The four color settings affect the completed frame before JPEG encoding; defaults 100/0/0/100 return the original snapshot without an extra raster pass. Other values use one native Skia matrix pass. Grays stay neutral, alpha is unchanged, and out-of-gamut RGB is clamped. Contrast pivots at 50% gray; brightness is an additive offset after contrast, not a hardware backlight command. In normalized channel units the tone step is `rgb * (contrast / 100) + 0.5 * (1 - contrast / 100) + brightness / 100`.
+
+Filter coefficients are cached for up to 64 setting combinations; Python never loops over frame pixels. Saturation and hue follow the [W3C matrices](https://www.w3.org/TR/filter-effects-1/#feColorMatrixElement), applied through [Skia ColorFilters](https://skia-python.github.io/skia-python/reference/skia.ColorFilters.html). The [native matrix filter](https://github.com/google/skia/blob/main/src/effects/colorfilters/SkMatrixColorFilter.cpp) applies a float matrix and then clamps to 0–1, so its bias is not multiplied by 255.
+
+### Color settings in a theme
+
+`context.colors` is a fresh, mutable `ColorAdjustments` object for each frame, initialized from the UI/CLI request. A theme can read or override any of its four fields inside `render`; untouched fields retain the requested values. The worker reads the final values after drawing and validates them again before applying the filter. Invalid types, non-finite numbers or out-of-range overrides return a render error rather than being silently clamped.
+
+```python
+def render(c, s):
+    requested_saturation = s.colors.saturation_percent  # Read the UI/CLI value.
+    s.colors.saturation_percent = min(200, requested_saturation + 10)
+    s.colors.hue_degrees = -12
+    s.colors.brightness_percent = 6
+    s.colors.contrast_percent = 108
+    c.backdrop("aurora", artwork=True)
+    c.header("MY MEDIA")
+    # Draw the rest of the theme as usual. The worker applies colors at the end.
+```
+
+`ColorAdjustments(...).validate()` is also available from `color_adjustments`; it validates all four fields before normalizing them to floats and returns the same object. Do not save `s.colors` in module globals or mutate the request. These overrides apply only to that rendered frame: they do not change saved UI settings, shared backdrop caches or the next frame. The twenty bundled themes currently leave all four values untouched.
+
+For a fade, call `s.colors.fade(amount)` after the other color overrides. Use 0 for black and 1 for the current correction. Intermediate values reduce contrast and brightness together, preserving hue, saturation and alpha. The amount must be a finite number from 0 to 1. The final filter still uses one native pass; this is a fade through black, not a blend with the previous theme.
+
+```python
+def render(c, s):
+    c.backdrop("aurora", artwork=True)
+    c.header("MY MEDIA")
+    # Draw the rest of the theme here.
+    progress = min(1, s.elapsed_seconds / 0.5)
+    s.colors.fade(progress)  # Half-second fade in. Use 1 - progress for fade out.
+```
+
+`s.elapsed_seconds` uses the worker's monotonic clock, starting at the first frame of the active theme. It resets when category, theme ID or theme folder changes. It does not depend on the wall clock or requested refresh rate. Only the current theme's timer is kept; a new worker starts it again. The time advances between requests too. No bundled theme applies this fade automatically.
+
+`showSpectrum: false` omits only FFT drawing, including its labels and unavailable placeholder. It does not hide stereo VU or dBFS values and does not stop audio analysis. All ten Multimedia manifests declare this optional setting because their compact composition includes a spectrum; the ten Codex manifests do not. Existing positions and sizes stay unchanged when the spectrum is hidden.
+
+The worker's `fonts` method returns `{ "version": 1, "id": "fonts-1", "ok": true, "families": [], "notice": null }`, with the array populated from the renderer's installed-font backend. It uses [FontMgr and native style sets](https://skia-python.github.io/skia-python/reference/skia.FontMgr.html), accepting only families whose normal and bold matches report [isFixedPitch](https://skia-python.github.io/skia-python/reference/skia.Typeface.html#skia.Typeface.isFixedPitch). Names are not guessed from “Mono,” and no fonts are installed or directories scanned. Discovery is cached once per worker: restart it after installing fonts. At most 4,096 families are inspected, 512 names returned, and 32 backend errors tolerated; limits, missing fonts and partial results have an explicit notice. Names are sorted, case-insensitively deduplicated and limited to 128 printable characters. Fixed-pitch metadata is not a guarantee that every glyph has identical advance width.
+
 `coverKey` stays in each media snapshot. Send `coverBase64` when that key changes or when the worker starts. Omit it on later frames to reuse the cached image; explicitly send `null` to clear it. Media metadata, elapsed position, volume and peak are actual provider values. `null` is unavailable, not zero. `audio.volumePercent` is the media application's volume setting, labeled **APP VOLUME**, not the level of the complete output mix. The legacy `audio.peak` is an instantaneous app-session linear amplitude, not spectrum data.
 
 ### Output spectrum and stereo meters
@@ -105,7 +144,7 @@ All twenty themes share three secondary type roles in logical canvas pixels:
 
 The spectrum reserves 41 pixels for its dBFS labels and 27 pixels below the plot. Short plots show 0/-60 only; taller plots add -30. Frequency ticks use fewer labels when needed, never smaller text. Narrow headings keep SYSTEM OUTPUT and omit optional sample-rate/FFT metadata. Stereo meters retain all three numeric columns at the instrument size, with separate RMS/PK/HOLD headings; short strips have been given more height. SYSTEM MIX in narrow VU panels means the same full playback mix, not app gain. The compact layout keeps these same readable roles. Long custom-font labels can still use ellipsis; exact appearance and physical readability require a separately authorized visual check.
 
-`jpegQuality` accepts `low`, `medium` or `high`, with initial JPEG qualities 50, 75 and 90. Omitting it selects `high`; unsupported values are rejected. Quality is reduced adaptively from the selected target, down to 8 if needed, to stay at or below 450,000 bytes without changing physical resolution. If even the lowest quality exceeds the cap, the worker reports it. This controls JPEG compression, not the audio source quality, and does not guarantee a refresh rate or validate any USB device.
+`jpegQuality` accepts `poor`, `low`, `medium` or `high`, with initial JPEG qualities 20, 50, 75 and 90. Omitting it selects `high`; unsupported values are rejected. Quality is reduced adaptively from the selected target, down to 8 if needed, to stay at or below 450,000 bytes without changing physical resolution. Fallback never raises the selected quality. If even the lowest quality exceeds the cap, the worker reports it. This controls JPEG compression, not the audio source quality, and does not guarantee a refresh rate or validate any USB device.
 
 ## Sources and validation boundary
 

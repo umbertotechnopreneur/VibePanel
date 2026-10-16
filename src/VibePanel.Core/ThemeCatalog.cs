@@ -7,7 +7,7 @@ using System.Text.Json;
 
 namespace VibePanel.Core;
 
-public sealed record ThemeDefinition(string Id, string Name, string Category, string Description, string PackId, string DirectoryPath);
+public sealed record ThemeDefinition(string Id, string Name, string Category, string Description, string PackId, string DirectoryPath, bool SupportsSpectrum = false);
 public sealed record ThemeCatalogSnapshot(IReadOnlyList<ThemeDefinition> Themes, IReadOnlyList<string> Notices);
 
 /// <summary>Finds bounded, manifest-backed theme folders; never imports or executes scripts while listing.</summary>
@@ -79,7 +79,10 @@ public static class ThemeCatalog
                             var script = Text(entry, "entry", "render.py");
                             if (Path.GetFileName(script) != script || !script.EndsWith(".py", StringComparison.OrdinalIgnoreCase) || !File.Exists(Path.Combine(folder, script)))
                             { throw new ArgumentException("Entry must name an existing Python file in the theme folder."); }
-                            if (!themes.TryAdd(id, new(id, name, category, description, packId, folder)))
+                            var supportsSpectrum = entry.TryGetProperty("settings", out var settings) && settings.ValueKind == JsonValueKind.Object
+                                && settings.TryGetProperty("showSpectrum", out var spectrum) && spectrum.ValueKind == JsonValueKind.Object
+                                && Text(spectrum, "type") == "boolean";
+                            if (!themes.TryAdd(id, new(id, name, category, description, packId, folder, supportsSpectrum)))
                             { notices.Add($"Duplicate theme ID {id} was skipped; the first installed definition wins."); }
                         }
                         catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException or ArgumentException or InvalidOperationException)

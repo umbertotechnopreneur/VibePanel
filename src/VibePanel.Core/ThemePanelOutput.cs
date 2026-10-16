@@ -37,7 +37,7 @@ public sealed class ThemePanelOutput : IDisposable
     public async Task<bool> SendAsync(byte[] jpeg, string jpegQuality = "high", CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
-        var quality = jpegQuality switch { "low" => 50, "medium" => 75, "high" => 90, _ => throw new ArgumentException("JPEG quality must be low, medium or high.") };
+        var quality = jpegQuality switch { "poor" => 20, "low" => 50, "medium" => 75, "high" => 90, _ => throw new ArgumentException("JPEG quality must be poor, low, medium or high.") };
         if (previousQuality == jpegQuality && previousJpeg is not null && previousJpeg.AsSpan().SequenceEqual(jpeg)) { return false; }
         var payload = Profile is { Encoding: PanelPixelEncoding.Jpeg, WireRotation: 0 }
             ? jpeg : DashboardRenderer.Fade(jpeg, jpeg, Profile, 1, quality);

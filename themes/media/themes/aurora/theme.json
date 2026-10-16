@@ -36,6 +36,10 @@
       "minimum": 0.65,
       "maximum": 1.6
     },
+    "showSpectrum": {
+      "type": "boolean",
+      "default": true
+    },
     "ambientDrift": {
       "type": "boolean",
       "default": false

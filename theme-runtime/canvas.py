@@ -12,10 +12,13 @@ from datetime import datetime
 import numpy as np
 import skia
 
+from color_adjustments import ColorAdjustments
+
 _CACHE = OrderedDict()
 _COVERS = OrderedDict()
 _FONTS = OrderedDict()
 _METER_HISTORY = OrderedDict()
+_ACTIVE_THEME_TIMING = None
 FALLBACK_PALETTE = ("#6677CC", "#A575BC", "#4AABB1", "#C8A48C")
 SAMPLING = skia.SamplingOptions(skia.FilterMode.kLinear)
 # Each Codex composition has its own color identity. Wallpaper samples tint these
@@ -234,6 +237,8 @@ def decoded_cover(media):
 
 class ThemeContext:
     def __init__(self, state, request, manifest):
+        global _ACTIVE_THEME_TIMING
+
         self.media = state.get("media") or {}
         self.audio = state.get("audio") or {}
         self.codex = state.get("codex") or {}
@@ -243,9 +248,26 @@ class ThemeContext:
         self.font_family = clean(request.get("fontFamily"), "Cascadia Mono")
         self.font_scale = clip(request.get("fontScale", 1), .65, 1.6)
         self.ambient_drift = bool(request.get("ambientDrift"))
+        self.show_spectrum = request.get("showSpectrum", True)
+        # A fresh object for each frame: theme overrides cannot mutate UI input
+        # or leak into another theme/frame through the static backdrop caches.
+        self.colors = ColorAdjustments(
+            saturation_percent=request.get("saturationPercent", 100),
+            hue_degrees=request.get("hueDegrees", 0),
+            brightness_percent=request.get("brightnessPercent", 0),
+            contrast_percent=request.get("contrastPercent", 100),
+        ).validate()
         self.category = manifest.get("category", "multimedia")
         self.style = str(manifest.get("id", "")).rsplit(".", 1)[-1]
         self.theme_directory = str(request.get("themePath", ""))
+        theme_key = (self.category, str(manifest.get("id", "")), self.theme_directory)
+        frame_time = time.monotonic()
+        previous = _ACTIVE_THEME_TIMING
+        same_theme = previous and previous[0] == theme_key and frame_time >= previous[2]
+        started = previous[1] if same_theme else frame_time
+        # Retain only the most recent theme, never one timer per installed theme.
+        _ACTIVE_THEME_TIMING = (theme_key, started, frame_time)
+        self.elapsed_seconds = max(0, frame_time - started)
         self.preview = bool(state.get("preview") or self.codex.get("preview"))
         self.cover, self.cover_key, cover_palette, self.dominant = decoded_cover(self.media)
         desktop_palette = self.desktop.get("palette")
@@ -702,6 +724,8 @@ class Canvas:
 
     def spectrum(self, x, y, width, height=130):
         """Measured 32-band log-frequency spectrum. No input means no bars."""
+        if not self.ctx.show_spectrum:
+            return
         analysis = self.ctx.analysis
         small = self.text_size("instrument")
         # Keep the source name and units readable; omit optional FFT metadata in

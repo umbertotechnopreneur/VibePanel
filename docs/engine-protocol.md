@@ -12,6 +12,8 @@ The desktop window starts one hidden `vp --stdio` process. Requests and replies 
 
 `themes` reads the local manifests. `devices` enumerates interfaces and returns opaque IDs. Neither sends a USB handshake or picture. `state` renders a local preview and never writes to USB.
 
+Each theme includes `supportsSpectrum`, default false. It is true only when its manifest declares `settings.showSpectrum.type` as `boolean`; catalog discovery never executes theme code.
+
 ## Show the same picture on the panel
 
 Use an ID returned by `devices`:
@@ -32,15 +34,37 @@ The GUI starts in preview mode each time. It never restores an active USB sessio
 
 ## Rate and quality
 
-`refreshIntervalMilliseconds` defaults to 1000; valid range 50–1000. The GUI offers 1000, 500, 250, 100 and 50 ms. These are requested intervals, not guaranteed panel frame rates. Metadata and artwork are checked at most once a second; timeline and existing playback meters can update faster.
+`refreshIntervalMilliseconds` defaults to 1000; valid range 25–1000. The GUI offers 1000, 500, 250, 100, 50 and 25 ms. The 25 ms setting is aggressive. These are requested intervals, not guaranteed panel frame rates. Metadata and artwork are checked at most once a second; timeline and existing playback meters can update faster.
 
-`jpegQuality` is `low`, `medium` or `high`, default high. Encoder targets are 50, 75 and 90. Encoding falls back to lower quality if needed to stay under 450,000 bytes. Rotated JPEG profiles also honor the selected target. Other pixel formats require conversion.
+`jpegQuality` is `poor`, `low`, `medium` or `high`, default high. Encoder targets are 20, 50, 75 and 90. Poor uses very strong compression. Encoding falls back to lower quality if needed to stay under 450,000 bytes. Rotated JPEG profiles also honor the selected target. Other pixel formats require conversion.
 
 `PanelState` adds `frameMilliseconds` (server-side data/render/send duration) and `submittedFrames`. These are not measurements of physical display latency. `displayRunning` and `status` report the session.
 
 ## Other settings
 
 `fontFamily` defaults to Cascadia Mono. `fontScale` is 0.65–1.6. `light` and `ambientDrift` default to false. Python keeps decoded artwork and static backgrounds cached. A failed preview retries after five seconds, except when settings change.
+
+`saturationPercent` defaults to 100 and accepts finite values from 0 to 200. `hueDegrees` defaults to 0 and accepts finite values from -180 to 180. `brightnessPercent` defaults to 0 and accepts -100 to 100; `contrastPercent` defaults to 100 and accepts 0 to 200. All four values must be finite numbers.
+
+These theme options apply one native color filter to the completed image before JPEG encoding. Neutral values (100, 0, 0, 100) skip the extra image operation. The preview and panel use the same adjusted JPEG. They do not rewrite a theme or its cached artwork.
+
+Each frame gives Python themes a mutable `context.colors` object with `saturation_percent`, `hue_degrees`, `brightness_percent` and `contrast_percent`. It starts with the current UI/CLI values. The theme can read or override them inside `render(canvas, context)`:
+
+```python
+context.colors.brightness_percent = 10
+context.colors.contrast_percent = 115
+```
+
+After `render` and `finish`, the worker validates the resolved values and applies the filter once. An invalid override fails the frame instead of silently clamping a control. The override does not change the UI/CLI settings and starts fresh on the next frame; bundled themes currently leave all four values unchanged. No manifest setting is needed for this API.
+
+`showSpectrum` defaults to true. False hides FFT bars in themes that declare support; it does not hide stereo VU/decibel values or stop their audio analyzer. The studio disables this checkbox for Codex and themes without the manifest setting. Color and spectrum changes invalidate the current preview immediately.
+
+`fonts` returns `{ "families": ["…"], "notice": null }`: the installed monospace families the Python/Skia renderer can use, not a hardcoded list. Discovery shares the renderer's serialized worker and twelve-second deadline, but loads no theme and opens no audio source or USB device. The result is cached by that worker; restart the engine after installing fonts. The list is bounded to 512 names, with a notice for a partial or empty result. Missing Python dependencies return a normal RPC error, not invented font names.
+
+```json
+{"version":1,"id":"fonts-1","method":"fonts"}
+{"version":1,"id":"colors-1","method":"state","parameters":{"themeId":"media.aurora","saturationPercent":120,"hueDegrees":-20,"brightnessPercent":10,"contrastPercent":115,"showSpectrum":false}}
+```
 
 Multimedia themes read generic Windows media/audio data. Their audio analysis uses Windows playback loopback, never the microphone. PCM stays in bounded memory; it is not saved or sent. `audio.analysis` contains real log-frequency FFT bands and stereo peak/RMS values in dBFS. The source is `system-output`: the full playback mix, not an isolated app. App volume and session meters remain separate. Codex themes stop this analyzer and skip media/audio sources.
 
@@ -63,16 +87,20 @@ The engine resolves Python from `VIBEPANEL_PYTHON`, bundled `python/python.exe`,
 ```powershell
 vp gui
 vp themes
+vp fonts
 vp codex status
 vp codex prepare
 vp diagnostics on
 vp diagnostics open
 vp diagnostics off
 vp theme media.aurora --export frame.jpg --quality high
+vp theme media.aurora --export tinted-frame.jpg --saturation 120 --hue -20 --brightness 10 --contrast 115 --no-spectrum
 vp theme media.aurora --device 1 --interval-ms 250 --quality medium --seconds 20
 ```
 
 Export is local and never overwrites a file. Device playback stops on Ctrl+C, its optional duration or a failure. It does not reconnect automatically.
+
+`--saturation`, `--hue`, `--brightness`, `--contrast` and `--no-spectrum` work with both `theme --export` and `theme --device`. Use decimal points for numeric arguments. `--no-spectrum` hides only supported FFT bars; VU meters remain. Legacy diagnostic `preview` and C# scenes are unchanged.
 
 Legacy `start` requests without `themeId` retain the C# scene/rotation behavior. `levels` reads cached playback meters. `media` controls the current OS media session when explicitly requested; there is no volume-write method.
 
