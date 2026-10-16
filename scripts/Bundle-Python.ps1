@@ -4,6 +4,7 @@
 # VBWR E
 param(
     [Parameter(Mandatory)][ValidateSet('x64', 'ARM64')][string]$Architecture,
+    [Parameter(Mandatory)][string]$Destination,
     [string]$HostPython = 'python'
 )
 $ErrorActionPreference = 'Stop'
@@ -21,7 +22,7 @@ $expectedPythonSha256 = if ($Architecture -eq 'ARM64') {
 }
 $requirements = Join-Path $repo 'theme-runtime/requirements.txt'
 $requirementsSha256 = (Get-FileHash -LiteralPath $requirements -Algorithm SHA256).Hash.ToLowerInvariant()
-$destination = Join-Path $repo "artifacts/portable/VibePanel-win-$($Architecture.ToLowerInvariant())"
+$destination = [System.IO.Path]::GetFullPath($Destination)
 $engine = Join-Path $destination 'engine'
 $pythonDestination = Join-Path $engine 'python'
 $cache = Join-Path $repo "artifacts/python-cache/$version/$architectureTag/$requirementsSha256"
@@ -197,15 +198,15 @@ if (-not (Test-Path -LiteralPath (Join-Path $pythonStage 'python.exe'))) {
     ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $pythonStage 'vibepanel-bundle.json') -Encoding utf8
 
 if (Test-Path -LiteralPath $pythonDestination) {
-    $portableRoot = [System.IO.Path]::GetFullPath((Join-Path $repo 'artifacts/portable'))
+    $artifactsRoot = [System.IO.Path]::GetFullPath((Join-Path $repo 'artifacts'))
     $resolvedDestination = [System.IO.Path]::GetFullPath($destination)
     $resolvedEngine = [System.IO.Path]::GetFullPath($engine)
     $resolvedPython = [System.IO.Path]::GetFullPath($pythonDestination)
-    if (-not $resolvedDestination.StartsWith($portableRoot + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase) -or
+    if (-not $resolvedDestination.StartsWith($artifactsRoot + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase) -or
         $resolvedPython -ne (Join-Path $resolvedEngine 'python')) {
         throw "Refusing to replace unsafe Python destination: $pythonDestination"
     }
-    foreach ($component in @($portableRoot, $resolvedDestination, $resolvedEngine, $resolvedPython)) {
+    foreach ($component in @($artifactsRoot, $resolvedDestination, $resolvedEngine, $resolvedPython)) {
         $item = Get-Item -LiteralPath $component -Force
         if ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
             throw "Refusing to replace Python through a reparse point: $component"

@@ -19,7 +19,7 @@ foreach ($target in @(@{ Project = 'Cli'; Folder = $engine }, @{ Project = 'Phot
     dotnet publish $project --configuration Release --runtime $runtime --self-contained true -p:Platform=$Architecture --output $target.Folder --warnaserror
     if ($LASTEXITCODE -ne 0) { throw "Publish failed: $($target.Project) / $runtime" }
 }
-& (Join-Path $PSScriptRoot 'Bundle-Python.ps1') -Architecture $Architecture -HostPython $HostPython
+& (Join-Path $PSScriptRoot 'Bundle-Python.ps1') -Architecture $Architecture -Destination $destination -HostPython $HostPython
 foreach ($document in @('README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'TRADEMARKS.md', 'PORTABLE.md', 'cave.md', 'lesson.md')) {
     Copy-Item -LiteralPath (Join-Path $repo $document) -Destination $destination -Force
 }
