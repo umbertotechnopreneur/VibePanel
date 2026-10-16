@@ -20,7 +20,7 @@ internal static class Program
             .SetTitle("Vibe Panel — theme studio")
             .SetUseOsDefaultSize(false)
             .SetUseOsDefaultLocation(false)
-            .SetSize(1380, 960)
+            .SetSize(1240, 820)
             .SetResizable(true)
             .SetLogVerbosity(0)
             .SetIconFile(Path.Combine(AppContext.BaseDirectory, "Assets", OperatingSystem.IsWindows() ? "vibepanel.ico" : "vibepanel-icon.png"))
@@ -49,9 +49,10 @@ internal static class Program
             if (area.Width <= 0 || area.Height <= 0) { return; }
             // Windows reports physical pixels: preserve usable space at larger display scaling too.
             var scale = OperatingSystem.IsWindows() ? Math.Clamp(window.ScreenDpi / 96d, 1, 3) : 1;
-            var width = Math.Min((int)(1380 * scale), Math.Max(1, area.Width - (int)(48 * scale)));
-            var height = Math.Min(Math.Max((int)(960 * scale), (int)(area.Height * .90)), Math.Max(1, area.Height - (int)(64 * scale)));
-            window.SetMinSize(Math.Min((int)(1040 * scale), width), Math.Min((int)(740 * scale), height));
+            // Cap the preferred size, rather than making a large screen fill up to 90%.
+            var width = Math.Max(1, Math.Min((int)(1240 * scale), (int)(area.Width * .88)));
+            var height = Math.Max(1, Math.Min((int)(820 * scale), (int)(area.Height * .86)));
+            window.SetMinSize(Math.Min((int)(1040 * scale), width), Math.Min((int)(640 * scale), height));
             window.SetSize(width, height);
             window.SetLocation(new Point(area.Left + (area.Width - width) / 2, area.Top + (area.Height - height) / 2));
         }

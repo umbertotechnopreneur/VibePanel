@@ -15,13 +15,12 @@ VBWR E -->
             </ControlTemplate></Setter.Value></Setter>
         </Style>
     </Page.Resources>
-    <ScrollViewer x:Name="StudioScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-    <Grid x:Name="Root" Background="#101218" MinWidth="1040" MinHeight="800">
+    <Grid x:Name="Root" Background="#101218">
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-        <Grid Margin="32,20,32,22">
+        <Grid x:Name="HeaderArea" Margin="28,16,28,16">
             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                <Image Source="/VibePanel.UI;component/Assets/vibepanel-icon.png" Width="62" Height="62" Stretch="Uniform" Margin="0,0,14,0"/>
+                <Image x:Name="ProductIcon" Source="/VibePanel.UI;component/Assets/vibepanel-icon.png" Width="62" Height="62" Stretch="Uniform" Margin="0,0,14,0"/>
                 <StackPanel VerticalAlignment="Center">
                     <TextBlock x:Name="Eyebrow" Text="C O D E N A M E" FontSize="9"/>
                     <TextBlock x:Name="Heading" Text="Vibe Panel" FontSize="28" FontWeight="SemiBold" Margin="0,4,0,0"/>
@@ -39,8 +38,8 @@ VBWR E -->
                 <TextBlock x:Name="Author" Text="by Umberto Giacobbi" FontSize="10" HorizontalAlignment="Right" Margin="0,8,0,0"/>
             </StackPanel>
         </Grid>
-        <Grid Grid.Row="1" Margin="32,0,32,0">
-            <Grid.ColumnDefinitions><ColumnDefinition x:Name="LibraryColumn" Width="264"/><ColumnDefinition Width="32"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+        <Grid x:Name="ContentArea" Grid.Row="1" Margin="28,0,28,0">
+            <Grid.ColumnDefinitions><ColumnDefinition x:Name="LibraryColumn" Width="248"/><ColumnDefinition x:Name="LibraryGap" Width="24"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
             <Grid x:Name="LibraryFrame">
                 <Grid>
                     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
@@ -89,7 +88,7 @@ VBWR E -->
             </Grid>
             <Grid Grid.Column="2">
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                <Grid Margin="2,2,2,14">
+                <Grid x:Name="ThemeHeadingArea" Margin="2,2,2,10">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <StackPanel>
                         <TextBlock x:Name="CategoryText" Text="MULTIMEDIA" FontSize="10"/>
@@ -99,7 +98,7 @@ VBWR E -->
                         <TextBlock x:Name="PreviewBadgeText" Text="LOCAL PREVIEW" FontSize="10"/>
                     </Grid>
                 </Grid>
-                <Grid x:Name="PreviewFrame" Grid.Row="1" MinHeight="300">
+                <Grid x:Name="PreviewFrame" Grid.Row="1">
                     <Grid>
                         <Image x:Name="PreviousPreview" Stretch="Uniform"/>
                         <Image x:Name="PreviewImage" Stretch="Uniform"/>
@@ -109,7 +108,7 @@ VBWR E -->
                         </StackPanel>
                     </Grid>
                 </Grid>
-                <Grid Grid.Row="2" Margin="0,14,0,14">
+                <Grid x:Name="NavigationArea" Grid.Row="2" Margin="0,10,0,10">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <Button x:Name="PreviousButton" Content="←" Click="Previous_Click" Width="38" Height="34" ToolTipService.ToolTip="Previous theme · Page Up"/>
                     <TextBlock x:Name="PositionText" Grid.Column="1" Text="00 / 00" FontSize="12" VerticalAlignment="Center" Margin="12,0"/>
@@ -117,7 +116,7 @@ VBWR E -->
                     <TextBlock x:Name="SourceText" Grid.Column="3" FontSize="11" VerticalAlignment="Center" Margin="18,0,12,0" TextTrimming="CharacterEllipsis"/>
                     <CheckBox x:Name="CycleBox" Grid.Column="4" Content="Cycle · 20s" VerticalAlignment="Center" FontSize="11"/>
                 </Grid>
-                <Grid x:Name="OptionsFrame" Grid.Row="3" Margin="0,8,0,22">
+                <Grid x:Name="OptionsFrame" Grid.Row="3" Margin="0,6,0,16">
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel Margin="0,0,16,0">
@@ -143,18 +142,19 @@ VBWR E -->
                 </Grid>
                 <Grid x:Name="DisplayFrame" Grid.Row="4">
                     <Border x:Name="DisplayDivider" BorderThickness="0,1,0,0" VerticalAlignment="Top"/>
-                    <Grid Margin="0,20,0,0">
+                    <Grid x:Name="DisplayControls" Margin="0,16,0,0">
+                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                        <StackPanel Margin="0,0,6,0">
+                        <StackPanel x:Name="DeviceField" Margin="0,0,6,0">
                             <TextBlock x:Name="DeviceLabel" Text="USB DISPLAY" FontSize="9" Margin="0,0,0,6"/>
                             <ComboBox x:Name="DevicesBox" Height="32" MinWidth="100" DisplayMemberPath="Name" SelectionChanged="Device_Changed"/>
                         </StackPanel>
                         <Button x:Name="RefreshDevicesButton" Grid.Column="1" Content="↻" Click="RefreshDevices_Click" Width="30" Height="32" Margin="0,0,12,0" VerticalAlignment="Bottom" ToolTipService.ToolTip="Find connected displays"/>
-                        <StackPanel Grid.Column="2" Margin="0,0,12,0">
+                        <StackPanel x:Name="RefreshField" Grid.Column="2" Margin="0,0,12,0" HorizontalAlignment="Left">
                             <TextBlock x:Name="RefreshLabel" Text="UPDATE" FontSize="9" Margin="0,0,0,6"/>
                             <ComboBox x:Name="RefreshBox" Width="94" Height="32" DisplayMemberPath="Name" SelectionChanged="Refresh_Changed"/>
                         </StackPanel>
-                        <StackPanel Grid.Column="3" Margin="0,0,12,0">
+                        <StackPanel x:Name="QualityField" Grid.Column="3" Margin="0,0,12,0" HorizontalAlignment="Left">
                             <TextBlock x:Name="QualityLabel" Text="JPEG QUALITY" FontSize="9" Margin="0,0,0,6"/>
                             <ComboBox x:Name="QualityBox" Width="94" Height="32" DisplayMemberPath="Name" SelectionChanged="Quality_Changed"/>
                         </StackPanel>
@@ -164,7 +164,7 @@ VBWR E -->
                 </Grid>
             </Grid>
         </Grid>
-        <Grid Grid.Row="2" Margin="32,14,32,12">
+        <Grid x:Name="FooterArea" Grid.Row="2" Margin="28,12,28,8">
             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
             <TextBlock x:Name="StatusText" Text="Local preview" FontSize="10" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
@@ -179,7 +179,7 @@ VBWR E -->
                     <TextBlock x:Name="FooterDot3" Text=" · " FontSize="10" VerticalAlignment="Center" Margin="6,0"/>
                     <HyperlinkButton x:Name="Manifesto" Content="Manifesto" NavigateUri="https://umbertogiacobbi.biz/vibeware/manifesto" TargetName="_blank" FontSize="10"/>
                     <HyperlinkButton x:Name="InitiativeLogo" NavigateUri="https://umbertogiacobbi.biz/vibeware/manifesto" TargetName="_blank" Margin="16,0,0,0" VerticalAlignment="Center" ToolTipService.ToolTip="VibeWare manifesto" AutomationProperties.Name="VibeWare manifesto">
-                        <Image Source="/VibePanel.UI;component/Assets/vibeware-logo.png" Width="48" Height="48" Stretch="Uniform"/>
+                        <Image x:Name="InitiativeImage" Source="/VibePanel.UI;component/Assets/vibeware-logo.png" Width="48" Height="48" Stretch="Uniform"/>
                     </HyperlinkButton>
             </StackPanel>
         </Grid>
@@ -205,5 +205,4 @@ VBWR E -->
             </Border>
         </Grid>
     </Grid>
-    </ScrollViewer>
 </Page>

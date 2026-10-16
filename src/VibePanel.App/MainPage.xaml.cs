@@ -83,12 +83,52 @@ public sealed partial class MainPage : Page
     private void ResizeStudio(double width, double height)
     {
         if (width <= 0 || height <= 0) { return; }
-        // A short viewport scrolls instead of collapsing or clipping the preview and controls.
-        var verticalScroll = height < 800;
-        var horizontalScroll = width - (verticalScroll ? 18 : 0) < 1040;
-        Root.Width = Math.Max(1040, width - (verticalScroll ? 18 : 0));
-        Root.Height = Math.Max(800, height - (horizontalScroll ? 18 : 0));
-        LibraryColumn.Width = new GridLength(Root.Width < 1150 ? 232 : 264);
+        // Let the grid use the real viewport. Only the theme list scrolls;
+        // the preview takes the remaining space and keeps its image aspect ratio.
+        var compact = height < 740;
+        var side = width < 1150 ? 20 : 28;
+        HeaderArea.Margin = new Thickness(side, compact ? 10 : 16, side, compact ? 10 : 16);
+        ContentArea.Margin = new Thickness(side, 0, side, 0);
+        FooterArea.Margin = new Thickness(side, compact ? 8 : 12, side, compact ? 4 : 8);
+        ThemeHeadingArea.Margin = new Thickness(2, 2, 2, compact ? 6 : 10);
+        NavigationArea.Margin = new Thickness(0, compact ? 6 : 10, 0, compact ? 6 : 10);
+        OptionsFrame.Margin = new Thickness(0, compact ? 2 : 6, 0, compact ? 10 : 16);
+        DisplayControls.Margin = new Thickness(0, compact ? 10 : 16, 0, 0);
+        LibraryColumn.Width = new GridLength(width < 1150 ? 224 : 248);
+        LibraryGap.Width = new GridLength(width < 1150 ? 20 : 24);
+
+        // On high-DPI laptops the USB row needs two lines, not horizontal scrolling.
+        var narrow = width < 1060;
+        Grid.SetColumnSpan(DeviceField, narrow ? 5 : 1);
+        Grid.SetColumn(RefreshDevicesButton, narrow ? 5 : 1);
+        Grid.SetRow(RefreshField, narrow ? 1 : 0);
+        Grid.SetColumn(RefreshField, narrow ? 0 : 2);
+        Grid.SetColumnSpan(RefreshField, narrow ? 2 : 1);
+        Grid.SetRow(QualityField, narrow ? 1 : 0);
+        Grid.SetColumn(QualityField, narrow ? 2 : 3);
+        Grid.SetRow(StartDisplayButton, narrow ? 1 : 0);
+        Grid.SetColumn(StartDisplayButton, narrow ? 3 : 4);
+        Grid.SetColumnSpan(StartDisplayButton, narrow ? 2 : 1);
+        Grid.SetRow(StopDisplayButton, narrow ? 1 : 0);
+        RefreshField.Margin = QualityField.Margin = new Thickness(0, narrow ? 8 : 0, 12, 0);
+        StartDisplayButton.Margin = new Thickness(0, narrow ? 8 : 0, 6, 0);
+        StopDisplayButton.Margin = new Thickness(0, narrow ? 8 : 0, 0, 0);
+
+        // Keep a useful preview even when the monitor cannot fit the preferred height.
+        var shortWindow = height < 600;
+        ProductIcon.Width = ProductIcon.Height = shortWindow ? 36 : 62;
+        Heading.FontSize = shortWindow ? 22 : 28;
+        SelectedThemeText.FontSize = shortWindow ? 22 : 26;
+        Eyebrow.Visibility = Author.Visibility = CategoryText.Visibility = shortWindow ? Visibility.Collapsed : Visibility.Visible;
+        InitiativeImage.Width = InitiativeImage.Height = shortWindow ? 32 : 48;
+        FooterLinks.Margin = new Thickness(0, shortWindow ? 2 : 10, 0, 0);
+        foreach (var label in new[] { FontLabel, SizeLabel, GeometryLabel, DeviceLabel, RefreshLabel, QualityLabel })
+        { label.Visibility = shortWindow ? Visibility.Collapsed : Visibility.Visible; }
+
+        CodexSetupFrame.Margin = new Thickness(14, compact ? 10 : 28, 8, 0);
+        CodexHelpText.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
+        CodexStatusText.TextWrapping = CodexEventText.TextWrapping = compact ? TextWrapping.NoWrap : TextWrapping.Wrap;
+        CodexStatusText.TextTrimming = CodexEventText.TextTrimming = TextTrimming.CharacterEllipsis;
     }
 
     private async Task LoadCatalogAsync()
@@ -408,6 +448,10 @@ public sealed partial class MainPage : Page
         CodexStatusText.Text = status.Status;
         CodexEventText.Text = status.LastEvent is { } last ? $"Last event: {last}\n{status.LastEventUtc}" : "No events received yet.";
         CodexHelpText.Text = status.Instructions;
+        ToolTipService.SetToolTip(CodexStatusText, status.Status);
+        ToolTipService.SetToolTip(CodexEventText, CodexEventText.Text);
+        ToolTipService.SetToolTip(CodexPrepareButton, status.Instructions);
+        ToolTipService.SetToolTip(CodexSetupFrame, status.Instructions);
         CodexPrepareButton.Content = status.Prepared && status.Listed ? "Plugin prepared" : "Prepare Codex plugin";
         CodexPrepareButton.IsEnabled = !codexPreparing && !(status.Prepared && status.Listed);
     }
