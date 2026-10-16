@@ -171,7 +171,7 @@ internal sealed class EngineServer : IDisposable
         int? drift = options.AmbientDrift ? DashboardRenderer.AmbientOffset() : null;
         var fingerprint = theme is null
             ? DashboardRenderer.Fingerprint(snapshot, scene) + profile.Id + options.Light + drift
-            : $"{theme.Id}|{profile.Id}|{options.Light}|{options.AmbientDrift}|{options.FontFamily}|{options.FontScale}|{options.JpegQuality}|{options.SaturationPercent}|{options.HueDegrees}|{options.ShowSpectrum}|{options.BrightnessPercent}|{options.ContrastPercent}";
+            : $"{theme.Id}|{profile.Id}|{options.Light}|{options.AmbientDrift}|{options.FontFamily}|{options.FontScale}|{options.JpegQuality}|{options.SaturationPercent}|{options.HueDegrees}|{options.ShowSpectrum}|{options.BrightnessPercent}|{options.ContrastPercent}|{options.ColorFiltersEnabled}";
         var configurationChanged = previousFingerprint != fingerprint;
         var refreshInterval = previewNotice is null ? options.RefreshIntervalMilliseconds : 5000;
         if (options.IncludeFrame && (configurationChanged || theme is not null && Environment.TickCount64 - previewAt >= refreshInterval))
@@ -186,7 +186,7 @@ internal sealed class EngineServer : IDisposable
                 {
                     preview = await themeRenderer.RenderAsync(theme, snapshot, profile, options.Light, options.AmbientDrift, options.FontFamily, options.FontScale, options.JpegQuality,
                         saturationPercent: options.SaturationPercent, hueDegrees: options.HueDegrees, showSpectrum: options.ShowSpectrum,
-                        brightnessPercent: options.BrightnessPercent, contrastPercent: options.ContrastPercent);
+                        brightnessPercent: options.BrightnessPercent, contrastPercent: options.ContrastPercent, colorFiltersEnabled: options.ColorFiltersEnabled);
                     previewNotice = null;
                 }
                 catch (Exception error) when (error is not OutOfMemoryException)
@@ -206,7 +206,8 @@ internal sealed class EngineServer : IDisposable
             Enum.GetValues<DashboardScene>().Select(item => new PanelChoice(item.ToString(), DashboardScenes.Name(item))).ToArray(),
             themeOutput is not null || playback is { IsCompleted: false }, Volatile.Read(ref status), options.IncludeFrame ? preview : null,
             previewNotice is null ? snapshot.Notices : snapshot.Notices.Concat([previewNotice]).ToArray(),
-            frameMilliseconds, themeOutput?.SubmittedFrames ?? 0);
+            frameMilliseconds, themeOutput?.SubmittedFrames ?? 0,
+            options.IncludeFrame && preview is not null && theme is not null ? themeRenderer.AccentColor : null);
     }
 
     private ThemeDefinition FindTheme(string id) => (themeCatalog ??= ThemeCatalog.Read()).Themes.FirstOrDefault(item => item.Id == id)

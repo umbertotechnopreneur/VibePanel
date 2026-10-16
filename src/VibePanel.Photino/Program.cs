@@ -9,8 +9,10 @@ using Photino.NET;
 
 namespace VibePanel.Photino;
 
+/// <summary>Starts one studio window sized to the current monitor's work area.</summary>
 internal static class Program
 {
+    /// <summary>Connect the local engine client and open the desktop presentation.</summary>
     [STAThread]
     private static void Main()
     {
@@ -20,7 +22,7 @@ internal static class Program
             .SetTitle("Vibe Panel — theme studio")
             .SetUseOsDefaultSize(false)
             .SetUseOsDefaultLocation(false)
-            .SetSize(1240, 820)
+            .SetSize(1400, 940)
             .SetResizable(true)
             .SetLogVerbosity(0)
             .SetIconFile(Path.Combine(AppContext.BaseDirectory, "Assets", OperatingSystem.IsWindows() ? "vibepanel.ico" : "vibepanel-icon.png"))
@@ -31,6 +33,7 @@ internal static class Program
         window.WaitForClose();
     }
 
+    /// <summary>Choose the initial window size once, while respecting display scaling and taskbars.</summary>
     private static void FitToWorkArea(PhotinoWindow window)
     {
         // Monitor information is available only after Photino creates its native window.
@@ -50,8 +53,8 @@ internal static class Program
             // Windows reports physical pixels: preserve usable space at larger display scaling too.
             var scale = OperatingSystem.IsWindows() ? Math.Clamp(window.ScreenDpi / 96d, 1, 3) : 1;
             // Cap the preferred size, rather than making a large screen fill up to 90%.
-            var width = Math.Max(1, Math.Min((int)(1240 * scale), (int)(area.Width * .88)));
-            var height = Math.Max(1, Math.Min((int)(820 * scale), (int)(area.Height * .86)));
+            var width = Math.Max(1, Math.Min((int)(1400 * scale), (int)(area.Width * .92)));
+            var height = Math.Max(1, Math.Min((int)(940 * scale), (int)(area.Height * .92)));
             window.SetMinSize(Math.Min((int)(1040 * scale), width), Math.Min((int)(640 * scale), height));
             window.SetSize(width, height);
             window.SetLocation(new Point(area.Left + (area.Width - width) / 2, area.Top + (area.Height - height) / 2));

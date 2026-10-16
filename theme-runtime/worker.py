@@ -76,6 +76,9 @@ def render(request: dict) -> dict:
             raise ValueError(f"{name} must be a finite number from {minimum} to {maximum}.")
     if not isinstance(request.get("showSpectrum", True), bool):
         raise ValueError("showSpectrum must be a boolean.")
+    filters_enabled = request.get("colorFiltersEnabled", True)
+    if not isinstance(filters_enabled, bool):
+        raise ValueError("colorFiltersEnabled must be a boolean.")
     quality_name = request.get("jpegQuality", "high")
     if quality_name not in ("poor", "low", "medium", "high"):
         raise ValueError("JPEG quality must be poor, low, medium, or high.")
@@ -100,16 +103,21 @@ def render(request: dict) -> dict:
     canvas.finish()
     # A fresh context starts from the UI/CLI controls on each frame. Themes may
     # override context.colors; those values do not change the host's controls.
-    colors = context.colors
-    snapshot = apply_color_adjustments(surface.makeImageSnapshot(), colors.saturation_percent,
-                                      colors.hue_degrees, colors.brightness_percent, colors.contrast_percent)
+    snapshot = surface.makeImageSnapshot()
+    # Off means no color surface, matrix or raster pass, including theme overrides.
+    # Keep the saved settings in the context so enabling filters restores them.
+    if filters_enabled:
+        colors = context.colors
+        snapshot = apply_color_adjustments(snapshot, colors.saturation_percent,
+                                          colors.hue_degrees, colors.brightness_percent, colors.contrast_percent)
     # Keep the physical profile resolution exact; reduce JPEG quality, never resize.
     qualities = (target_quality,) + tuple(value for value in (82, 72, 60, 45, 30, 18, 8) if value < target_quality)
     for quality in qualities:
         data = snapshot.encodeToData(skia.EncodedImageFormat.kJPEG, quality)
         if data is not None and data.size() <= MAX_JPEG:
             return {"version": 1, "id": request.get("id"), "ok": True,
-                    "jpegBase64": base64.b64encode(bytes(data)).decode("ascii")}
+                    "jpegBase64": base64.b64encode(bytes(data)).decode("ascii"),
+                    "accentColor": context.accent}
     raise ValueError("Rendered frame exceeds the panel's 450,000-byte JPEG limit.")
 
 

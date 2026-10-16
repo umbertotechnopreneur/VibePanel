@@ -19,7 +19,7 @@ One UTF-8 JSON object per line, request and response IDs preserved:
 ```
 
 ```json
-{"version":1,"id":"frame-1","ok":true,"jpegBase64":"..."}
+{"version":1,"id":"frame-1","ok":true,"jpegBase64":"...","accentColor":"#88AACC"}
 ```
 
 Errors are `{ "version": 1, "id": "frame-1", "ok": false, "error": "..." }`. All diagnostics and accidental theme prints go to stderr. A missing Python dependency is reported for each request rather than corrupting stdout. A malformed or unsupported theme produces an error, never a fabricated scene.
@@ -45,6 +45,8 @@ def render(c, s):
 ```
 
 `ColorAdjustments(...).validate()` is also available from `color_adjustments`; it validates all four fields before normalizing them to floats and returns the same object. Do not save `s.colors` in module globals or mutate the request. These overrides apply only to that rendered frame: they do not change saved UI settings, shared backdrop caches or the next frame. The twenty bundled themes currently leave all four values untouched.
+
+`s.color_filters_enabled` follows the studio's **Color filters** switch. Off skips the final color pass, including theme overrides and fades. The studio saves the values and starts with filters off.
 
 For a fade, call `s.colors.fade(amount)` after the other color overrides. Use 0 for black and 1 for the current correction. Intermediate values reduce contrast and brightness together, preserving hue, saturation and alpha. The amount must be a finite number from 0 to 1. The final filter still uses one native pass; this is a fade through black, not a blend with the previous theme.
 

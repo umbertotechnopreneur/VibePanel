@@ -249,6 +249,7 @@ class ThemeContext:
         self.font_scale = clip(request.get("fontScale", 1), .65, 1.6)
         self.ambient_drift = bool(request.get("ambientDrift"))
         self.show_spectrum = request.get("showSpectrum", True)
+        self.color_filters_enabled = request.get("colorFiltersEnabled", True)
         # A fresh object for each frame: theme overrides cannot mutate UI input
         # or leak into another theme/frame through the static backdrop caches.
         self.colors = ColorAdjustments(

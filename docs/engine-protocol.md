@@ -32,6 +32,8 @@ Only one request/frame is in flight. A slow update lowers the rate rather than c
 
 The GUI starts in preview mode each time. It never restores an active USB session automatically.
 
+`colorFiltersEnabled: false` skips the final color pass, including theme overrides. It keeps the slider values. The studio saves this switch and starts with it off; omitted engine values default to true for CLI color requests. Replies include `accentColor`, the theme's cached accent, for the preview shadow and slider guides.
+
 ## Rate and quality
 
 `refreshIntervalMilliseconds` defaults to 1000; valid range 25–1000. The GUI offers 1000, 500, 250, 100, 50 and 25 ms. The 25 ms setting is aggressive. These are requested intervals, not guaranteed panel frame rates. Metadata and artwork are checked at most once a second; timeline and existing playback meters can update faster.

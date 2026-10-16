@@ -21,6 +21,8 @@ Put the pack in `%LOCALAPPDATA%\VibePanel\themes`. Press **Reload** in the app.
 
 The theme starts with the colors chosen in the app. It can change them:
 
+Turn on **Color filters** to see these changes. Turning them off keeps the values but skips filters and fades.
+
 ```python
 def render(c, s):
     c.backdrop("aurora", artwork=True)

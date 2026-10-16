@@ -19,6 +19,7 @@ VBWR E -->
     <Page Include="MainPage.xaml" />
     <Compile Include="App.xaml.cs" />
     <Compile Include="MainPage.xaml.cs" />
+    <Compile Include="MainPage.Colors.cs" />
     <Resource Include="Assets/vibeware-logo.png" />
     <Resource Include="Assets/vibepanel-icon.png" />
   </ItemGroup>

@@ -27,4 +27,6 @@ The new playback spectrum, stereo VU and Codex setup controls are not checked in
 
 The color controls, monospace font list, theme fades and 25 ms/Poor settings also need a live check.
 
+The new studio layout builds for Windows x64 with no errors or warnings. Its dropdowns, filter switch, color guides and shadow still need my visual check. CPU savings have not been measured. No tests, app or USB trial were run for this change.
+
 This is my hobby project. No warranty.

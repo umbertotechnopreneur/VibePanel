@@ -24,11 +24,14 @@ public sealed class PythonThemeRenderer : IDisposable
     private string lastDiagnostic = "";
     private bool disposed;
 
+    /// <summary>The latest successful frame's theme accent, derived from cached cover or wallpaper colors.</summary>
+    public string? AccentColor { get; private set; }
+
     public async Task<byte[]> RenderAsync(ThemeDefinition theme, DashboardSnapshot snapshot, DisplayProfile profile,
         bool light = false, bool ambientDrift = false, string fontFamily = "Cascadia Mono", double fontScale = 1,
         string jpegQuality = "high", CancellationToken cancellationToken = default,
         double saturationPercent = 100, double hueDegrees = 0, bool showSpectrum = true,
-        double brightnessPercent = 0, double contrastPercent = 100)
+        double brightnessPercent = 0, double contrastPercent = 100, bool colorFiltersEnabled = true)
     {
         if (string.IsNullOrWhiteSpace(fontFamily) || fontFamily.Length > 128 || fontFamily.Any(char.IsControl)) { throw new ArgumentException("Choose a font family of 1–128 printable characters."); }
         if (!double.IsFinite(fontScale) || fontScale is < 0.65 or > 1.6) { throw new ArgumentException("Font scale must be between 0.65 and 1.6."); }
@@ -83,6 +86,7 @@ public sealed class PythonThemeRenderer : IDisposable
                 showSpectrum,
                 brightnessPercent,
                 contrastPercent,
+                colorFiltersEnabled,
                 state = new
                 {
                     media = mediaState,
@@ -106,6 +110,9 @@ public sealed class PythonThemeRenderer : IDisposable
                 var jpeg = Convert.FromBase64String(root.GetProperty("jpegBase64").GetString() ?? "");
                 if (jpeg.Length is < 4 or > 450_000 || jpeg[0] != 0xff || jpeg[1] != 0xd8 || jpeg[^2] != 0xff || jpeg[^1] != 0xd9)
                 { throw new IOException("Python theme returned an invalid or oversized JPEG."); }
+                var accent = root.TryGetProperty("accentColor", out var accentValue) && accentValue.ValueKind == JsonValueKind.String
+                    ? accentValue.GetString() : null;
+                AccentColor = accent is { Length: 7 } && accent[0] == '#' && accent[1..].All(Uri.IsHexDigit) ? accent : null;
                 sentArtworkKey = artworkKey;
                 return jpeg;
             }

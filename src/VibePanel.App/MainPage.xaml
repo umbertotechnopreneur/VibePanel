@@ -24,6 +24,11 @@ VBWR E -->
                 <StackPanel VerticalAlignment="Center">
                     <TextBlock x:Name="Eyebrow" Text="C O D E N A M E" FontSize="9"/>
                     <TextBlock x:Name="Heading" Text="Vibe Panel" FontSize="28" FontWeight="SemiBold" Margin="0,4,0,0"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,7,0,0">
+                        <TextBlock x:Name="Author" Text="by Umberto Giacobbi" FontSize="10" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="HeaderDot" Text="·" FontSize="10" Margin="10,0" VerticalAlignment="Center"/>
+                        <HyperlinkButton x:Name="AboutLink" Content="About" Click="About_Click" FontSize="10"/>
+                    </StackPanel>
                     <TextBlock x:Name="Subtitle" Visibility="Collapsed"/>
                 </StackPanel>
             </StackPanel>
@@ -35,7 +40,12 @@ VBWR E -->
                         <Button x:Name="DarkButton" Content="Dark" Click="Dark_Click" Width="60" Height="32"/>
                     </StackPanel>
                 </Grid>
-                <TextBlock x:Name="Author" Text="by Umberto Giacobbi" FontSize="10" HorizontalAlignment="Right" Margin="0,8,0,0"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+                    <HyperlinkButton x:Name="Manifesto" Content="Follow the vibe · Manifesto" NavigateUri="https://umbertogiacobbi.biz/vibeware/manifesto" TargetName="_blank" FontSize="10" VerticalAlignment="Center"/>
+                    <HyperlinkButton x:Name="InitiativeLogo" NavigateUri="https://umbertogiacobbi.biz/vibeware/manifesto" TargetName="_blank" Margin="10,0,0,0" ToolTipService.ToolTip="VibeWare manifesto" AutomationProperties.Name="VibeWare manifesto">
+                        <Image x:Name="InitiativeImage" Source="/VibePanel.UI;component/Assets/vibeware-logo.png" Width="36" Height="36" Stretch="Uniform"/>
+                    </HyperlinkButton>
+                </StackPanel>
             </StackPanel>
         </Grid>
         <Grid x:Name="ContentArea" Grid.Row="1" Margin="28,0,28,0">
@@ -98,25 +108,26 @@ VBWR E -->
                         <TextBlock x:Name="PreviewBadgeText" Text="LOCAL PREVIEW" FontSize="10"/>
                     </Grid>
                 </Grid>
-                <Grid x:Name="PreviewFrame" Grid.Row="1">
-                    <Grid>
+                <Grid x:Name="PreviewFrame" Grid.Row="1" Margin="8,6,8,8" SizeChanged="Preview_SizeChanged">
+                    <Grid x:Name="PreviewSurface" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <!-- The shadow belongs to a solid backing, not the changing video image. -->
+                        <Border x:Name="PreviewShadow" Background="#101522" Visibility="Collapsed"/>
                         <Image x:Name="PreviousPreview" Stretch="Uniform"/>
-                        <Image x:Name="PreviewImage" Stretch="Uniform"/>
-                        <StackPanel x:Name="LoadingPanel" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="440" Margin="24">
-                            <TextBlock x:Name="LoadingTitle" Text="Your screen, your style." FontSize="23" HorizontalAlignment="Center"/>
-                            <TextBlock x:Name="LoadingText" Text="Loading the local theme engine…" FontSize="12" TextWrapping="Wrap" TextAlignment="Center" Margin="0,12,0,0"/>
-                        </StackPanel>
+                        <Image x:Name="PreviewImage" Stretch="Uniform" ImageOpened="Preview_ImageOpened"/>
                     </Grid>
+                    <StackPanel x:Name="LoadingPanel" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="440" Margin="24">
+                        <TextBlock x:Name="LoadingTitle" Text="Your screen, your style." FontSize="23" HorizontalAlignment="Center"/>
+                        <TextBlock x:Name="LoadingText" Text="Loading the local theme engine…" FontSize="12" TextWrapping="Wrap" TextAlignment="Center" Margin="0,12,0,0"/>
+                    </StackPanel>
                 </Grid>
                 <Grid x:Name="NavigationArea" Grid.Row="2" Margin="0,10,0,10">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <Button x:Name="PreviousButton" Content="←" Click="Previous_Click" Width="38" Height="34" ToolTipService.ToolTip="Previous theme · Page Up"/>
                     <TextBlock x:Name="PositionText" Grid.Column="1" Text="00 / 00" FontSize="12" VerticalAlignment="Center" Margin="12,0"/>
                     <Button x:Name="NextButton" Grid.Column="2" Content="→" Click="Next_Click" Width="38" Height="34" ToolTipService.ToolTip="Next theme · Page Down"/>
                     <TextBlock x:Name="SourceText" Grid.Column="3" FontSize="11" VerticalAlignment="Center" Margin="18,0,12,0" TextTrimming="CharacterEllipsis"/>
-                    <Button x:Name="ColorsToggle" Grid.Column="4" Content="Colors +" Click="ColorsToggle_Click" Height="30" Padding="6,0" Margin="0,0,10,0" Visibility="Collapsed" ToolTipService.ToolTip="Show or hide color adjustments"/>
-                    <CheckBox x:Name="SpectrumBox" Grid.Column="5" Content="Spectrum" IsChecked="True" IsEnabled="False" FontSize="11" VerticalAlignment="Center" Checked="Spectrum_Changed" Unchecked="Spectrum_Changed" Margin="0,0,12,0" ToolTipService.ToolTip="Show frequency bars where the theme supports them. VU meters stay visible."/>
-                    <CheckBox x:Name="CycleBox" Grid.Column="6" Content="Cycle · 20s" VerticalAlignment="Center" FontSize="11"/>
+                    <CheckBox x:Name="SpectrumBox" Grid.Column="4" Content="Spectrum" IsChecked="True" IsEnabled="False" FontSize="11" VerticalAlignment="Center" Checked="Spectrum_Changed" Unchecked="Spectrum_Changed" Margin="0,0,12,0" ToolTipService.ToolTip="Show frequency bars where the theme supports them. VU meters stay visible."/>
+                    <CheckBox x:Name="CycleBox" Grid.Column="5" Content="Auto-cycle · 20s" VerticalAlignment="Center" FontSize="11" Checked="Cycle_Changed" Unchecked="Cycle_Changed" ToolTipService.ToolTip="Switch to the next theme every 20 seconds"/>
                 </Grid>
                 <Grid x:Name="OptionsFrame" Grid.Row="3" Margin="0,6,0,16">
                     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
@@ -140,42 +151,55 @@ VBWR E -->
                             </StackPanel>
                         </StackPanel>
                         <StackPanel Grid.Column="2">
-                            <TextBlock x:Name="GeometryLabel" Text="DISPLAY" FontSize="9" Margin="0,0,0,6"/>
-                            <ComboBox x:Name="ProfilesBox" Width="155" Height="32" DisplayMemberPath="Name" SelectionChanged="Profile_Changed"/>
+                            <TextBlock x:Name="GeometryLabel" Text="PANEL SIZE" FontSize="9" Margin="0,0,0,6"/>
+                            <ComboBox x:Name="ProfilesBox" Width="166" Height="32" DisplayMemberPath="Name" SelectionChanged="Profile_Changed" ToolTipService.ToolTip="Auto size reads the panel dimensions when you press Show on display"/>
                         </StackPanel>
                     </Grid>
-                    <Grid x:Name="ColorControls" Grid.Row="1" Margin="0,12,0,0">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                        <StackPanel Margin="0,0,12,0">
-                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                <TextBlock x:Name="SaturationLabel" Text="SATURATION" FontSize="9"/>
-                                <TextBlock x:Name="SaturationText" Grid.Column="1" Text="100%" FontSize="11"/>
+                    <Border x:Name="FiltersPanel" Grid.Row="1" Padding="14,10" CornerRadius="8" Margin="0,14,0,0">
+                        <StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <CheckBox x:Name="FiltersBox" Content="Color filters" FontSize="12" Checked="Filters_Changed" Unchecked="Filters_Changed" ToolTipService.ToolTip="Turn off to skip color processing. Your slider values are kept."/>
+                                <TextBlock x:Name="FiltersStatus" Grid.Column="1" Text="Off · original colors" FontSize="10" Margin="14,0" VerticalAlignment="Center"/>
+                                <Button x:Name="ResetColorsButton" Grid.Column="2" Content="Reset" Click="ResetColors_Click" Height="26" Padding="10,0" Visibility="Collapsed" ToolTipService.ToolTip="Restore the four original color values"/>
                             </Grid>
-                            <Slider x:Name="SaturationSlider" Minimum="0" Maximum="200" Value="100" SmallChange="1" LargeChange="10" Height="24" ValueChanged="Color_Changed" ToolTipService.ToolTip="0% grayscale · 100% original · 200% stronger color" AutomationProperties.Name="Saturation"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="1" Margin="0,0,12,0">
-                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                <TextBlock x:Name="HueLabel" Text="HUE" FontSize="9"/>
-                                <TextBlock x:Name="HueText" Grid.Column="1" Text="0°" FontSize="11"/>
+                            <Grid x:Name="ColorControls" Margin="0,10,0,0" Visibility="Collapsed">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <StackPanel Margin="0,0,18,0">
+                                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="HueLabel" Text="HUE" FontSize="9"/>
+                                        <TextBlock x:Name="HueText" Grid.Column="1" Text="0°" FontSize="11"/>
+                                    </Grid>
+                                    <Slider x:Name="HueSlider" Minimum="-180" Maximum="180" Value="0" SmallChange="1" LargeChange="15" Height="24" ValueChanged="Color_Changed" ToolTipService.ToolTip="Shift the colors · 0° keeps the original hues" AutomationProperties.Name="Hue"/>
+                                    <Border x:Name="HueRamp" Height="6" CornerRadius="3" Margin="8,3,8,0" IsHitTestVisible="False"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Margin="0,0,18,0">
+                                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="SaturationLabel" Text="SATURATION" FontSize="9"/>
+                                        <TextBlock x:Name="SaturationText" Grid.Column="1" Text="100%" FontSize="11"/>
+                                    </Grid>
+                                    <Slider x:Name="SaturationSlider" Minimum="0" Maximum="200" Value="100" SmallChange="1" LargeChange="10" Height="24" ValueChanged="Color_Changed" ToolTipService.ToolTip="0% grayscale · 100% original · 200% stronger color" AutomationProperties.Name="Saturation"/>
+                                    <Border x:Name="SaturationRamp" Height="6" CornerRadius="3" Margin="8,3,8,0" IsHitTestVisible="False"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Margin="0,0,18,0">
+                                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="BrightnessLabel" Text="BRIGHTNESS" FontSize="9"/>
+                                        <TextBlock x:Name="BrightnessText" Grid.Column="1" Text="0%" FontSize="11"/>
+                                    </Grid>
+                                    <Slider x:Name="BrightnessSlider" Minimum="-100" Maximum="100" Value="0" SmallChange="1" LargeChange="10" Height="24" ValueChanged="Color_Changed" ToolTipService.ToolTip="Lower or raise brightness · 0% keeps the original level" AutomationProperties.Name="Brightness"/>
+                                    <Border x:Name="BrightnessRamp" Height="6" CornerRadius="3" Margin="8,3,8,0" IsHitTestVisible="False"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="3">
+                                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="ContrastLabel" Text="CONTRAST" FontSize="9"/>
+                                        <TextBlock x:Name="ContrastText" Grid.Column="1" Text="100%" FontSize="11"/>
+                                    </Grid>
+                                    <Slider x:Name="ContrastSlider" Minimum="0" Maximum="200" Value="100" SmallChange="1" LargeChange="10" Height="24" ValueChanged="Color_Changed" ToolTipService.ToolTip="100% keeps the original contrast" AutomationProperties.Name="Contrast"/>
+                                    <Border x:Name="ContrastRamp" Height="6" CornerRadius="3" Margin="8,3,8,0" IsHitTestVisible="False"/>
+                                </StackPanel>
                             </Grid>
-                            <Slider x:Name="HueSlider" Minimum="-180" Maximum="180" Value="0" SmallChange="1" LargeChange="15" Height="24" ValueChanged="Color_Changed" ToolTipService.ToolTip="Shift the colors · 0° keeps the original hues" AutomationProperties.Name="Hue"/>
                         </StackPanel>
-                        <StackPanel Grid.Column="2" Margin="0,0,12,0">
-                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                <TextBlock x:Name="BrightnessLabel" Text="BRIGHTNESS" FontSize="9"/>
-                                <TextBlock x:Name="BrightnessText" Grid.Column="1" Text="0%" FontSize="11"/>
-                            </Grid>
-                            <Slider x:Name="BrightnessSlider" Minimum="-100" Maximum="100" Value="0" SmallChange="1" LargeChange="10" Height="24" ValueChanged="Color_Changed" ToolTipService.ToolTip="Lower or raise brightness · 0% keeps the original level" AutomationProperties.Name="Brightness"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="3" Margin="0,0,12,0">
-                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                <TextBlock x:Name="ContrastLabel" Text="CONTRAST" FontSize="9"/>
-                                <TextBlock x:Name="ContrastText" Grid.Column="1" Text="100%" FontSize="11"/>
-                            </Grid>
-                            <Slider x:Name="ContrastSlider" Minimum="0" Maximum="200" Value="100" SmallChange="1" LargeChange="10" Height="24" ValueChanged="Color_Changed" ToolTipService.ToolTip="100% keeps the original contrast" AutomationProperties.Name="Contrast"/>
-                        </StackPanel>
-                        <Button x:Name="ResetColorsButton" Grid.Column="4" Content="Reset" Click="ResetColors_Click" Height="30" Padding="8,0" VerticalAlignment="Center" ToolTipService.ToolTip="Restore the four original color values"/>
-                    </Grid>
+                    </Border>
                 </Grid>
                 <Grid x:Name="DisplayFrame" Grid.Row="4">
                     <Border x:Name="DisplayDivider" BorderThickness="0,1,0,0" VerticalAlignment="Top"/>
@@ -207,17 +231,10 @@ VBWR E -->
             <TextBlock x:Name="StatusText" Text="Local preview" FontSize="10" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
             <CheckBox x:Name="LogErrorsBox" Grid.Column="1" Content="Log errors" FontSize="10" VerticalAlignment="Center" Margin="12,0" Checked="Diagnostics_Changed" Unchecked="Diagnostics_Changed" ToolTipService.ToolTip="Local technical events only. No song titles, prompts, audio or transcripts."/>
             <Button x:Name="OpenLogButton" Grid.Column="2" Content="Open log" Click="OpenLog_Click" FontSize="10" Padding="8,4" IsEnabled="False"/>
-            <StackPanel x:Name="FooterLinks" Grid.Row="1" Grid.ColumnSpan="3" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
-                    <HyperlinkButton x:Name="AboutLink" Content="About Vibe Panel" Click="About_Click" FontSize="10"/>
-                    <TextBlock x:Name="FooterDot1" Text=" · " FontSize="10" VerticalAlignment="Center" Margin="6,0"/>
+            <StackPanel x:Name="FooterLinks" Grid.Row="1" Grid.ColumnSpan="3" Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,8,0,0">
                     <HyperlinkButton x:Name="TermsLink" Content="Terms" NavigateUri="https://umbertogiacobbi.biz/terms/" TargetName="_blank" FontSize="10"/>
                     <TextBlock x:Name="FooterDot2" Text=" · " FontSize="10" VerticalAlignment="Center" Margin="6,0"/>
                     <HyperlinkButton x:Name="PrivacyLink" Content="Privacy" NavigateUri="https://umbertogiacobbi.biz/privacy/" TargetName="_blank" FontSize="10"/>
-                    <TextBlock x:Name="FooterDot3" Text=" · " FontSize="10" VerticalAlignment="Center" Margin="6,0"/>
-                    <HyperlinkButton x:Name="Manifesto" Content="Manifesto" NavigateUri="https://umbertogiacobbi.biz/vibeware/manifesto" TargetName="_blank" FontSize="10"/>
-                    <HyperlinkButton x:Name="InitiativeLogo" NavigateUri="https://umbertogiacobbi.biz/vibeware/manifesto" TargetName="_blank" Margin="16,0,0,0" VerticalAlignment="Center" ToolTipService.ToolTip="VibeWare manifesto" AutomationProperties.Name="VibeWare manifesto">
-                        <Image x:Name="InitiativeImage" Source="/VibePanel.UI;component/Assets/vibeware-logo.png" Width="48" Height="48" Stretch="Uniform"/>
-                    </HyperlinkButton>
             </StackPanel>
         </Grid>
         <Grid x:Name="AboutOverlay" Grid.RowSpan="3" Background="#B0000000" Visibility="Collapsed">
