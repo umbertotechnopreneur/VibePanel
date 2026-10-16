@@ -16,9 +16,9 @@ internal static class Program
         using var client = new StdioPanelClient();
         var page = Path.Combine(AppContext.BaseDirectory, "wwwroot", "index.html");
         var window = new PhotinoWindow()
-            .SetTitle("VibePanel — my music, my screen")
+            .SetTitle("Vibe Panel — theme studio")
             .SetUseOsDefaultSize(false)
-            .SetSize(1120, 650)
+            .SetSize(1380, 860)
             .SetResizable(true)
             .SetLogVerbosity(0)
             .Center()

@@ -10,12 +10,9 @@ VBWR E -->
     </Application.Theme>
     <Application.Resources>
         <Style TargetType="Button">
-            <Setter Property="Background" Value="#363047" />
-            <Setter Property="Foreground" Value="#F2EDF5" />
-            <Setter Property="BorderBrush" Value="#4B405C" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Padding" Value="16,10" />
-            <Setter Property="Margin" Value="0,0,8,0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0" />
             <Setter Property="FontSize" Value="13" />
             <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
             <Setter Property="Cursor" Value="Hand" />
@@ -24,6 +21,7 @@ VBWR E -->
             <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
         </Style>
         <Style TargetType="ComboBox"><Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" /></Style>
+        <Style TargetType="TextBox"><Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" /></Style>
         <Style TargetType="CheckBox"><Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" /></Style>
     </Application.Resources>
 </Application>

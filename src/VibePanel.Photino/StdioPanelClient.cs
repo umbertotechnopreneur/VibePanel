@@ -23,7 +23,7 @@ internal sealed class StdioPanelClient : IPanelClient, IDisposable
     public async Task<T> RequestAsync<T>(string method, object? parameters = null, CancellationToken cancellationToken = default)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lifetime.Token);
-        timeout.CancelAfter(TimeSpan.FromSeconds(15));
+        timeout.CancelAfter(TimeSpan.FromSeconds(25));
         await gate.WaitAsync(timeout.Token).ConfigureAwait(false);
         try
         {

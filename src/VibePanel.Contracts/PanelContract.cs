@@ -19,7 +19,10 @@ public static class PanelContract
 public sealed record EngineRequest(string Id, string Method, JsonElement? Parameters = null, int Version = PanelContract.Version);
 public sealed record EngineResponse(string Id, bool Ok, JsonElement? Result = null, string? Error = null, int Version = PanelContract.Version);
 public sealed record PanelChoice(string Id, string Name);
-public sealed record PreviewOptions(string ProfileId = "wide-1280x480", string Scene = "Music", bool IncludeFrame = true, bool Light = false, bool AmbientDrift = false, bool IncludeDevices = false);
+public sealed record ThemeChoiceDto(string Id, string Name, string Category, string Description, string PackId);
+public sealed record ThemeCatalogDto(IReadOnlyList<PanelChoice> Categories, IReadOnlyList<ThemeChoiceDto> Themes, IReadOnlyList<string> Notices);
+public sealed record PreviewOptions(string ProfileId = "wide-1280x480", string Scene = "Music", bool IncludeFrame = true, bool Light = false, bool AmbientDrift = false, bool IncludeDevices = false,
+    string? ThemeId = null, string FontFamily = "Cascadia Mono", double FontScale = 1);
 public sealed record StartOptions(string DeviceId, string ProfileId = "auto", string? Scene = null);
 public sealed record MediaOptions(string Action);
 public sealed record AudioLevelDto(string Id, string Name, double VolumePercent, bool Muted, double? Peak);
