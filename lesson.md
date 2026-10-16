@@ -5,6 +5,7 @@
 - I use the music details Windows already has. No Spotify login.
 - People can make their own themes.
 - I reuse pictures and backgrounds to save work.
+- I can adjust panel colors, and themes can use those values for their own effects.
 - I use type and space to organize the UI, not cards inside cards.
 - I keep the footer links and VibeWare logo visible on one line.
 - I open a smaller, centered window. The preview fits the space; only the theme list scrolls.

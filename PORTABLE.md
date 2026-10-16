@@ -10,9 +10,13 @@ The window opens centered and leaves room around it. You can resize it: the prev
 
 You can change the font, text size and light/dark colors. The window shows what your screen could look like.
 
+Choose an installed monospace font from the list, or choose **Custom font** to type a name. Adjust **Saturation**, **Hue**, **Brightness** and **Contrast** under the preview. In short windows, open **Colors +**. **Reset** restores the original values. Your settings are saved and apply to the preview and the display. Theme code can override these values.
+
+Turn **Spectrum** off to hide frequency bars in themes that support the option. VU meters stay visible.
+
 To send it to the USB screen, choose the connected display and press **Show on display**. Change themes while it runs. Press **Stop** to end it.
 
-Choose updates every 1 second, 500, 250, 100 or 50 ms. Choose Low, Medium or High JPEG quality. The screen may update more slowly if drawing or USB takes longer.
+Choose updates every 1 second, 500, 250, 100, 50 or 25 ms. The 25 ms option is aggressive. Choose Poor, Low, Medium or High JPEG quality. Poor uses very strong compression. The screen may update more slowly if drawing or USB takes longer.
 
 For Codex, pick **OpenAI Codex**, then **Prepare Codex plugin**. Finish installing the plugin and reviewing its hooks inside Codex. No extra login is needed. The app shows the last event it received. [More help](plugins/vibepanel-codex/README.md).
 

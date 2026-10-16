@@ -109,21 +109,26 @@ VBWR E -->
                     </Grid>
                 </Grid>
                 <Grid x:Name="NavigationArea" Grid.Row="2" Margin="0,10,0,10">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <Button x:Name="PreviousButton" Content="←" Click="Previous_Click" Width="38" Height="34" ToolTipService.ToolTip="Previous theme · Page Up"/>
                     <TextBlock x:Name="PositionText" Grid.Column="1" Text="00 / 00" FontSize="12" VerticalAlignment="Center" Margin="12,0"/>
                     <Button x:Name="NextButton" Grid.Column="2" Content="→" Click="Next_Click" Width="38" Height="34" ToolTipService.ToolTip="Next theme · Page Down"/>
                     <TextBlock x:Name="SourceText" Grid.Column="3" FontSize="11" VerticalAlignment="Center" Margin="18,0,12,0" TextTrimming="CharacterEllipsis"/>
-                    <CheckBox x:Name="CycleBox" Grid.Column="4" Content="Cycle · 20s" VerticalAlignment="Center" FontSize="11"/>
+                    <Button x:Name="ColorsToggle" Grid.Column="4" Content="Colors +" Click="ColorsToggle_Click" Height="30" Padding="6,0" Margin="0,0,10,0" Visibility="Collapsed" ToolTipService.ToolTip="Show or hide color adjustments"/>
+                    <CheckBox x:Name="SpectrumBox" Grid.Column="5" Content="Spectrum" IsChecked="True" IsEnabled="False" FontSize="11" VerticalAlignment="Center" Checked="Spectrum_Changed" Unchecked="Spectrum_Changed" Margin="0,0,12,0" ToolTipService.ToolTip="Show frequency bars where the theme supports them. VU meters stay visible."/>
+                    <CheckBox x:Name="CycleBox" Grid.Column="6" Content="Cycle · 20s" VerticalAlignment="Center" FontSize="11"/>
                 </Grid>
                 <Grid x:Name="OptionsFrame" Grid.Row="3" Margin="0,6,0,16">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel Margin="0,0,16,0">
                             <TextBlock x:Name="FontLabel" Text="FONT FAMILY" FontSize="9" Margin="0,0,0,6"/>
-                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <ComboBox x:Name="FontsBox" Height="32" DisplayMemberPath="Name" MaxDropDownHeight="280" SelectionChanged="FontSelection_Changed" DropDownClosed="FontMenu_Closed" Visibility="Collapsed" ToolTipService.ToolTip="Installed monospace fonts"/>
                                 <TextBox x:Name="FontBox" Text="Cascadia Mono" Height="32" Padding="8,6" FontSize="12" KeyDown="Font_KeyDown"/>
                                 <Button x:Name="ApplyFontButton" Grid.Column="1" Content="Apply" Click="Font_Click" Height="32" Margin="6,0,0,0" Padding="10,0"/>
+                                <Button x:Name="FontListButton" Grid.Column="2" Content="≡" Click="FontList_Click" Width="28" Height="32" Margin="4,0,0,0" IsEnabled="False" ToolTipService.ToolTip="Choose an installed monospace font"/>
                             </Grid>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Margin="0,0,16,0">
@@ -139,6 +144,38 @@ VBWR E -->
                             <ComboBox x:Name="ProfilesBox" Width="155" Height="32" DisplayMemberPath="Name" SelectionChanged="Profile_Changed"/>
                         </StackPanel>
                     </Grid>
+                    <Grid x:Name="ColorControls" Grid.Row="1" Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel Margin="0,0,12,0">
+                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <TextBlock x:Name="SaturationLabel" Text="SATURATION" FontSize="9"/>
+                                <TextBlock x:Name="SaturationText" Grid.Column="1" Text="100%" FontSize="11"/>
+                            </Grid>
+                            <Slider x:Name="SaturationSlider" Minimum="0" Maximum="200" Value="100" SmallChange="1" LargeChange="10" Height="24" ValueChanged="Color_Changed" ToolTipService.ToolTip="0% grayscale · 100% original · 200% stronger color" AutomationProperties.Name="Saturation"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Margin="0,0,12,0">
+                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <TextBlock x:Name="HueLabel" Text="HUE" FontSize="9"/>
+                                <TextBlock x:Name="HueText" Grid.Column="1" Text="0°" FontSize="11"/>
+                            </Grid>
+                            <Slider x:Name="HueSlider" Minimum="-180" Maximum="180" Value="0" SmallChange="1" LargeChange="15" Height="24" ValueChanged="Color_Changed" ToolTipService.ToolTip="Shift the colors · 0° keeps the original hues" AutomationProperties.Name="Hue"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Margin="0,0,12,0">
+                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <TextBlock x:Name="BrightnessLabel" Text="BRIGHTNESS" FontSize="9"/>
+                                <TextBlock x:Name="BrightnessText" Grid.Column="1" Text="0%" FontSize="11"/>
+                            </Grid>
+                            <Slider x:Name="BrightnessSlider" Minimum="-100" Maximum="100" Value="0" SmallChange="1" LargeChange="10" Height="24" ValueChanged="Color_Changed" ToolTipService.ToolTip="Lower or raise brightness · 0% keeps the original level" AutomationProperties.Name="Brightness"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="3" Margin="0,0,12,0">
+                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <TextBlock x:Name="ContrastLabel" Text="CONTRAST" FontSize="9"/>
+                                <TextBlock x:Name="ContrastText" Grid.Column="1" Text="100%" FontSize="11"/>
+                            </Grid>
+                            <Slider x:Name="ContrastSlider" Minimum="0" Maximum="200" Value="100" SmallChange="1" LargeChange="10" Height="24" ValueChanged="Color_Changed" ToolTipService.ToolTip="100% keeps the original contrast" AutomationProperties.Name="Contrast"/>
+                        </StackPanel>
+                        <Button x:Name="ResetColorsButton" Grid.Column="4" Content="Reset" Click="ResetColors_Click" Height="30" Padding="8,0" VerticalAlignment="Center" ToolTipService.ToolTip="Restore the four original color values"/>
+                    </Grid>
                 </Grid>
                 <Grid x:Name="DisplayFrame" Grid.Row="4">
                     <Border x:Name="DisplayDivider" BorderThickness="0,1,0,0" VerticalAlignment="Top"/>
@@ -152,11 +189,11 @@ VBWR E -->
                         <Button x:Name="RefreshDevicesButton" Grid.Column="1" Content="↻" Click="RefreshDevices_Click" Width="30" Height="32" Margin="0,0,12,0" VerticalAlignment="Bottom" ToolTipService.ToolTip="Find connected displays"/>
                         <StackPanel x:Name="RefreshField" Grid.Column="2" Margin="0,0,12,0" HorizontalAlignment="Left">
                             <TextBlock x:Name="RefreshLabel" Text="UPDATE" FontSize="9" Margin="0,0,0,6"/>
-                            <ComboBox x:Name="RefreshBox" Width="94" Height="32" DisplayMemberPath="Name" SelectionChanged="Refresh_Changed"/>
+                            <ComboBox x:Name="RefreshBox" Width="94" Height="32" DisplayMemberPath="Name" SelectionChanged="Refresh_Changed" ToolTipService.ToolTip="Requested interval. 25 ms is aggressive; actual updates depend on rendering and USB."/>
                         </StackPanel>
                         <StackPanel x:Name="QualityField" Grid.Column="3" Margin="0,0,12,0" HorizontalAlignment="Left">
                             <TextBlock x:Name="QualityLabel" Text="JPEG QUALITY" FontSize="9" Margin="0,0,0,6"/>
-                            <ComboBox x:Name="QualityBox" Width="94" Height="32" DisplayMemberPath="Name" SelectionChanged="Quality_Changed"/>
+                            <ComboBox x:Name="QualityBox" Width="94" Height="32" DisplayMemberPath="Name" SelectionChanged="Quality_Changed" ToolTipService.ToolTip="Poor uses very strong JPEG compression."/>
                         </StackPanel>
                         <Button x:Name="StartDisplayButton" Grid.Column="4" Content="Show on display" Click="StartDisplay_Click" Height="32" Padding="12,0" Margin="0,0,6,0" VerticalAlignment="Bottom"/>
                         <Button x:Name="StopDisplayButton" Grid.Column="5" Content="Stop" Click="StopDisplay_Click" Height="32" Padding="12,0" VerticalAlignment="Bottom" IsEnabled="False"/>

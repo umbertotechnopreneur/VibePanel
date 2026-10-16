@@ -22,10 +22,11 @@ public sealed partial class MainPage : Page
 {
     private readonly IPanelClient client;
     private readonly DispatcherTimer refresh = new() { Interval = TimeSpan.FromSeconds(1) };
+    private readonly DispatcherTimer colorChanges = new() { Interval = TimeSpan.FromMilliseconds(150) };
     private readonly string settingsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VibePanel", "presentation.json");
     private readonly List<CatalogRow> categoryRows = [];
     private readonly List<CatalogRow> themeRows = [];
-    private static readonly int[] RefreshIntervals = [1000, 500, 250, 100, 50];
+    private static readonly int[] RefreshIntervals = [1000, 500, 250, 100, 50, 25];
     private ThemeCatalogDto? catalog;
     private bool refreshing, unloaded, ready, updatingChoices, refreshAgain, catalogLoading;
     private bool displayActive, displayBusy, devicesLoading;
@@ -38,6 +39,11 @@ public sealed partial class MainPage : Page
     private string selectedCategory = "multimedia", selectedTheme = "", selectedProfile = "wide-1280x480", fontFamily = "Cascadia Mono";
     private int appearance;
     private double fontScale = 1;
+    private double saturationPercent = 100, hueDegrees;
+    private double brightnessPercent, contrastPercent = 100;
+    private bool compactColorLayout, compactColorsExpanded;
+    private bool showSpectrum = true, updatingColorControls, pendingColorSettings, updatingFonts;
+    private PanelChoice[] fontChoices = [];
     private string? lastRenderedTheme;
     private byte[]? lastFrame;
     private Storyboard? fade;
@@ -50,11 +56,13 @@ public sealed partial class MainPage : Page
         LoadChoices();
         RefreshBox.ItemsSource = RefreshIntervals.Select(value => new PanelChoice(value.ToString(), value == 1000 ? "1 s" : $"{value} ms")).ToArray();
         RefreshBox.SelectedItem = ((PanelChoice[])RefreshBox.ItemsSource).First(item => item.Id == refreshMilliseconds.ToString());
-        QualityBox.ItemsSource = new[] { new PanelChoice("low", "Low"), new PanelChoice("medium", "Medium"), new PanelChoice("high", "High") };
+        QualityBox.ItemsSource = new[] { new PanelChoice("poor", "Poor"), new PanelChoice("low", "Low"), new PanelChoice("medium", "Medium"), new PanelChoice("high", "High") };
         QualityBox.SelectedItem = ((PanelChoice[])QualityBox.ItemsSource).First(item => item.Id == jpegQuality);
         refresh.Interval = TimeSpan.FromMilliseconds(refreshMilliseconds);
         FontBox.Text = fontFamily;
         UpdateFontScale();
+        UpdateColorControls();
+        SpectrumBox.IsChecked = showSpectrum;
         ready = true;
         ApplyAppearance();
         AboutVersion.Text = $"Codename · {typeof(App).Assembly.GetName().Version?.ToString(3)} · preview";
@@ -65,15 +73,25 @@ public sealed partial class MainPage : Page
             await RefreshDevicesAsync();
             await LoadDiagnosticsAsync();
             await RefreshAsync();
+            await LoadFontsAsync();
             if (!unloaded) { refresh.Start(); }
         };
-        Unloaded += (_, _) => { unloaded = true; refresh.Stop(); fade?.Stop(); };
+        Unloaded += (_, _) =>
+        {
+            unloaded = true; refresh.Stop(); fade?.Stop(); colorChanges.Stop();
+            if (pendingColorSettings) { CommitColorControls(); SaveChoices(); }
+        };
         refresh.Tick += async (_, _) => await RefreshAsync();
+        colorChanges.Tick += async (_, _) =>
+        {
+            colorChanges.Stop(); CommitColorControls();
+            SaveChoices(); await RefreshAsync();
+        };
         KeyDown += (_, args) =>
         {
             if (AboutOverlay.Visibility == Visibility.Visible)
             { if (args.Key == Key.Escape) { CloseAbout(); args.Handled = true; } return; }
-            if (ProfilesBox.IsDropDownOpen || DevicesBox.IsDropDownOpen || RefreshBox.IsDropDownOpen || QualityBox.IsDropDownOpen || args.OriginalSource is TextBox) { return; }
+            if (ProfilesBox.IsDropDownOpen || DevicesBox.IsDropDownOpen || RefreshBox.IsDropDownOpen || QualityBox.IsDropDownOpen || FontsBox.IsDropDownOpen || args.OriginalSource is TextBox) { return; }
             if (args.Key == Key.PageUp) { Navigate(-1); args.Handled = true; }
             if (args.Key == Key.PageDown) { Navigate(1); args.Handled = true; }
         };
@@ -93,6 +111,7 @@ public sealed partial class MainPage : Page
         ThemeHeadingArea.Margin = new Thickness(2, 2, 2, compact ? 6 : 10);
         NavigationArea.Margin = new Thickness(0, compact ? 6 : 10, 0, compact ? 6 : 10);
         OptionsFrame.Margin = new Thickness(0, compact ? 2 : 6, 0, compact ? 10 : 16);
+        ColorControls.Margin = new Thickness(0, compact ? 6 : 12, 0, 0);
         DisplayControls.Margin = new Thickness(0, compact ? 10 : 16, 0, 0);
         LibraryColumn.Width = new GridLength(width < 1150 ? 224 : 248);
         LibraryGap.Width = new GridLength(width < 1150 ? 20 : 24);
@@ -116,6 +135,8 @@ public sealed partial class MainPage : Page
 
         // Keep a useful preview even when the monitor cannot fit the preferred height.
         var shortWindow = height < 600;
+        compactColorLayout = shortWindow;
+        UpdateColorExpansion();
         ProductIcon.Width = ProductIcon.Height = shortWindow ? 36 : 62;
         Heading.FontSize = shortWindow ? 22 : 28;
         SelectedThemeText.FontSize = shortWindow ? 22 : 26;
@@ -190,14 +211,22 @@ public sealed partial class MainPage : Page
             var requestedScale = fontScale;
             var requestedInterval = refreshMilliseconds;
             var requestedQuality = jpegQuality;
+            var requestedSaturation = saturationPercent;
+            var requestedHue = hueDegrees;
+            var requestedSpectrum = showSpectrum;
+            var requestedBrightness = brightnessPercent;
+            var requestedContrast = contrastPercent;
             var state = await client.RequestAsync<PanelState>(requestedDisplay ? "present" : "state", new PreviewOptions(
                 ProfileId: requestedProfile, Light: requestedLight, ThemeId: requestedTheme,
                 FontFamily: requestedFont, FontScale: requestedScale, RefreshIntervalMilliseconds: requestedInterval,
-                JpegQuality: requestedQuality));
+                JpegQuality: requestedQuality, SaturationPercent: requestedSaturation, HueDegrees: requestedHue,
+                ShowSpectrum: requestedSpectrum, BrightnessPercent: requestedBrightness, ContrastPercent: requestedContrast));
             if (unloaded || displayBusy) { return; }
             // A slow frame may complete after the user has selected another theme or font.
             if (requestedTheme != selectedTheme || requestedProfile != selectedProfile || requestedLight != IsLight || requestedFont != fontFamily || requestedScale != fontScale
-                || requestedInterval != refreshMilliseconds || requestedQuality != jpegQuality || requestedDisplay != displayActive)
+                || requestedInterval != refreshMilliseconds || requestedQuality != jpegQuality || requestedDisplay != displayActive
+                || requestedSaturation != saturationPercent || requestedHue != hueDegrees || requestedSpectrum != showSpectrum
+                || requestedBrightness != brightnessPercent || requestedContrast != contrastPercent)
             { refreshAgain = true; return; }
             displayActive = state.DisplayRunning;
             UpdateDisplayControls();
@@ -300,8 +329,8 @@ public sealed partial class MainPage : Page
         AboutFrame.Background = surface;
         AboutFrame.BorderBrush = line;
         DisplayDivider.BorderBrush = line;
-        foreach (var text in new[] { Heading, SelectedThemeText, LoadingTitle, PositionText, FontScaleText, AboutHeading, AboutAuthor, AboutDisclosureHeading, CodexStatusText }) { text.Foreground = ink; }
-        foreach (var text in new[] { Subtitle, Author, CatalogText, SourceText, StatusText, LoadingText, FontLabel, SizeLabel, GeometryLabel, DeviceLabel, RefreshLabel, QualityLabel, CodexEventText, CodexHelpText, FooterDot1, FooterDot2, FooterDot3, AboutVersion, AboutDisclosure, AboutInitiative }) { text.Foreground = muted; }
+        foreach (var text in new[] { Heading, SelectedThemeText, LoadingTitle, PositionText, FontScaleText, SaturationText, HueText, BrightnessText, ContrastText, AboutHeading, AboutAuthor, AboutDisclosureHeading, CodexStatusText }) { text.Foreground = ink; }
+        foreach (var text in new[] { Subtitle, Author, CatalogText, SourceText, StatusText, LoadingText, FontLabel, SizeLabel, GeometryLabel, DeviceLabel, RefreshLabel, QualityLabel, SaturationLabel, HueLabel, BrightnessLabel, ContrastLabel, CodexEventText, CodexHelpText, FooterDot1, FooterDot2, FooterDot3, AboutVersion, AboutDisclosure, AboutInitiative }) { text.Foreground = muted; }
         foreach (var text in new[] { Eyebrow, LibraryHeading, CategoryText, PreviewBadgeText, CodexSetupHeading }) { text.Foreground = accent; }
         foreach (var link in new[] { Manifesto, AboutLink, TermsLink, PrivacyLink, AboutManifesto, ProjectLink, InitiativeLink, WebsiteLink, AboutTerms, AboutPrivacy }) { link.Foreground = accent; }
         CategoriesBox.Background = ThemesBox.Background = transparent;
@@ -309,11 +338,12 @@ public sealed partial class MainPage : Page
         FontBox.Foreground = ProfilesBox.Foreground = ink;
         FontBox.BorderBrush = ProfilesBox.BorderBrush = line;
         FontBox.BorderThickness = ProfilesBox.BorderThickness = new Thickness(0, 0, 0, 1);
-        foreach (var combo in new[] { DevicesBox, RefreshBox, QualityBox })
+        foreach (var combo in new[] { DevicesBox, RefreshBox, QualityBox, FontsBox })
         { combo.Background = transparent; combo.Foreground = ink; combo.BorderBrush = line; combo.BorderThickness = new Thickness(0, 0, 0, 1); }
         CycleBox.Foreground = muted;
         LogErrorsBox.Foreground = muted;
-        foreach (var button in new[] { ReloadButton, PreviousButton, NextButton, ApplyFontButton, SmallerButton, LargerButton, CloseAboutButton, RefreshDevicesButton, StartDisplayButton, StopDisplayButton, CodexRefreshButton, CodexPrepareButton, OpenLogButton })
+        SpectrumBox.Foreground = muted;
+        foreach (var button in new[] { ReloadButton, PreviousButton, NextButton, ApplyFontButton, FontListButton, ColorsToggle, ResetColorsButton, SmallerButton, LargerButton, CloseAboutButton, RefreshDevicesButton, StartDisplayButton, StopDisplayButton, CodexRefreshButton, CodexPrepareButton, OpenLogButton })
         { button.Background = transparent; button.Foreground = ink; button.BorderThickness = new Thickness(0); }
         StartDisplayButton.Background = Brush(light ? "#68468F" : "#C5AAE8");
         StartDisplayButton.Foreground = Brush(light ? "#FFFFFF" : "#1C1428");
@@ -343,6 +373,7 @@ public sealed partial class MainPage : Page
 
     private void UpdateSelection()
     {
+        SpectrumBox.IsEnabled = catalog?.Themes.FirstOrDefault(theme => theme.Id == selectedTheme)?.SupportsSpectrum == true;
         CodexSetupFrame.Visibility = selectedCategory == "codex" ? Visibility.Visible : Visibility.Collapsed;
         CategoryText.Text = (categoryRows.FirstOrDefault(row => row.Id == selectedCategory)?.Name ?? selectedCategory).ToUpperInvariant();
         SelectedThemeText.Text = themeRows.FirstOrDefault(row => row.Id == selectedTheme)?.Name ?? "No themes installed";
@@ -589,8 +620,137 @@ public sealed partial class MainPage : Page
         var value = FontBox.Text.Trim();
         fontFamily = string.IsNullOrWhiteSpace(value) ? "Cascadia Mono" : value[..Math.Min(value.Length, 128)];
         FontBox.Text = fontFamily;
+        SelectCurrentFont();
         SaveChoices();
         _ = RefreshAsync();
+    }
+    private async Task LoadFontsAsync()
+    {
+        try
+        {
+            var fonts = await client.RequestAsync<FontCatalogDto>("fonts");
+            if (unloaded) { return; }
+            fontChoices = fonts.Families.Select(name => new PanelChoice(name, name)).Append(new PanelChoice("", "Custom font…")).ToArray();
+            updatingFonts = true;
+            FontsBox.ItemsSource = fontChoices;
+            updatingFonts = false;
+            FontListButton.IsEnabled = fonts.Families.Count > 0;
+            ToolTipService.SetToolTip(FontsBox, fonts.Notice ?? "Installed monospace fonts. Choose Custom font to type a name.");
+            SelectCurrentFont();
+        }
+        catch (Exception error)
+        {
+            ToolTipService.SetToolTip(FontListButton, "Font list unavailable: " + error.Message);
+            ShowCustomFont();
+        }
+    }
+
+    private void SelectCurrentFont()
+    {
+        var choice = fontChoices.FirstOrDefault(font => string.Equals(font.Id, fontFamily, StringComparison.OrdinalIgnoreCase));
+        updatingFonts = true;
+        FontsBox.SelectedItem = choice;
+        updatingFonts = false;
+        if (choice is null) { ShowCustomFont(); return; }
+        FontsBox.Visibility = Visibility.Visible;
+        FontBox.Visibility = ApplyFontButton.Visibility = FontListButton.Visibility = Visibility.Collapsed;
+        FontLabel.Text = "FONT · MONOSPACE";
+    }
+
+    private void ShowCustomFont()
+    {
+        FontsBox.Visibility = Visibility.Collapsed;
+        FontBox.Visibility = ApplyFontButton.Visibility = FontListButton.Visibility = Visibility.Visible;
+        FontLabel.Text = "FONT FAMILY";
+    }
+
+    private void FontList_Click(object sender, RoutedEventArgs args)
+    {
+        updatingFonts = true;
+        FontsBox.SelectedItem = fontChoices.LastOrDefault();
+        updatingFonts = false;
+        FontsBox.Visibility = Visibility.Visible;
+        FontBox.Visibility = ApplyFontButton.Visibility = FontListButton.Visibility = Visibility.Collapsed;
+        FontLabel.Text = "FONT · MONOSPACE";
+        FontsBox.IsDropDownOpen = true;
+    }
+
+    private void FontMenu_Closed(object? sender, EventArgs args)
+    {
+        if (!updatingFonts && FontsBox.SelectedItem is PanelChoice { Id.Length: 0 }) { ShowCustomFont(); }
+    }
+
+    private void FontSelection_Changed(object sender, SelectionChangedEventArgs args)
+    {
+        if (!ready || updatingFonts || FontsBox.SelectedItem is not PanelChoice choice) { return; }
+        if (choice.Id.Length == 0) { ShowCustomFont(); FontBox.Focus(); return; }
+        fontFamily = choice.Id;
+        FontBox.Text = fontFamily;
+        SaveChoices(); _ = RefreshAsync();
+    }
+
+    private void UpdateColorControls()
+    {
+        updatingColorControls = true;
+        SaturationSlider.Value = saturationPercent;
+        HueSlider.Value = hueDegrees;
+        BrightnessSlider.Value = brightnessPercent;
+        ContrastSlider.Value = contrastPercent;
+        SaturationText.Text = $"{saturationPercent:0}%";
+        HueText.Text = $"{hueDegrees:0}°";
+        BrightnessText.Text = $"{brightnessPercent:+0;-0;0}%";
+        ContrastText.Text = $"{contrastPercent:0}%";
+        updatingColorControls = false;
+    }
+
+    private void Color_Changed(object sender, RoutedPropertyChangedEventArgs<double> args)
+    {
+        if (!ready || updatingColorControls) { return; }
+        // Slider values are drafts until the debounce expires; the refresh loop
+        // keeps using the applied values instead of rebuilding a filter for every move.
+        SaturationText.Text = $"{Math.Round(SaturationSlider.Value):0}%";
+        HueText.Text = $"{Math.Round(HueSlider.Value):0}°";
+        BrightnessText.Text = $"{Math.Round(BrightnessSlider.Value):+0;-0;0}%";
+        ContrastText.Text = $"{Math.Round(ContrastSlider.Value):0}%";
+        pendingColorSettings = true;
+        colorChanges.Stop(); colorChanges.Start();
+    }
+
+    private void CommitColorControls()
+    {
+        saturationPercent = Math.Round(SaturationSlider.Value);
+        hueDegrees = Math.Round(HueSlider.Value);
+        brightnessPercent = Math.Round(BrightnessSlider.Value);
+        contrastPercent = Math.Round(ContrastSlider.Value);
+        pendingColorSettings = false;
+    }
+
+    private void ResetColors_Click(object sender, RoutedEventArgs args)
+    {
+        colorChanges.Stop(); pendingColorSettings = false;
+        saturationPercent = contrastPercent = 100;
+        hueDegrees = brightnessPercent = 0;
+        UpdateColorControls(); SaveChoices(); _ = RefreshAsync();
+    }
+
+    private void Spectrum_Changed(object sender, RoutedEventArgs args)
+    {
+        if (!ready) { return; }
+        showSpectrum = SpectrumBox.IsChecked == true;
+        SaveChoices(); _ = RefreshAsync();
+    }
+
+    private void UpdateColorExpansion()
+    {
+        ColorsToggle.Visibility = compactColorLayout ? Visibility.Visible : Visibility.Collapsed;
+        ColorControls.Visibility = !compactColorLayout || compactColorsExpanded ? Visibility.Visible : Visibility.Collapsed;
+        ColorsToggle.Content = compactColorsExpanded ? "Colors −" : "Colors +";
+    }
+
+    private void ColorsToggle_Click(object sender, RoutedEventArgs args)
+    {
+        compactColorsExpanded = !compactColorsExpanded;
+        UpdateColorExpansion();
     }
     private void Smaller_Click(object sender, RoutedEventArgs args) => ChangeFontScale(-0.1);
     private void Larger_Click(object sender, RoutedEventArgs args) => ChangeFontScale(0.1);
@@ -613,7 +773,12 @@ public sealed partial class MainPage : Page
             if (json.TryGetProperty("font", out var font)) { fontFamily = font.GetString() ?? fontFamily; }
             if (json.TryGetProperty("fontScale", out var scale) && scale.TryGetDouble(out var number) && double.IsFinite(number)) { fontScale = Math.Clamp(number, 0.7, 1.5); }
             if (json.TryGetProperty("refreshMilliseconds", out var interval) && interval.TryGetInt32(out var milliseconds) && RefreshIntervals.Contains(milliseconds)) { refreshMilliseconds = milliseconds; }
-            if (json.TryGetProperty("jpegQuality", out var quality) && quality.GetString() is "low" or "medium" or "high") { jpegQuality = quality.GetString()!; }
+            if (json.TryGetProperty("jpegQuality", out var quality) && quality.GetString() is "poor" or "low" or "medium" or "high") { jpegQuality = quality.GetString()!; }
+            if (json.TryGetProperty("saturationPercent", out var saturation) && saturation.TryGetDouble(out var saturationValue) && double.IsFinite(saturationValue)) { saturationPercent = Math.Clamp(saturationValue, 0, 200); }
+            if (json.TryGetProperty("hueDegrees", out var hue) && hue.TryGetDouble(out var hueValue) && double.IsFinite(hueValue)) { hueDegrees = Math.Clamp(hueValue, -180, 180); }
+            if (json.TryGetProperty("brightnessPercent", out var brightness) && brightness.TryGetDouble(out var brightnessValue) && double.IsFinite(brightnessValue)) { brightnessPercent = Math.Clamp(brightnessValue, -100, 100); }
+            if (json.TryGetProperty("contrastPercent", out var contrast) && contrast.TryGetDouble(out var contrastValue) && double.IsFinite(contrastValue)) { contrastPercent = Math.Clamp(contrastValue, 0, 200); }
+            if (json.TryGetProperty("showSpectrum", out var spectrum) && spectrum.ValueKind is JsonValueKind.True or JsonValueKind.False) { showSpectrum = spectrum.GetBoolean(); }
         }
         catch (Exception error) when (error is IOException or JsonException or InvalidOperationException or UnauthorizedAccessException) { }
     }
@@ -622,7 +787,7 @@ public sealed partial class MainPage : Page
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(settingsPath)!);
-            File.WriteAllText(settingsPath, JsonSerializer.Serialize(new { theme = appearance, category = selectedCategory, themeId = selectedTheme, profile = selectedProfile, profileSelection, font = fontFamily, fontScale, refreshMilliseconds, jpegQuality }));
+            File.WriteAllText(settingsPath, JsonSerializer.Serialize(new { theme = appearance, category = selectedCategory, themeId = selectedTheme, profile = selectedProfile, profileSelection, font = fontFamily, fontScale, refreshMilliseconds, jpegQuality, saturationPercent, hueDegrees, brightnessPercent, contrastPercent, showSpectrum }));
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException) { StatusText.Text = "The preference changed but could not be saved."; }
     }

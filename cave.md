@@ -25,4 +25,6 @@ On 17 October, I confirmed Aurora Glass worked on my display after a 20-second C
 
 The new playback spectrum, stereo VU and Codex setup controls are not checked in live use yet. A successful build does not check them.
 
+The color controls, monospace font list, theme fades and 25 ms/Poor settings also need a live check.
+
 This is my hobby project. No warranty.
