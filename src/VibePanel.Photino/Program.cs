@@ -18,7 +18,7 @@ internal static class Program
         var window = new PhotinoWindow()
             .SetTitle("Vibe Panel — theme studio")
             .SetUseOsDefaultSize(false)
-            .SetSize(1380, 860)
+            .SetSize(1380, 960)
             .SetResizable(true)
             .SetLogVerbosity(0)
             .Center()
