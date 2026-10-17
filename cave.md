@@ -27,7 +27,7 @@ The new playback spectrum, stereo VU and Codex setup controls are not checked in
 
 The color controls, monospace font list, theme fades and 25 ms/Poor settings also need a live check.
 
-Track and cover changes now blend in the renderer for 600 ms. I still need to check this change with real playback and USB output.
+Track and cover changes blend in the renderer for 600 ms. All 10 approved offline checks passed on 17 October: mixed pixels, timing, rapid skips and color filters. They used synthetic images and metadata, with no app, audio or USB. Real playback and USB output still need checking.
 
 The new studio layout builds for Windows x64 with no errors or warnings. Its dropdowns, filter switch and color guides still need my visual check. CPU savings have not been measured. No tests, app or USB trial were run for this change.
 
