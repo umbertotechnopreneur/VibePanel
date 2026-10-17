@@ -4,7 +4,8 @@
 VBWR E -->
 <Page x:Class="VibePanel.App.MainPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:html="clr-namespace:CSHTML5.Native.Html.Controls;assembly=OpenSilver">
     <Page.Resources>
         <Style x:Key="BareItem" TargetType="ListBoxItem">
             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
@@ -112,8 +113,7 @@ VBWR E -->
                     <Grid x:Name="PreviewSurface" HorizontalAlignment="Center" VerticalAlignment="Center">
                         <!-- The shadow belongs to a solid backing, not the changing video image. -->
                         <Border x:Name="PreviewShadow" Background="#101522" Visibility="Collapsed"/>
-                        <Image x:Name="PreviousPreview" Stretch="Uniform"/>
-                        <Image x:Name="PreviewImage" Stretch="Uniform" ImageOpened="Preview_ImageOpened"/>
+                        <html:HtmlPresenter x:Name="PreviewImage" IsHitTestVisible="False" Html="&lt;div id='vp-preview' style='position:relative;width:100%;height:100%;overflow:hidden'&gt;&lt;canvas style='position:absolute;width:100%;height:100%;opacity:0'&gt;&lt;/canvas&gt;&lt;canvas style='position:absolute;width:100%;height:100%'&gt;&lt;/canvas&gt;&lt;/div&gt;"/>
                     </Grid>
                     <StackPanel x:Name="LoadingPanel" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="440" Margin="24">
                         <TextBlock x:Name="LoadingTitle" Text="Your screen, your style." FontSize="23" HorizontalAlignment="Center"/>

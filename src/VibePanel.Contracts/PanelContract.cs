@@ -7,6 +7,15 @@ using System.Text.Json;
 
 namespace VibePanel.Contracts;
 
+/// <summary>Shows the engine's existing JPEG in the configuration UI; never renders or sends USB frames.</summary>
+public interface IStudioPreview
+{
+    Task<PreviewSize> ShowAsync(byte[] jpeg, bool transition);
+    void Clear();
+}
+
+public sealed record PreviewSize(int Width, int Height);
+
 /// <summary>JSON Lines v1. Stdout contains responses only; diagnostics belong on stderr.</summary>
 public static class PanelContract
 {

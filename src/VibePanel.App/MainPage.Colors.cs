@@ -6,13 +6,13 @@
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
-using System.Windows.Media.Imaging;
 
 namespace VibePanel.App;
 
 /// <summary>Color controls and preview decoration; full-frame filtering stays in the engine.</summary>
 public sealed partial class MainPage
 {
+    private int previewPixelWidth, previewPixelHeight;
     private Color themeAccent = Color.FromArgb(255, 138, 186, 213);
     private readonly DropShadowEffect previewElevation = new()
     {
@@ -136,18 +136,15 @@ public sealed partial class MainPage
     /// <summary>Refit the image when the available viewport changes.</summary>
     private void Preview_SizeChanged(object sender, SizeChangedEventArgs args) => FitPreviewSurface();
 
-    /// <summary>Use decoded image dimensions rather than guessing the panel's aspect ratio.</summary>
-    private void Preview_ImageOpened(object sender, RoutedEventArgs args) => FitPreviewSurface();
-
     /// <summary>Keep the backing shadow on the image bounds, including portrait and square panels.</summary>
     private void FitPreviewSurface()
     {
-        if (PreviewImage?.Source is not BitmapSource image || PreviewSurface is null) { return; }
-        if (image.PixelWidth <= 0 || image.PixelHeight <= 0 || PreviewFrame.ActualWidth <= 0 || PreviewFrame.ActualHeight <= 0) { return; }
+        if (lastFrame is null || PreviewSurface is null) { return; }
+        if (previewPixelWidth <= 0 || previewPixelHeight <= 0 || PreviewFrame.ActualWidth <= 0 || PreviewFrame.ActualHeight <= 0) { return; }
 
-        var fit = Math.Min(PreviewFrame.ActualWidth / image.PixelWidth, PreviewFrame.ActualHeight / image.PixelHeight);
-        var width = image.PixelWidth * fit;
-        var height = image.PixelHeight * fit;
+        var fit = Math.Min(PreviewFrame.ActualWidth / previewPixelWidth, PreviewFrame.ActualHeight / previewPixelHeight);
+        var width = previewPixelWidth * fit;
+        var height = previewPixelHeight * fit;
         if (PreviewSurface.Width != width) { PreviewSurface.Width = width; }
         if (PreviewSurface.Height != height) { PreviewSurface.Height = height; }
     }

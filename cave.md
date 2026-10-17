@@ -4,7 +4,7 @@ I made this in a few days. It isn't as good as I want it yet.
 
 My list:
 
-- Check how much memory it uses.
+- Check memory over longer runs.
 - Check how fast it runs.
 - Check security, especially themes.
 - Try more displays and settings.
@@ -29,6 +29,8 @@ The color controls, monospace font list, theme fades and 25 ms/Poor settings als
 
 The new studio layout builds for Windows x64 with no errors or warnings. Its dropdowns, filter switch, color guides and shadow still need my visual check. CPU savings have not been measured. No tests, app or USB trial were run for this change.
 
-The Windows 1 GB guard builds in Release x64. On 17 October, reopening the app hit about 1.16 GB and triggered the popup and stop. A frozen UI and guard failures still need checking. The memory growth is not fixed.
+The Windows 1 GB guard builds in Release x64. On 17 October, the old app hit about 1.16 GB and triggered the popup and stop. A frozen UI and guard failures still need checking.
+
+I then fixed native message ownership, moved preview JPEGs outside the JavaScript eval bridge and limited NumPy's native threads. Local checks passed: 4,000 large UTF conversions, 1,317 preview frames with UI changes and error recovery, and 400 synthetic renders across all twenty themes. The UI process family peaked at 345 MB; the separate worker check peaked at 102 MB. No USB device was used. These short checks do not prove long-term memory use, speed or security.
 
 This is my hobby project. No warranty.

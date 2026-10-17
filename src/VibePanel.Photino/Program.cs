@@ -36,6 +36,7 @@ internal static class Program
         PhotinoWindow? window = null;
         WindowsTrayService? tray = null;
         App.App? application = null;
+        PhotinoPreview? preview = null;
         var exiting = 0;
         var actions = new StudioWindowActions(
             () => OperatingSystem.IsWindows() && tray is { Ready: true },
@@ -71,7 +72,7 @@ internal static class Program
             .SetLogVerbosity(0)
             .SetIconFile(Path.Combine(AppContext.BaseDirectory, "Assets", OperatingSystem.IsWindows() ? "vibepanel.ico" : "vibepanel-icon.png"))
             .Center()
-            .ConfigureOpenSilver(() => application = new App.App(client, actions, restoreLastSession))
+            .ConfigureOpenSilver(() => application = new App.App(client, actions, restoreLastSession, preview: preview = new PhotinoPreview(window!)))
             .RegisterWindowClosingHandler((_, _) =>
             {
                 if (Volatile.Read(ref exiting) != 0 || application is null) { return false; }
@@ -110,6 +111,7 @@ internal static class Program
         finally
         {
             Interlocked.Exchange(ref exiting, 1);
+            preview?.Dispose();
             if (OperatingSystem.IsWindows()) { tray?.Dispose(); }
         }
         return 0;

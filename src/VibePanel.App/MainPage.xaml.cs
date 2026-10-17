@@ -9,8 +9,6 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Animation;
-using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using OpenSilver.Themes.Modern;
 using VibePanel.Contracts;
@@ -23,10 +21,11 @@ public sealed partial class MainPage : Page
     private readonly IPanelClient client;
     private readonly IStudioWindowActions? windowActions;
     private readonly bool restoreLastSession;
+    private readonly IStudioPreview? preview;
     private readonly DispatcherTimer refresh = new() { Interval = TimeSpan.FromSeconds(1) };
     private readonly DispatcherTimer colorChanges = new() { Interval = TimeSpan.FromMilliseconds(150) };
     private readonly DispatcherTimer restore = new() { Interval = TimeSpan.FromSeconds(10) };
-    private readonly string settingsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VibePanel", "presentation.json");
+    private readonly string settingsPath;
     private readonly List<CatalogRow> categoryRows = [];
     private readonly List<CatalogRow> themeRows = [];
     private static readonly int[] RefreshIntervals = [1000, 500, 250, 100, 50, 25];
@@ -50,14 +49,15 @@ public sealed partial class MainPage : Page
     private PanelChoice[] fontChoices = [];
     private string? lastRenderedTheme;
     private byte[]? lastFrame;
-    private Storyboard? fade;
     private bool? appliedLight;
 
-    public MainPage(IPanelClient client, IStudioWindowActions? windowActions = null, bool restoreLastSession = false)
+    public MainPage(IPanelClient client, IStudioWindowActions? windowActions = null, bool restoreLastSession = false, string? presentationSettingsPath = null, IStudioPreview? preview = null)
     {
         this.client = client;
         this.windowActions = windowActions;
         this.restoreLastSession = restoreLastSession;
+        this.preview = preview;
+        settingsPath = presentationSettingsPath ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VibePanel", "presentation.json");
         InitializeComponent();
         InitializePreviewAppearance();
         LoadChoices();
@@ -93,10 +93,11 @@ public sealed partial class MainPage : Page
         };
         Unloaded += (_, _) =>
         {
-            unloaded = true; refresh.Stop(); restore.Stop(); fade?.Stop(); colorChanges.Stop();
+            unloaded = true; refresh.Stop(); restore.Stop(); colorChanges.Stop();
+            ClearPreview();
             if (pendingColorSettings) { CommitColorControls(); SaveChoices(); }
         };
-        refresh.Tick += async (_, _) => await RefreshAsync();
+        refresh.Tick += async (_, _) => await RefreshAsync(queueIfBusy: false);
         restore.Tick += async (_, _) =>
         {
             await RefreshDevicesAsync();
@@ -214,10 +215,10 @@ public sealed partial class MainPage : Page
         updatingChoices = wasUpdating;
     }
 
-    private async Task RefreshAsync()
+    private async Task RefreshAsync(bool queueIfBusy = true)
     {
         if (unloaded || !ready || displayBusy || string.IsNullOrEmpty(selectedTheme)) { return; }
-        if (refreshing) { refreshAgain = true; return; }
+        if (refreshing) { if (queueIfBusy) { refreshAgain = true; } return; }
         refreshing = true;
         var requestedDisplay = displayActive;
         try
@@ -263,22 +264,16 @@ public sealed partial class MainPage : Page
                 UpdatePreviewAccent(state.AccentColor);
                 if (lastFrame is null || !lastFrame.AsSpan().SequenceEqual(frame))
                 {
-                    fade?.Stop();
-                    PreviousPreview.Source = PreviewImage.Source;
-                    using var stream = new MemoryStream(frame);
-                    var image = new BitmapImage();
-                    image.SetSource(stream);
-                    PreviewImage.Source = image;
-                    FitPreviewSurface();
-                    PreviewImage.Opacity = 1;
-                    if (lastRenderedTheme is not null && lastRenderedTheme != requestedTheme)
-                    {
-                        var animation = new DoubleAnimation { From = 0, To = 1, Duration = new Duration(TimeSpan.FromMilliseconds(350)) };
-                        Storyboard.SetTarget(animation, PreviewImage);
-                        Storyboard.SetTargetProperty(animation, new PropertyPath("Opacity"));
-                        fade = new Storyboard(); fade.Children.Add(animation); fade.Begin();
-                    }
+                    var themeChanged = lastRenderedTheme is not null && lastRenderedTheme != requestedTheme;
+                    if (preview is null) { throw new InvalidOperationException("The desktop preview is unavailable."); }
+                    // The JPEG is data, never an eval string. Wait for decode/draw before another
+                    // frame can start, including at the requested 25 ms refresh interval.
+                    var size = await preview.ShowAsync(frame, themeChanged);
+                    if (unloaded) { return; }
+                    previewPixelWidth = size.Width;
+                    previewPixelHeight = size.Height;
                     lastFrame = frame;
+                    FitPreviewSurface();
                     lastRenderedTheme = requestedTheme;
                 }
                 LoadingPanel.Visibility = Visibility.Collapsed;
@@ -309,8 +304,7 @@ public sealed partial class MainPage : Page
 
     private void ClearPreview()
     {
-        fade?.Stop();
-        PreviewImage.Source = PreviousPreview.Source = null;
+        preview?.Clear();
         lastFrame = null;
         lastRenderedTheme = null;
         PreviewShadow.Visibility = Visibility.Collapsed;
@@ -343,7 +337,7 @@ public sealed partial class MainPage : Page
         if (appliedLight == light) { return; }
         appliedLight = light;
         ((ModernTheme)Application.Current.Theme).CurrentPalette = light ? ModernTheme.Palettes.Light : ModernTheme.Palettes.Dark;
-        OpenSilver.Interop.ExecuteJavaScript("document.documentElement.style.colorScheme = $0", light ? "light" : "dark");
+        OpenSilver.Interop.ExecuteJavaScriptVoid("document.documentElement.style.colorScheme = $0", light ? "light" : "dark");
         Root.Background = Brush(light ? "#FAF9FC" : "#101218");
         var transparent = new SolidColorBrush(Colors.Transparent);
         var surface = Brush(light ? "#FFFFFF" : "#191C25");

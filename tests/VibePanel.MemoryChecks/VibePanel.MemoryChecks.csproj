@@ -1,0 +1,18 @@
+<!-- VBWR B
+  Project: VibePanel | https://umbertogiacobbi.biz/vibeware/manifesto
+  Copyright (c) 2026 Umberto Giacobbi | SPDX-License-Identifier: MIT
+VBWR E -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/VibePanel.Photino/VibePanel.Photino.csproj" />
+    <ProjectReference Include="../../src/VibePanel.Core/VibePanel.Core.csproj" />
+  </ItemGroup>
+  <Target Name="CopyPatchedNativeForChecks" AfterTargets="Build">
+    <Copy SourceFiles="../../artifacts/native/photino-memory/x64/Photino.Native.dll" DestinationFolder="$(TargetDir)" />
+    <Copy SourceFiles="../../artifacts/native/photino-memory/x64/Photino.Native.dll" DestinationFolder="$(TargetDir)runtimes/win-x64/native/" />
+  </Target>
+</Project>
