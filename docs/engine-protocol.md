@@ -46,6 +46,8 @@ During explicit `present` requests, an identical JPEG is sent again after ten se
 
 `PanelState` adds `frameMilliseconds` (server-side data/render/send duration) and `submittedFrames`. These are not measurements of physical display latency. `displayRunning` and `status` report the session.
 
+`nextFrameMilliseconds` is normally null. During a 600 ms track/cover crossfade it requests updates at up to 40 ms, or the user's faster interval. The studio returns to the selected interval when it becomes null. The worker blends before the single color pass and JPEG encoding, so preview and USB receive the same image. Slow rendering or USB can reduce the fade steps; no frames are queued.
+
 ## Other settings
 
 `fontFamily` defaults to Cascadia Mono. `fontScale` is 0.65–1.6. `light` and `ambientDrift` default to false. Python keeps decoded artwork and static backgrounds cached. A failed preview retries after five seconds, except when settings change.

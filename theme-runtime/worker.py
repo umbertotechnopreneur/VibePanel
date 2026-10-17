@@ -29,6 +29,8 @@ try:
         from canvas import Canvas, ThemeContext
         from color_adjustments import apply_color_adjustments
         from font_catalog import list_monospace_fonts
+        from track_transition import TrackTransition
+        TRACK_TRANSITION = TrackTransition()
 except ImportError as exc:
     IMPORT_ERROR = str(exc)
 
@@ -109,6 +111,14 @@ def render(request: dict) -> dict:
     # A fresh context starts from the UI/CLI controls on each frame. Themes may
     # override context.colors; those values do not change the host's controls.
     snapshot = surface.makeImageSnapshot()
+    transition_active = False
+    if context.category == "multimedia":
+        scope = (str(folder), manifest.get("id"), width, height, context.light,
+                 context.font_family, context.font_scale)
+        track = (context.source, context.title, context.artist, context.album, context.cover_key)
+        snapshot, transition_active = TRACK_TRANSITION.compose(snapshot, scope, track)
+    else:
+        TRACK_TRANSITION.reset()
     # Off means no color surface, matrix or raster pass, including theme overrides.
     # Keep the saved settings in the context so enabling filters restores them.
     if filters_enabled:
@@ -122,7 +132,7 @@ def render(request: dict) -> dict:
         if data is not None and data.size() <= MAX_JPEG:
             return {"version": 1, "id": request.get("id"), "ok": True,
                     "jpegBase64": base64.b64encode(bytes(data)).decode("ascii"),
-                    "accentColor": context.accent}
+                    "accentColor": context.accent, "transitionActive": transition_active}
     raise ValueError("Rendered frame exceeds the panel's 450,000-byte JPEG limit.")
 
 

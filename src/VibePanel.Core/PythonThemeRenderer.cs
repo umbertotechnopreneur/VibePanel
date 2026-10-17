@@ -27,6 +27,11 @@ public sealed class PythonThemeRenderer : IDisposable
     /// <summary>The latest successful frame's theme accent, derived from cached cover or wallpaper colors.</summary>
     public string? AccentColor { get; private set; }
 
+    /// <summary>Only a track change temporarily requests frames faster than the user's normal refresh.</summary>
+    public bool IsTransitioning { get; private set; }
+
+    public int FrameIntervalMilliseconds(int requestedMilliseconds) => IsTransitioning ? Math.Min(requestedMilliseconds, 40) : requestedMilliseconds;
+
     public async Task<byte[]> RenderAsync(ThemeDefinition theme, DashboardSnapshot snapshot, DisplayProfile profile,
         bool light = false, bool ambientDrift = false, string fontFamily = "Cascadia Mono", double fontScale = 1,
         string jpegQuality = "high", CancellationToken cancellationToken = default,
@@ -113,6 +118,7 @@ public sealed class PythonThemeRenderer : IDisposable
                 var accent = root.TryGetProperty("accentColor", out var accentValue) && accentValue.ValueKind == JsonValueKind.String
                     ? accentValue.GetString() : null;
                 AccentColor = accent is { Length: 7 } && accent[0] == '#' && accent[1..].All(Uri.IsHexDigit) ? accent : null;
+                IsTransitioning = root.TryGetProperty("transitionActive", out var transition) && transition.GetBoolean();
                 sentArtworkKey = artworkKey;
                 return jpeg;
             }
@@ -279,6 +285,7 @@ public sealed class PythonThemeRenderer : IDisposable
         var process = worker;
         worker = null;
         sentArtworkKey = null;
+        IsTransitioning = false;
         if (process is null) { return; }
         try { if (!process.HasExited) { process.Kill(entireProcessTree: true); } }
         catch (Exception error) when (error is InvalidOperationException or System.ComponentModel.Win32Exception) { }

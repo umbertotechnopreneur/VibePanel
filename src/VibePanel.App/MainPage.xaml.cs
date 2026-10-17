@@ -259,6 +259,9 @@ public sealed partial class MainPage : Page
                 || requestedBrightness != brightnessPercent || requestedContrast != contrastPercent || requestedFilters != colorFiltersEnabled)
             { refreshAgain = true; return; }
             displayActive = state.DisplayRunning;
+            var nextInterval = state.NextFrameMilliseconds is >= 25 and <= 1000
+                ? Math.Min(refreshMilliseconds, state.NextFrameMilliseconds.Value) : refreshMilliseconds;
+            refresh.Interval = TimeSpan.FromMilliseconds(nextInterval);
             UpdateDisplayControls();
             UpdateProfiles(state.Profiles);
             SourceText.Text = selectedCategory == "codex" ? "OpenAI Codex · local activity"
@@ -296,6 +299,7 @@ public sealed partial class MainPage : Page
         catch (Exception error)
         {
             // A browser decode/draw failure says nothing about the open USB session.
+            refresh.Interval = TimeSpan.FromMilliseconds(refreshMilliseconds);
             if (requestedDisplay && !engineReplied) { displayActive = false; UpdateDisplayControls(); }
             StatusText.Text = error.Message;
             ClearPreview();

@@ -44,7 +44,8 @@ public static class ThemePlayback
                 if (await output.SendAsync(jpeg, jpegQuality, token))
                 { progress?.Report($"{theme.Name} · frame {output.SubmittedFrames} submitted · {profile.Width} × {profile.Height}"); }
                 // One in-flight frame only. Slow rendering/USB reduces the rate instead of building a queue.
-                await Task.Delay((int)Math.Max(1, refreshIntervalMilliseconds - (Environment.TickCount64 - started)), token);
+                var interval = renderer.FrameIntervalMilliseconds(refreshIntervalMilliseconds);
+                await Task.Delay((int)Math.Max(1, interval - (Environment.TickCount64 - started)), token);
             }
         }
         catch (OperationCanceledException) when (stop.IsCancellationRequested) { }

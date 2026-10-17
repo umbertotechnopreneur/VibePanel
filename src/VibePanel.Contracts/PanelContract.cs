@@ -48,7 +48,7 @@ public sealed record PanelState(string Title, string Artist, string Album, bool 
     IReadOnlyList<AudioLevelDto> Audio, SystemDto System, NetworkDto? Network,
     IReadOnlyList<PanelChoice> Devices, IReadOnlyList<PanelChoice> Profiles, IReadOnlyList<PanelChoice> Scenes,
     bool DisplayRunning, string Status, byte[]? FrameJpeg, IReadOnlyList<string> Notices,
-    double? FrameMilliseconds = null, long SubmittedFrames = 0, string? AccentColor = null);
+    double? FrameMilliseconds = null, long SubmittedFrames = 0, string? AccentColor = null, int? NextFrameMilliseconds = null);
 
 /// <summary>The presentation depends on this contract, not the USB driver or operating system APIs.</summary>
 public interface IPanelClient

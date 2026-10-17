@@ -175,7 +175,7 @@ internal sealed class EngineServer : IDisposable
             ? DashboardRenderer.Fingerprint(snapshot, scene) + profile.Id + options.Light + drift
             : $"{theme.Id}|{profile.Id}|{options.Light}|{options.AmbientDrift}|{options.FontFamily}|{options.FontScale}|{options.JpegQuality}|{options.SaturationPercent}|{options.HueDegrees}|{options.ShowSpectrum}|{options.BrightnessPercent}|{options.ContrastPercent}|{options.ColorFiltersEnabled}";
         var configurationChanged = previousFingerprint != fingerprint;
-        var refreshInterval = previewNotice is null ? options.RefreshIntervalMilliseconds : 5000;
+        var refreshInterval = previewNotice is null ? themeRenderer.FrameIntervalMilliseconds(options.RefreshIntervalMilliseconds) : 5000;
         if (options.IncludeFrame && (configurationChanged || theme is not null && Environment.TickCount64 - previewAt >= refreshInterval))
         {
             var renderingStartedAt = Environment.TickCount64;
@@ -209,7 +209,9 @@ internal sealed class EngineServer : IDisposable
             themeOutput is not null || playback is { IsCompleted: false }, Volatile.Read(ref status), options.IncludeFrame ? preview : null,
             previewNotice is null ? snapshot.Notices : snapshot.Notices.Concat([previewNotice]).ToArray(),
             frameMilliseconds, themeOutput?.SubmittedFrames ?? 0,
-            options.IncludeFrame && preview is not null && theme is not null ? themeRenderer.AccentColor : null);
+            options.IncludeFrame && preview is not null && theme is not null ? themeRenderer.AccentColor : null,
+            options.IncludeFrame && preview is not null && theme is not null && themeRenderer.IsTransitioning
+                ? themeRenderer.FrameIntervalMilliseconds(options.RefreshIntervalMilliseconds) : null);
     }
 
     private ThemeDefinition FindTheme(string id) => (themeCatalog ??= ThemeCatalog.Read()).Themes.FirstOrDefault(item => item.Id == id)
