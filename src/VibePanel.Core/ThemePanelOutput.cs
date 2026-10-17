@@ -11,6 +11,7 @@ public sealed class ThemePanelOutput : IDisposable
     private readonly PanelSession session;
     private byte[]? previousJpeg;
     private string? previousQuality;
+    private long submittedAt;
     private bool disposed;
 
     private ThemePanelOutput(PanelSession session, DisplayProfile profile) { this.session = session; Profile = profile; }
@@ -33,18 +34,22 @@ public sealed class ThemePanelOutput : IDisposable
         catch { session.Dispose(); throw; }
     }
 
-    /// <summary>Sends a whole frame, or skips byte-identical images. Calls must be serialized by the owner.</summary>
+    /// <summary>Skips identical frames for up to ten seconds. Calls must be serialized by the owner.</summary>
     public async Task<bool> SendAsync(byte[] jpeg, string jpegQuality = "high", CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         var quality = jpegQuality switch { "poor" => 20, "low" => 50, "medium" => 75, "high" => 90, _ => throw new ArgumentException("JPEG quality must be poor, low, medium or high.") };
-        if (previousQuality == jpegQuality && previousJpeg is not null && previousJpeg.AsSpan().SequenceEqual(jpeg)) { return false; }
+        // A short unplug/replug can happen between enumerations with the same interface path.
+        // Reuse the JPEG, but periodically write it to detect a stale handle. Never reopen it here.
+        if (previousQuality == jpegQuality && previousJpeg is not null && previousJpeg.AsSpan().SequenceEqual(jpeg)
+            && Environment.TickCount64 - submittedAt < 10_000) { return false; }
         var payload = Profile is { Encoding: PanelPixelEncoding.Jpeg, WireRotation: 0 }
             ? jpeg : DashboardRenderer.Fade(jpeg, jpeg, Profile, 1, quality);
         var packet = Thermalright04165302Protocol.CreatePicturePacket(Profile, payload);
         await session.SendPacketAsync(packet, cancellationToken);
         previousJpeg = jpeg;
         previousQuality = jpegQuality;
+        submittedAt = Environment.TickCount64;
         SubmittedFrames++;
         return true;
     }

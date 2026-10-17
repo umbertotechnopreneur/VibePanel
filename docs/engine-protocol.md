@@ -32,6 +32,10 @@ Only one request/frame is in flight. A slow update lowers the rate rather than c
 
 The GUI starts in preview mode each time. It never restores an active USB session automatically.
 
+The studio requests `devices` every ten seconds, with one enumeration pending at most. Discovery reads Windows interface metadata and closes a missing theme session; it never sends a probe or a frame. Reconnection only updates the list. Starting output still needs an explicit `start`. A browser preview failure leaves a successfully opened USB session active.
+
+During explicit `present` requests, an identical JPEG is sent again after ten seconds. This detects a stale handle after an unplug/replug between enumerations. It uses the existing session and never reopens it. An I/O failure closes output and requires a new explicit start. Legacy `vp play` also stops on a disconnect rather than retrying.
+
 `colorFiltersEnabled: false` skips the final color pass, including theme overrides. It keeps the slider values. The studio saves this switch and starts with it off; omitted engine values default to true for CLI color requests. Replies include `accentColor`, the theme's cached accent, for the preview shadow and slider guides.
 
 ## Rate and quality

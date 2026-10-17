@@ -31,6 +31,7 @@ internal sealed class EngineServer : IDisposable
     private long previewAt;
     private string? previewNotice;
     private ThemePanelOutput? themeOutput;
+    private string? themeDeviceId;
     private double? frameMilliseconds;
 
     public static async Task<int> RunAsync()
@@ -116,6 +117,7 @@ internal sealed class EngineServer : IDisposable
                 {
                     _ = FindTheme(options.ThemeId);
                     themeOutput = await ThemePanelOutput.OpenAsync(connected, options.ProfileId);
+                    themeDeviceId = options.DeviceId;
                     frameMilliseconds = null;
                     previousFingerprint = null;
                     preview = null;
@@ -215,13 +217,21 @@ internal sealed class EngineServer : IDisposable
 
     private void DiscoverDevices()
     {
-        devices.Clear();
+        // Build a complete snapshot before replacing the last successful enumeration.
+        var found = new Dictionary<string, DisplayDevice>();
         foreach (var device in DisplayDiscovery.FindDevices())
         {
             var key = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(device.DevicePath + device.Transport)))[..16];
-            devices.Add(key, device);
+            found.TryAdd(key, device);
         }
+        devices.Clear();
+        foreach (var entry in found) { devices.Add(entry.Key, entry.Value); }
         discoveredAt = Environment.TickCount64;
+        if (themeOutput is not null && (themeDeviceId is null || !devices.ContainsKey(themeDeviceId)))
+        {
+            CloseThemeOutput();
+            Volatile.Write(ref status, "USB display disconnected. Reconnect it, then press Show on display.");
+        }
     }
 
     private PanelChoice[] DeviceChoices() => devices.Select(item => new PanelChoice(item.Key, $"{item.Value.Id} · {item.Value.Connection}")).ToArray();
@@ -243,8 +253,7 @@ internal sealed class EngineServer : IDisposable
         }
         catch
         {
-            output.Dispose();
-            themeOutput = null;
+            CloseThemeOutput();
             Volatile.Write(ref status, "Display stopped. Check the connection and press Show on display to try again.");
             throw;
         }
@@ -262,17 +271,23 @@ internal sealed class EngineServer : IDisposable
 
     private async Task StopAsync()
     {
-        themeOutput?.Dispose();
-        themeOutput = null;
-        frameMilliseconds = null;
+        CloseThemeOutput();
         playbackCancellation?.Cancel();
         if (playback is not null) { await playback.WaitAsync(TimeSpan.FromSeconds(10)); }
         Volatile.Write(ref status, "Display stopped.");
     }
 
+    private void CloseThemeOutput()
+    {
+        themeOutput?.Dispose();
+        themeOutput = null;
+        themeDeviceId = null;
+        frameMilliseconds = null;
+    }
+
     private static T Parameters<T>(EngineRequest request, T? fallback = default) where T : class =>
         request.Parameters?.Deserialize<T>(PanelContract.Json) ?? fallback ?? throw new ArgumentException("Missing parameters.");
 
-    public void Dispose() { themeOutput?.Dispose(); playbackCancellation?.Cancel(); playbackCancellation?.Dispose(); themeRenderer.Dispose(); dashboard.Dispose(); }
+    public void Dispose() { CloseThemeOutput(); playbackCancellation?.Cancel(); playbackCancellation?.Dispose(); themeRenderer.Dispose(); dashboard.Dispose(); }
     private sealed class StatusProgress(Action<string> report) : IProgress<string> { public void Report(string value) => report(value); }
 }

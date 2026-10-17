@@ -21,8 +21,8 @@ internal static class Program
         { return WindowsMemoryGuard.Run(args); }
         if (args.Any(argument => argument is not "--start-minimized" and not "--restore-last-session"))
         { Console.Error.WriteLine("Usage: VibePanel.exe [--start-minimized] [--restore-last-session]"); return 2; }
-        var restoreLastSession = args.Contains("--restore-last-session");
-        var startMinimized = args.Contains("--start-minimized") || restoreLastSession;
+        // Older startup shortcuts used this flag. Accept it as tray-only, with no USB restore.
+        var startMinimized = args.Contains("--start-minimized") || args.Contains("--restore-last-session");
         using var instance = new SingleInstanceService();
         if (!instance.IsPrimary)
         {
@@ -72,7 +72,7 @@ internal static class Program
             .SetLogVerbosity(0)
             .SetIconFile(Path.Combine(AppContext.BaseDirectory, "Assets", OperatingSystem.IsWindows() ? "vibepanel.ico" : "vibepanel-icon.png"))
             .Center()
-            .ConfigureOpenSilver(() => application = new App.App(client, actions, restoreLastSession, preview: preview = new PhotinoPreview(window!)))
+            .ConfigureOpenSilver(() => application = new App.App(client, actions, preview: preview = new PhotinoPreview(window!)))
             .RegisterWindowClosingHandler((_, _) =>
             {
                 if (Volatile.Read(ref exiting) != 0 || application is null) { return false; }

@@ -20,11 +20,10 @@ public sealed partial class MainPage : Page
 {
     private readonly IPanelClient client;
     private readonly IStudioWindowActions? windowActions;
-    private readonly bool restoreLastSession;
     private readonly IStudioPreview? preview;
     private readonly DispatcherTimer refresh = new() { Interval = TimeSpan.FromSeconds(1) };
     private readonly DispatcherTimer colorChanges = new() { Interval = TimeSpan.FromMilliseconds(150) };
-    private readonly DispatcherTimer restore = new() { Interval = TimeSpan.FromSeconds(10) };
+    private readonly DispatcherTimer deviceRefresh = new() { Interval = TimeSpan.FromSeconds(10) };
     private readonly string settingsPath;
     private readonly List<CatalogRow> categoryRows = [];
     private readonly List<CatalogRow> themeRows = [];
@@ -43,7 +42,7 @@ public sealed partial class MainPage : Page
     private double fontScale = 1;
     private double saturationPercent = 100, hueDegrees;
     private double brightnessPercent, contrastPercent = 100;
-    private bool colorFiltersEnabled, cycleThemes, resumeLastDisplay;
+    private bool colorFiltersEnabled, cycleThemes;
     private string? selectedDeviceId;
     private bool showSpectrum = true, updatingColorControls, pendingColorSettings, updatingFonts;
     private PanelChoice[] fontChoices = [];
@@ -51,11 +50,10 @@ public sealed partial class MainPage : Page
     private byte[]? lastFrame;
     private bool? appliedLight;
 
-    public MainPage(IPanelClient client, IStudioWindowActions? windowActions = null, bool restoreLastSession = false, string? presentationSettingsPath = null, IStudioPreview? preview = null)
+    public MainPage(IPanelClient client, IStudioWindowActions? windowActions = null, string? presentationSettingsPath = null, IStudioPreview? preview = null)
     {
         this.client = client;
         this.windowActions = windowActions;
-        this.restoreLastSession = restoreLastSession;
         this.preview = preview;
         settingsPath = presentationSettingsPath ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VibePanel", "presentation.json");
         InitializeComponent();
@@ -84,26 +82,20 @@ public sealed partial class MainPage : Page
             await LoadDiagnosticsAsync();
             await RefreshAsync();
             await LoadFontsAsync();
-            await RestoreLastDisplayAsync();
             if (!unloaded)
             {
                 refresh.Start();
-                if (restoreLastSession && resumeLastDisplay && !displayActive) { restore.Start(); }
+                deviceRefresh.Start();
             }
         };
         Unloaded += (_, _) =>
         {
-            unloaded = true; refresh.Stop(); restore.Stop(); colorChanges.Stop();
+            unloaded = true; refresh.Stop(); deviceRefresh.Stop(); colorChanges.Stop();
             ClearPreview();
             if (pendingColorSettings) { CommitColorControls(); SaveChoices(); }
         };
         refresh.Tick += async (_, _) => await RefreshAsync(queueIfBusy: false);
-        restore.Tick += async (_, _) =>
-        {
-            await RefreshDevicesAsync();
-            await RestoreLastDisplayAsync();
-            if (displayActive || !resumeLastDisplay) { restore.Stop(); }
-        };
+        deviceRefresh.Tick += async (_, _) => await RefreshDevicesAsync();
         colorChanges.Tick += async (_, _) =>
         {
             colorChanges.Stop(); CommitColorControls();
@@ -217,10 +209,11 @@ public sealed partial class MainPage : Page
 
     private async Task RefreshAsync(bool queueIfBusy = true)
     {
-        if (unloaded || !ready || displayBusy || string.IsNullOrEmpty(selectedTheme)) { return; }
+        if (unloaded || !ready || displayBusy || devicesLoading || string.IsNullOrEmpty(selectedTheme)) { return; }
         if (refreshing) { if (queueIfBusy) { refreshAgain = true; } return; }
         refreshing = true;
         var requestedDisplay = displayActive;
+        var engineReplied = false;
         try
         {
             ApplyAppearance();
@@ -245,6 +238,7 @@ public sealed partial class MainPage : Page
                 JpegQuality: requestedQuality, SaturationPercent: requestedSaturation, HueDegrees: requestedHue,
                 ShowSpectrum: requestedSpectrum, BrightnessPercent: requestedBrightness, ContrastPercent: requestedContrast,
                 ColorFiltersEnabled: requestedFilters));
+            engineReplied = true;
             if (unloaded || displayBusy) { return; }
             // A slow frame may complete after the user has selected another theme or font.
             if (requestedTheme != selectedTheme || requestedProfile != selectedProfile || requestedLight != IsLight || requestedFont != fontFamily || requestedScale != fontScale
@@ -289,10 +283,11 @@ public sealed partial class MainPage : Page
         }
         catch (Exception error)
         {
-            if (requestedDisplay) { displayActive = false; UpdateDisplayControls(); }
+            // A browser decode/draw failure says nothing about the open USB session.
+            if (requestedDisplay && !engineReplied) { displayActive = false; UpdateDisplayControls(); }
             StatusText.Text = error.Message;
             ClearPreview();
-            LoadingTitle.Text = requestedDisplay ? "Display stopped." : "Waiting for the local engine.";
+            LoadingTitle.Text = engineReplied ? "Preview unavailable." : requestedDisplay ? "Display stopped." : "Waiting for the local engine.";
             LoadingText.Text = error.Message;
         }
         finally
@@ -434,7 +429,7 @@ public sealed partial class MainPage : Page
     {
         StartDisplayButton.IsEnabled = !displayBusy && !displayActive && !devicesLoading && DevicesBox.SelectedItem is PanelChoice && !string.IsNullOrEmpty(selectedTheme);
         StopDisplayButton.IsEnabled = !displayBusy && displayActive;
-        DevicesBox.IsEnabled = !displayBusy && !displayActive;
+        DevicesBox.IsEnabled = !displayBusy && !displayActive && !devicesLoading;
         RefreshDevicesButton.IsEnabled = !displayBusy && !displayActive && !devicesLoading;
         ProfilesBox.IsEnabled = !displayBusy && !displayActive;
         PreviewBadgeText.Text = displayActive ? "LIVE DISPLAY" : "LOCAL PREVIEW";
@@ -442,14 +437,17 @@ public sealed partial class MainPage : Page
 
     private async Task RefreshDevicesAsync()
     {
-        if (devicesLoading || displayActive || displayBusy) { return; }
+        if (unloaded || devicesLoading || displayBusy) { return; }
         devicesLoading = true;
         UpdateDisplayControls();
         try
         {
-            var previous = selectedDeviceId ?? (DevicesBox.SelectedItem as PanelChoice)?.Id;
             var choices = await client.RequestAsync<PanelChoice[]>("devices");
             if (unloaded) { return; }
+            var previous = selectedDeviceId ?? (DevicesBox.SelectedItem as PanelChoice)?.Id;
+            // The engine closes a missing session during discovery, even for a still frame.
+            var disconnected = displayActive && !choices.Any(item => item.Id == selectedDeviceId);
+            if (disconnected) { displayActive = false; }
             var selected = choices.FirstOrDefault(item => item.Id == previous);
             // An old interface path can change after a driver reinstall. With one compatible
             // screen, choosing it is unambiguous; with several, keep waiting for the saved one.
@@ -459,7 +457,8 @@ public sealed partial class MainPage : Page
             DevicesBox.ItemsSource = choices;
             DevicesBox.SelectedItem = selected;
             updatingChoices = wasUpdating;
-            if (choices.Length == 0) { StatusText.Text = "Connect a USB display, then press ↻."; }
+            if (disconnected) { StatusText.Text = "USB display disconnected. Reconnect it, then press Show on display."; }
+            else if (choices.Length == 0 && !displayActive) { StatusText.Text = "Connect a USB display. The list refreshes every 10 seconds."; }
         }
         catch (Exception error) { StatusText.Text = error.Message; }
         finally { devicesLoading = false; UpdateDisplayControls(); }
@@ -468,15 +467,15 @@ public sealed partial class MainPage : Page
     private async void StartDisplay_Click(object sender, RoutedEventArgs args)
     {
         if (displayBusy || displayActive || DevicesBox.SelectedItem is not PanelChoice device || string.IsNullOrEmpty(selectedTheme)) { return; }
-        await StartDisplayAsync(device, restoring: false);
+        await StartDisplayAsync(device);
     }
 
-    private async Task StartDisplayAsync(PanelChoice device, bool restoring)
+    private async Task StartDisplayAsync(PanelChoice device)
     {
-        if (displayBusy || displayActive || string.IsNullOrEmpty(selectedTheme)) { return; }
+        if (displayBusy || displayActive || devicesLoading || string.IsNullOrEmpty(selectedTheme)) { return; }
         displayBusy = true;
         UpdateDisplayControls();
-        StatusText.Text = restoring ? "Restoring the saved display…" : "Connecting to the selected display…";
+        StatusText.Text = "Connecting to the selected display…";
         try
         {
             var result = await client.RequestAsync<DisplayStartResult>("start", new StartOptions(device.Id, profileSelection, ThemeId: selectedTheme));
@@ -484,7 +483,6 @@ public sealed partial class MainPage : Page
             if (displayActive)
             {
                 selectedDeviceId = device.Id;
-                resumeLastDisplay = true;
             }
             if (result.ProfileId is { } detected)
             {
@@ -509,7 +507,6 @@ public sealed partial class MainPage : Page
         {
             await client.RequestAsync<JsonElement>("stop");
             displayActive = false;
-            resumeLastDisplay = false;
             SaveChoices();
             StatusText.Text = "Display stopped.";
         }
@@ -518,25 +515,6 @@ public sealed partial class MainPage : Page
     }
 
     private async void RefreshDevices_Click(object sender, RoutedEventArgs args) => await RefreshDevicesAsync();
-
-    /// <summary>Resumes only the display session the user explicitly started and saved.</summary>
-    private async Task RestoreLastDisplayAsync()
-    {
-        if (!restoreLastSession || !resumeLastDisplay || displayBusy || displayActive || unloaded) { return; }
-        if (string.IsNullOrEmpty(selectedTheme))
-        {
-            StatusText.Text = "The saved display theme is unavailable.";
-            return;
-        }
-        if (DevicesBox.SelectedItem is not PanelChoice device)
-        {
-            StatusText.Text = selectedDeviceId is null
-                ? "Choose a USB display once to save it for Windows startup."
-                : "Waiting for the saved USB display…";
-            return;
-        }
-        await StartDisplayAsync(device, restoring: true);
-    }
 
     private async Task RefreshCodexStatusAsync(bool force = false)
     {
@@ -908,7 +886,6 @@ public sealed partial class MainPage : Page
             if (json.TryGetProperty("colorFiltersEnabled", out var filters) && filters.ValueKind is JsonValueKind.True or JsonValueKind.False) { colorFiltersEnabled = filters.GetBoolean(); }
             if (json.TryGetProperty("cycleThemes", out var cycle) && cycle.ValueKind is JsonValueKind.True or JsonValueKind.False) { cycleThemes = cycle.GetBoolean(); }
             if (json.TryGetProperty("deviceId", out var device) && device.ValueKind == JsonValueKind.String) { selectedDeviceId = device.GetString(); }
-            if (json.TryGetProperty("resumeLastDisplay", out var resume) && resume.ValueKind is JsonValueKind.True or JsonValueKind.False) { resumeLastDisplay = resume.GetBoolean(); }
         }
         catch (Exception error) when (error is IOException or JsonException or InvalidOperationException or UnauthorizedAccessException) { }
     }
@@ -917,7 +894,7 @@ public sealed partial class MainPage : Page
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(settingsPath)!);
-            File.WriteAllText(settingsPath, JsonSerializer.Serialize(new { theme = appearance, category = selectedCategory, themeId = selectedTheme, profile = selectedProfile, profileSelection, font = fontFamily, fontScale, refreshMilliseconds, jpegQuality, saturationPercent, hueDegrees, brightnessPercent, contrastPercent, showSpectrum, colorFiltersEnabled, cycleThemes, deviceId = selectedDeviceId, resumeLastDisplay }));
+            File.WriteAllText(settingsPath, JsonSerializer.Serialize(new { theme = appearance, category = selectedCategory, themeId = selectedTheme, profile = selectedProfile, profileSelection, font = fontFamily, fontScale, refreshMilliseconds, jpegQuality, saturationPercent, hueDegrees, brightnessPercent, contrastPercent, showSpectrum, colorFiltersEnabled, cycleThemes, deviceId = selectedDeviceId }));
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException) { StatusText.Text = "The preference changed but could not be saved."; }
     }

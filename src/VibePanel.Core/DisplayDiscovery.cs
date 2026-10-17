@@ -17,7 +17,7 @@ public static class DisplayDiscovery
         Native.HidD_GetHidGuid(out var guid);
         var devices = InterfacePaths(guid)
             .Where(path => path.Contains("vid_0416&pid_5302&mi_00", StringComparison.OrdinalIgnoreCase))
-            .Select(ReadHidCapabilities).Where(device => device is not null).Cast<DisplayDevice>().ToList();
+            .Select(ReadPresentHidCapabilities).Where(device => device is not null).Cast<DisplayDevice>().ToList();
         // HID is usable without configuring the optional vendor-specific sibling.
         if (devices.Count == 0)
         {
@@ -70,6 +70,13 @@ public static class DisplayDiscovery
             }
         }
         finally { Native.SetupDiDestroyDeviceInfoList(set); }
+    }
+
+    private static DisplayDevice? ReadPresentHidCapabilities(string path)
+    {
+        try { return ReadHidCapabilities(path); }
+        // Unplugging between SetupDi enumeration and descriptor lookup is normal.
+        catch (Win32Exception error) when (error.NativeErrorCode is 2 or 6 or 31 or 1167) { return null; }
     }
 
     private static DisplayDevice? ReadHidCapabilities(string path)

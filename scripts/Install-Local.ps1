@@ -193,7 +193,7 @@ try {
     Save-StableLauncher $launcherPath $installedExecutable $installRoot
     Copy-Item -LiteralPath $installedIcon -Destination $launcherIcon -Force
     Save-ManagedShortcut $shell $startShortcut $startMarker $launcherPath $installRoot $launcherIcon '' 1 $backupRoot
-    Save-ManagedShortcut $shell $startupShortcut $startupMarker $launcherPath $installRoot $launcherIcon '--start-minimized --restore-last-session' 7 $backupRoot
+    Save-ManagedShortcut $shell $startupShortcut $startupMarker $launcherPath $installRoot $launcherIcon '--start-minimized' 7 $backupRoot
 
     $uninstaller = Join-Path $releasePath 'Uninstall-VibePanel.ps1'
     $powershellPath = Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::System)) 'WindowsPowerShell\v1.0\powershell.exe'
