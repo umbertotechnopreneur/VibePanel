@@ -18,5 +18,6 @@
 - On Windows, a separate guard stops the app and its children above 1 GB of private memory. It shows an alert first and does not wait for a click.
 - I free native message strings after use and send preview JPEGs as data, outside the JavaScript eval bridge.
 - I wait for each preview to be drawn, then close its decoded bitmap. The UI keeps two canvases for theme fades.
+- A drawn canvas can still have no visible height. I check its on-screen bounds and a captured image as well.
 - The Python worker uses one native NumPy thread. Tiny palette arrays do not need a large thread pool.
 - I still need to check memory, speed and security. [My list](cave.md).

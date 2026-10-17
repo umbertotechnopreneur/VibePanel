@@ -11,8 +11,15 @@ VBWR E -->
     <ProjectReference Include="../../src/VibePanel.Photino/VibePanel.Photino.csproj" />
     <ProjectReference Include="../../src/VibePanel.Core/VibePanel.Core.csproj" />
   </ItemGroup>
-  <Target Name="CopyPatchedNativeForChecks" AfterTargets="Build">
-    <Copy SourceFiles="../../artifacts/native/photino-memory/x64/Photino.Native.dll" DestinationFolder="$(TargetDir)" />
-    <Copy SourceFiles="../../artifacts/native/photino-memory/x64/Photino.Native.dll" DestinationFolder="$(TargetDir)runtimes/win-x64/native/" />
+  <PropertyGroup>
+    <ChecksNativeFolder>x64</ChecksNativeFolder>
+    <ChecksNativeFolder Condition="'$(PreviewCapture)' == 'true'">x64-preview-capture</ChecksNativeFolder>
+  </PropertyGroup>
+  <Target Name="BuildPreviewCaptureNative" BeforeTargets="Build" Condition="'$(PreviewCapture)' == 'true'">
+    <Exec Command="pwsh -NoProfile -File &quot;$(MSBuildProjectDirectory)/../../scripts/Build-PhotinoNative.ps1&quot; -PreviewCapture" />
+  </Target>
+  <Target Name="CopyPatchedNativeForChecks" AfterTargets="Build" DependsOnTargets="BuildPreviewCaptureNative">
+    <Copy SourceFiles="../../artifacts/native/photino-memory/$(ChecksNativeFolder)/Photino.Native.dll" DestinationFolder="$(TargetDir)" />
+    <Copy SourceFiles="../../artifacts/native/photino-memory/$(ChecksNativeFolder)/Photino.Native.dll" DestinationFolder="$(TargetDir)runtimes/win-x64/native/" />
   </Target>
 </Project>

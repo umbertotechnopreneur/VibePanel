@@ -113,7 +113,8 @@ VBWR E -->
                     <Grid x:Name="PreviewSurface" HorizontalAlignment="Center" VerticalAlignment="Center">
                         <!-- The shadow belongs to a solid backing, not the changing video image. -->
                         <Border x:Name="PreviewShadow" Background="#101522" Visibility="Collapsed"/>
-                        <html:HtmlPresenter x:Name="PreviewImage" IsHitTestVisible="False" Html="&lt;div id='vp-preview' style='position:relative;width:100%;height:100%;overflow:hidden'&gt;&lt;canvas style='position:absolute;width:100%;height:100%;opacity:0'&gt;&lt;/canvas&gt;&lt;canvas style='position:absolute;width:100%;height:100%'&gt;&lt;/canvas&gt;&lt;/div&gt;"/>
+                        <!-- Fill the arranged presenter, bypassing its auto-height inner wrapper. -->
+                        <html:HtmlPresenter x:Name="PreviewImage" IsHitTestVisible="False" ScrollMode="Disabled" Html="&lt;div id='vp-preview' style='position:absolute;inset:0;overflow:hidden'&gt;&lt;canvas style='position:absolute;inset:0;width:100%;height:100%;opacity:0'&gt;&lt;/canvas&gt;&lt;canvas style='position:absolute;inset:0;width:100%;height:100%'&gt;&lt;/canvas&gt;&lt;/div&gt;"/>
                     </Grid>
                     <StackPanel x:Name="LoadingPanel" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="440" Margin="24">
                         <TextBlock x:Name="LoadingTitle" Text="Your screen, your style." FontSize="23" HorizontalAlignment="Center"/>

@@ -4,7 +4,7 @@
 # VBWR E
 #requires -Version 7.0
 [CmdletBinding()]
-param([ValidateSet('x64', 'ARM64')][string]$Architecture = 'x64')
+param([ValidateSet('x64', 'ARM64')][string]$Architecture = 'x64', [switch]$PreviewCapture)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
@@ -12,10 +12,12 @@ $commit = 'd790e5be3127ec628d0a9f1f9fac68e14f339c2a'
 $archiveHash = '5C6546959017509B80A1884EADCD963FDDCE23A58D5043FE02F42A962E0B6A17'
 $root = Join-Path $repo 'artifacts/native/photino-memory'
 $destination = Join-Path $root $Architecture
+if ($PreviewCapture) { $destination += '-preview-capture' }
 $library = Join-Path $destination 'Photino.Native.dll'
 $manifestPath = Join-Path $destination 'build.json'
 $header = Join-Path $repo 'native/photino/UtfConversion.h'
 $patchKey = (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash + (Get-FileHash -LiteralPath $header -Algorithm SHA256).Hash
+if ($PreviewCapture) { $patchKey += (Get-FileHash -LiteralPath (Join-Path $repo 'tests/native/WebViewCapture.h') -Algorithm SHA256).Hash }
 if ((Test-Path -LiteralPath $manifestPath) -and (Test-Path -LiteralPath $library)) {
     $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
     if ($manifest.patchKey -eq $patchKey -and $manifest.libraryHash -eq (Get-FileHash -LiteralPath $library -Algorithm SHA256).Hash) { return }
@@ -79,6 +81,13 @@ foreach ($fileName in @('Photino.Windows.cpp', 'Photino.Windows.Dialog.cpp')) {
         }
     }
     Save-Source $path $text
+}
+if ($PreviewCapture) {
+    # This export exists only in the opt-in diagnostic DLL, never in a portable package.
+    $text = (Get-Content -LiteralPath $headerPath -Raw).Replace('public:', "public:`n ICoreWebView2* PreviewCaptureWebView() { return _webviewWindow.get(); }")
+    Save-Source $headerPath $text
+    Copy-Item -LiteralPath (Join-Path $repo 'tests/native/WebViewCapture.h') -Destination (Join-Path $native 'WebViewCapture.h')
+    [IO.File]::AppendAllText((Join-Path $native 'Photino.Windows.cpp'), "`n#include `"WebViewCapture.h`"`n")
 }
 $packages = Join-Path $source 'packages'
 foreach ($package in @(

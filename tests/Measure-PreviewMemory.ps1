@@ -4,12 +4,15 @@
 # VBWR E
 # Run only with the owner's explicit approval. The fixture cannot access USB.
 #requires -Version 7.0
+param([switch]$PreviewCapture)
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
 $output = Join-Path $repo 'artifacts/memory-checks'
 New-Item -ItemType Directory -Path $output -Force | Out-Null
 $exe = Join-Path $repo 'artifacts/bin/VibePanel.MemoryChecks/x64/Release/net10.0-windows10.0.19041.0/VibePanel.MemoryChecks.exe'
-$process = Start-Process -FilePath $exe -PassThru -WindowStyle Hidden -RedirectStandardOutput "$output/ui.stdout.txt" -RedirectStandardError "$output/ui.stderr.txt"
+$launch = @{ FilePath = $exe; PassThru = $true; WindowStyle = 'Hidden'; RedirectStandardOutput = "$output/ui.stdout.txt"; RedirectStandardError = "$output/ui.stderr.txt" }
+if ($PreviewCapture) { $launch.ArgumentList = '--preview-capture' }
+$process = Start-Process @launch
 $records = [System.Collections.Generic.List[object]]::new()
 $failure = $null
 try {
