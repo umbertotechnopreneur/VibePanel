@@ -655,8 +655,12 @@ public sealed partial class MainPage : Page
     private void Device_Changed(object sender, SelectionChangedEventArgs args)
     {
         if (!ready || updatingChoices) { return; }
-        startupRestorePending = false;
-        if (DevicesBox.SelectedItem is PanelChoice device) { selectedDeviceId = device.Id; SaveChoices(); }
+        if (DevicesBox.SelectedItem is PanelChoice device)
+        {
+            if (device.Id != startupDeviceId) { startupRestorePending = false; }
+            selectedDeviceId = device.Id;
+            SaveChoices();
+        }
         UpdateDisplayControls();
     }
     private void Refresh_Changed(object sender, SelectionChangedEventArgs args)

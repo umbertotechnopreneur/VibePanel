@@ -22,7 +22,7 @@ From the extracted package, open PowerShell in its folder and run:
 
 Find **Vibe Panel** in Start. Both Start and Windows startup use one stable launcher at `%LOCALAPPDATA%\Umberto Giacobbi.biz\Apps\VibePanel\VibePanel.cmd`; package-version folders are never used directly by those entries.
 
-Vibe Panel keeps one current setup, not separate saved profiles. Closing the app saves the selected theme and all settings, including the last slider change. Opening it again restores that setup in the preview. At Windows sign-in it starts in the tray and starts the saved screen and theme, like **Show on display**.
+Vibe Panel keeps one current setup. Closing the app saves the selected theme and all settings, including the last slider change. Opening it again restores that setup in the preview. At Windows sign-in it starts in the tray and starts the saved screen and theme, like **Show on display**.
 
 If the saved screen appears late, startup waits and checks every ten seconds. It never chooses a different screen or theme. **Stop** cancels the wait or current output for this run. To stop future Windows startup too, disable startup below.
 
