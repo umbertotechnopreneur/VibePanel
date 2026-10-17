@@ -4,6 +4,8 @@ The desktop UI uses OpenSilver and OpenSilver.Photino (MIT, copyright Userware).
 
 OpenSilver's bundled browser resources retain their upstream notices. These include Quill, html-to-image, and FileSaver. They are restored from NuGet, not hand-copied or relicensed as VibePanel source.
 
+The Windows build patches Photino.Native's UTF string ownership to release converted web messages. The Apache-2.0 source is pinned to TryPhotino commit `d790e5be3127ec628d0a9f1f9fac68e14f339c2a`; its copyright and license notices remain in the build sources. See `scripts/Build-PhotinoNative.ps1` and [upstream issue 165](https://github.com/tryphotino/photino.Native/issues/165). The C ABI is unchanged. This does not complete a review of the whole native library.
+
 The USB protocol facts for Thermalright `0416:5302` were researched from device behaviour, public protocol references, and comparison with `thermalright-trcc-linux`'s implementation. That project is GPL-3.0. VibePanel does not include copied upstream code or assets. Its Windows transport, renderer, and application services are independently authored. See `docs/protocol-notes.md` for the source references and evidence limits.
 
 System.Drawing.Common is used under the MIT license. Windows GDI+ performs local still-image rendering and JPEG encoding.

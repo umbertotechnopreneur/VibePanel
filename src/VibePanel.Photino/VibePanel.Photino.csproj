@@ -18,4 +18,17 @@ VBWR E -->
     <Content Include="../VibePanel.App/Assets/vibepanel.ico" Link="Assets/vibepanel.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="../VibePanel.App/Assets/vibepanel-icon.png" Link="Assets/vibepanel-icon.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
+  <PropertyGroup>
+    <PatchedPhotinoArchitecture Condition="'$(Platform)' == 'ARM64'">ARM64</PatchedPhotinoArchitecture>
+    <PatchedPhotinoArchitecture Condition="'$(PatchedPhotinoArchitecture)' == ''">x64</PatchedPhotinoArchitecture>
+    <PatchedPhotinoRoot>$(MSBuildProjectDirectory)/../../artifacts/native/photino-memory/$(PatchedPhotinoArchitecture)</PatchedPhotinoRoot>
+  </PropertyGroup>
+  <Target Name="BuildPatchedWindowsPhotino" BeforeTargets="PrepareForBuild" Condition="$([MSBuild]::IsOSPlatform('Windows')) and '$(DesignTimeBuild)' != 'true'">
+    <Exec Command="pwsh -NoProfile -File &quot;$(MSBuildProjectDirectory)/../../scripts/Build-PhotinoNative.ps1&quot; -Architecture $(PatchedPhotinoArchitecture)" />
+  </Target>
+  <Target Name="CopyPatchedWindowsPhotino" AfterTargets="CopyFilesToOutputDirectory;Publish" DependsOnTargets="BuildPatchedWindowsPhotino" Condition="$([MSBuild]::IsOSPlatform('Windows')) and '$(DesignTimeBuild)' != 'true'">
+    <Copy SourceFiles="$(PatchedPhotinoRoot)/Photino.Native.dll" DestinationFolder="$(TargetDir)" />
+    <Copy SourceFiles="$(PatchedPhotinoRoot)/Photino.Native.dll" DestinationFolder="$(TargetDir)runtimes/win-$([System.String]::Copy('$(PatchedPhotinoArchitecture)').ToLowerInvariant())/native/" Condition="Exists('$(TargetDir)runtimes')" />
+    <Copy SourceFiles="$(PatchedPhotinoRoot)/Photino.Native.dll" DestinationFolder="$(PublishDir)" Condition="'$(PublishDir)' != '' and Exists('$(PublishDir)')" />
+  </Target>
 </Project>
