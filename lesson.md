@@ -21,6 +21,8 @@
 - A drawn canvas can still have no visible height. I check its on-screen bounds and a captured image as well.
 - The Python worker uses one native NumPy thread. Tiny palette arrays do not need a large thread pool.
 - I refresh the USB list every ten seconds. Reconnecting a screen does not start output.
+- At Windows sign-in I start the saved screen and theme in the tray. Opening the studio normally keeps the preview. Stop cancels a startup wait.
+- I keep one current setup. Closing saves its theme and settings, including pending slider changes. Reopening restores them in the preview.
 - I keep legacy backgrounds in a small memory cache. I check image dimensions before decoding them.
 - I load bundled scripts only from the engine folder, including in local builds.
 - I still need to check memory, speed and security. [My list](cave.md).

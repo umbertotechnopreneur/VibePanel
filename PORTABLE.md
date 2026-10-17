@@ -22,7 +22,9 @@ From the extracted package, open PowerShell in its folder and run:
 
 Find **Vibe Panel** in Start. Both Start and Windows startup use one stable launcher at `%LOCALAPPDATA%\Umberto Giacobbi.biz\Apps\VibePanel\VibePanel.cmd`; package-version folders are never used directly by those entries.
 
-Vibe Panel saves the selected screen and studio settings. At Windows sign-in it starts in the tray with USB output off. Press **Show on display** to start output each time.
+Vibe Panel keeps one current setup, not separate saved profiles. Closing the app saves the selected theme and all settings, including the last slider change. Opening it again restores that setup in the preview. At Windows sign-in it starts in the tray and starts the saved screen and theme, like **Show on display**.
+
+If the saved screen appears late, startup waits and checks every ten seconds. It never chooses a different screen or theme. **Stop** cancels the wait or current output for this run. To stop future Windows startup too, disable startup below.
 
 The device list refreshes every ten seconds without sending panel commands. A missing screen closes its session, including when the picture is still. Reconnect it and press **Show on display** again. **Stop** closes the session too. A preview error alone does not stop USB output.
 
@@ -30,7 +32,7 @@ To turn off startup, run `.\Install-VibePanel.ps1 -DisableStartup`.
 
 To uninstall, first quit from the tray menu. Use Windows **Installed apps** or run `.\Uninstall-VibePanel.ps1`. App files move to a backup. Your settings, user themes and Codex plugin stay in place.
 
-From a command line, `VibePanel.exe --start-minimized` starts it in the tray. The old `--restore-last-session` flag now also starts in the tray with USB output off.
+From a command line, `VibePanel.exe --start-minimized` starts the preview in the tray. `VibePanel.exe --restore-last-session` starts in the tray and starts the saved screen and theme. Windows startup uses both flags.
 
 ## Make it yours
 

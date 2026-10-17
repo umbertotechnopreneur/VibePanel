@@ -30,9 +30,9 @@ Use an ID returned by `devices`:
 
 Only one request/frame is in flight. A slow update lowers the rate rather than creating a queue. Theme updates follow the GUI's requests; they stop when the window closes or the engine reaches EOF. `stop` closes the panel. Errors close the theme output; reconnecting requires another explicit start. An accepted submission does not prove visible pixels.
 
-The GUI starts in preview mode each time. It never restores an active USB session automatically.
+Normal GUI launches start in preview. At the owner's request, Windows sign-in uses `--restore-last-session`: the studio issues one `start` for its saved device/theme, then the usual `present` requests with saved settings, while its window stays in the tray. Missing saved choices never fall back to another device or theme. A late device is checked every ten seconds; Stop cancels that startup wait. A failed start is not replayed.
 
-The studio requests `devices` every ten seconds, with one enumeration pending at most. Discovery reads Windows interface metadata and closes a missing theme session; it never sends a probe or a frame. Reconnection only updates the list. Starting output still needs an explicit `start`. A browser preview failure leaves a successfully opened USB session active.
+The studio requests `devices` every ten seconds, with one enumeration pending at most. Discovery reads Windows interface metadata and closes a missing theme session; it never sends a probe or a frame. Reconnection only updates the list, apart from the initial Windows-startup wait described above. Starting output still needs `start`. A browser preview failure leaves a successfully opened USB session active.
 
 During explicit `present` requests, an identical JPEG is sent again after ten seconds. This detects a stale handle after an unplug/replug between enumerations. It uses the existing session and never reopens it. An I/O failure closes output and requires a new explicit start. Legacy `vp play` also stops on a disconnect rather than retrying.
 

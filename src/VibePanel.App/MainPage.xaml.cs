@@ -25,6 +25,8 @@ public sealed partial class MainPage : Page
     private readonly DispatcherTimer colorChanges = new() { Interval = TimeSpan.FromMilliseconds(150) };
     private readonly DispatcherTimer deviceRefresh = new() { Interval = TimeSpan.FromSeconds(10) };
     private readonly string settingsPath;
+    private readonly string? startupDeviceId, startupThemeId;
+    private bool startupRestorePending, startupReady;
     private readonly List<CatalogRow> categoryRows = [];
     private readonly List<CatalogRow> themeRows = [];
     private static readonly int[] RefreshIntervals = [1000, 500, 250, 100, 50, 25];
@@ -50,7 +52,7 @@ public sealed partial class MainPage : Page
     private byte[]? lastFrame;
     private bool? appliedLight;
 
-    public MainPage(IPanelClient client, IStudioWindowActions? windowActions = null, string? presentationSettingsPath = null, IStudioPreview? preview = null)
+    public MainPage(IPanelClient client, IStudioWindowActions? windowActions = null, string? presentationSettingsPath = null, IStudioPreview? preview = null, bool restoreLastSession = false)
     {
         this.client = client;
         this.windowActions = windowActions;
@@ -59,6 +61,12 @@ public sealed partial class MainPage : Page
         InitializeComponent();
         InitializePreviewAppearance();
         LoadChoices();
+        if (restoreLastSession && !string.IsNullOrEmpty(selectedDeviceId) && !string.IsNullOrEmpty(selectedTheme))
+        {
+            startupDeviceId = selectedDeviceId;
+            startupThemeId = selectedTheme;
+            startupRestorePending = true;
+        }
         RefreshBox.ItemsSource = RefreshIntervals.Select(value => new PanelChoice(value.ToString(), value == 1000 ? "1 s" : $"{value} ms")).ToArray();
         RefreshBox.SelectedItem = ((PanelChoice[])RefreshBox.ItemsSource).First(item => item.Id == refreshMilliseconds.ToString());
         QualityBox.ItemsSource = new[] { new PanelChoice("poor", "Poor"), new PanelChoice("low", "Low"), new PanelChoice("medium", "Medium"), new PanelChoice("high", "High") };
@@ -77,11 +85,14 @@ public sealed partial class MainPage : Page
         Loaded += async (_, _) =>
         {
             unloaded = false;
+            startupReady = false;
             await LoadCatalogAsync();
             await RefreshDevicesAsync();
             await LoadDiagnosticsAsync();
             await RefreshAsync();
             await LoadFontsAsync();
+            startupReady = true;
+            await RestoreStartupDisplayAsync();
             if (!unloaded)
             {
                 refresh.Start();
@@ -92,7 +103,8 @@ public sealed partial class MainPage : Page
         {
             unloaded = true; refresh.Stop(); deviceRefresh.Stop(); colorChanges.Stop();
             ClearPreview();
-            if (pendingColorSettings) { CommitColorControls(); SaveChoices(); }
+            if (pendingColorSettings) { CommitColorControls(); }
+            SaveChoices();
         };
         refresh.Tick += async (_, _) => await RefreshAsync(queueIfBusy: false);
         deviceRefresh.Tick += async (_, _) => await RefreshDevicesAsync();
@@ -428,7 +440,7 @@ public sealed partial class MainPage : Page
     private void UpdateDisplayControls()
     {
         StartDisplayButton.IsEnabled = !displayBusy && !displayActive && !devicesLoading && DevicesBox.SelectedItem is PanelChoice && !string.IsNullOrEmpty(selectedTheme);
-        StopDisplayButton.IsEnabled = !displayBusy && displayActive;
+        StopDisplayButton.IsEnabled = !displayBusy && (displayActive || startupRestorePending);
         DevicesBox.IsEnabled = !displayBusy && !displayActive && !devicesLoading;
         RefreshDevicesButton.IsEnabled = !displayBusy && !displayActive && !devicesLoading;
         ProfilesBox.IsEnabled = !displayBusy && !displayActive;
@@ -439,11 +451,13 @@ public sealed partial class MainPage : Page
     {
         if (unloaded || devicesLoading || displayBusy) { return; }
         devicesLoading = true;
+        var discovered = false;
         UpdateDisplayControls();
         try
         {
             var choices = await client.RequestAsync<PanelChoice[]>("devices");
             if (unloaded) { return; }
+            discovered = true;
             var previous = selectedDeviceId ?? (DevicesBox.SelectedItem as PanelChoice)?.Id;
             // The engine closes a missing session during discovery, even for a still frame.
             var disconnected = displayActive && !choices.Any(item => item.Id == selectedDeviceId);
@@ -451,7 +465,7 @@ public sealed partial class MainPage : Page
             var selected = choices.FirstOrDefault(item => item.Id == previous);
             // An old interface path can change after a driver reinstall. With one compatible
             // screen, choosing it is unambiguous; with several, keep waiting for the saved one.
-            if (selected is null && (string.IsNullOrEmpty(previous) || choices.Length == 1)) { selected = choices.FirstOrDefault(); }
+            if (selected is null && !startupRestorePending && (string.IsNullOrEmpty(previous) || choices.Length == 1)) { selected = choices.FirstOrDefault(); }
             var wasUpdating = updatingChoices;
             updatingChoices = true;
             DevicesBox.ItemsSource = choices;
@@ -462,10 +476,12 @@ public sealed partial class MainPage : Page
         }
         catch (Exception error) { StatusText.Text = error.Message; }
         finally { devicesLoading = false; UpdateDisplayControls(); }
+        if (discovered) { await RestoreStartupDisplayAsync(); }
     }
 
     private async void StartDisplay_Click(object sender, RoutedEventArgs args)
     {
+        startupRestorePending = false;
         if (displayBusy || displayActive || DevicesBox.SelectedItem is not PanelChoice device || string.IsNullOrEmpty(selectedTheme)) { return; }
         await StartDisplayAsync(device);
     }
@@ -500,7 +516,8 @@ public sealed partial class MainPage : Page
 
     private async void StopDisplay_Click(object sender, RoutedEventArgs args)
     {
-        if (displayBusy || !displayActive) { return; }
+        if (displayBusy || !displayActive && !startupRestorePending) { return; }
+        startupRestorePending = false;
         displayBusy = true;
         UpdateDisplayControls();
         try
@@ -515,6 +532,29 @@ public sealed partial class MainPage : Page
     }
 
     private async void RefreshDevices_Click(object sender, RoutedEventArgs args) => await RefreshDevicesAsync();
+
+    /// <summary>One Windows-startup start, for the saved device and theme only.</summary>
+    private async Task RestoreStartupDisplayAsync()
+    {
+        if (!startupRestorePending || !startupReady || unloaded || displayBusy || displayActive || devicesLoading || catalog is null) { return; }
+        if (!catalog.Themes.Any(theme => theme.Id == startupThemeId) || selectedTheme != startupThemeId)
+        {
+            startupRestorePending = false;
+            StatusText.Text = "The saved startup theme is unavailable or changed. Press Show on display to choose again.";
+            UpdateDisplayControls();
+            return;
+        }
+        var device = (DevicesBox.ItemsSource as IEnumerable<PanelChoice>)?.FirstOrDefault(item => item.Id == startupDeviceId);
+        if (device is null)
+        {
+            StatusText.Text = "Waiting for the saved USB display. Stop cancels startup output for this run.";
+            return;
+        }
+        // Consume before the I/O: a failed or ambiguous start must never be replayed.
+        startupRestorePending = false;
+        UpdateDisplayControls();
+        await StartDisplayAsync(device);
+    }
 
     private async Task RefreshCodexStatusAsync(bool force = false)
     {
@@ -615,6 +655,7 @@ public sealed partial class MainPage : Page
     private void Device_Changed(object sender, SelectionChangedEventArgs args)
     {
         if (!ready || updatingChoices) { return; }
+        startupRestorePending = false;
         if (DevicesBox.SelectedItem is PanelChoice device) { selectedDeviceId = device.Id; SaveChoices(); }
         UpdateDisplayControls();
     }
@@ -662,7 +703,9 @@ public sealed partial class MainPage : Page
     /// <summary>Flush pending choices before asking the desktop host to stop.</summary>
     public void ExitApplication()
     {
-        if (pendingColorSettings) { colorChanges.Stop(); CommitColorControls(); SaveChoices(); }
+        colorChanges.Stop();
+        if (pendingColorSettings) { CommitColorControls(); }
+        SaveChoices();
         windowActions?.CloseApplication();
     }
 
@@ -671,7 +714,9 @@ public sealed partial class MainPage : Page
         if (windowActions?.CanMinimizeToTray != true) { return; }
         try
         {
-            if (pendingColorSettings) { colorChanges.Stop(); CommitColorControls(); SaveChoices(); }
+            colorChanges.Stop();
+            if (pendingColorSettings) { CommitColorControls(); }
+            SaveChoices();
             CloseOverlay.Visibility = Visibility.Collapsed;
             windowActions.MinimizeToTray();
         }
@@ -894,7 +939,9 @@ public sealed partial class MainPage : Page
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(settingsPath)!);
-            File.WriteAllText(settingsPath, JsonSerializer.Serialize(new { theme = appearance, category = selectedCategory, themeId = selectedTheme, profile = selectedProfile, profileSelection, font = fontFamily, fontScale, refreshMilliseconds, jpegQuality, saturationPercent, hueDegrees, brightnessPercent, contrastPercent, showSpectrum, colorFiltersEnabled, cycleThemes, deviceId = selectedDeviceId }));
+            var temporary = settingsPath + ".tmp";
+            File.WriteAllText(temporary, JsonSerializer.Serialize(new { theme = appearance, category = selectedCategory, themeId = selectedTheme, profile = selectedProfile, profileSelection, font = fontFamily, fontScale, refreshMilliseconds, jpegQuality, saturationPercent, hueDegrees, brightnessPercent, contrastPercent, showSpectrum, colorFiltersEnabled, cycleThemes, deviceId = selectedDeviceId }));
+            File.Move(temporary, settingsPath, overwrite: true);
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException) { StatusText.Text = "The preference changed but could not be saved."; }
     }

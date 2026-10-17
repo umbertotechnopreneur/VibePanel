@@ -193,7 +193,7 @@ try {
     Save-StableLauncher $launcherPath $installedExecutable $installRoot
     Copy-Item -LiteralPath $installedIcon -Destination $launcherIcon -Force
     Save-ManagedShortcut $shell $startShortcut $startMarker $launcherPath $installRoot $launcherIcon '' 1 $backupRoot
-    Save-ManagedShortcut $shell $startupShortcut $startupMarker $launcherPath $installRoot $launcherIcon '--start-minimized' 7 $backupRoot
+    Save-ManagedShortcut $shell $startupShortcut $startupMarker $launcherPath $installRoot $launcherIcon '--start-minimized --restore-last-session' 7 $backupRoot
 
     $uninstaller = Join-Path $releasePath 'Uninstall-VibePanel.ps1'
     $powershellPath = Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::System)) 'WindowsPowerShell\v1.0\powershell.exe'
@@ -213,7 +213,7 @@ try {
     Write-Host "Vibe Panel is installed at: $releasePath"
     Write-Host "Stable launcher: $launcherPath"
     Write-Host "Open it from Start: $startShortcut"
-    Write-Host 'At Windows sign-in, it starts in the tray and resumes the last display session only after you have started one with Show on display.'
+    Write-Host 'At Windows sign-in, it starts in the tray and starts the saved USB display and theme. Stop cancels output for the current run.'
 }
 finally {
     if ($null -ne $shell -and [System.Runtime.InteropServices.Marshal]::IsComObject($shell)) {
