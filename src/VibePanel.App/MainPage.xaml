@@ -258,5 +258,18 @@ VBWR E -->
                 </StackPanel>
             </Border>
         </Grid>
+        <Grid x:Name="CloseOverlay" Grid.RowSpan="3" Background="#B0000000" Visibility="Collapsed">
+            <Border x:Name="CloseFrame" Width="480" Padding="24" CornerRadius="12" BorderThickness="1" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="20">
+                <StackPanel>
+                    <TextBlock x:Name="CloseHeading" Text="Close Vibe Panel?" FontSize="22" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="CloseDescription" Text="Minimize to tray keeps your display running. Close app stops it." FontSize="13" TextWrapping="Wrap" Margin="0,12,0,24"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button x:Name="CancelCloseButton" Content="Cancel" Click="CancelClose_Click" Height="34" Padding="12,0" Margin="0,0,8,0"/>
+                        <Button x:Name="ExitButton" Content="Close app" Click="Exit_Click" Height="34" Padding="12,0" Margin="0,0,8,0"/>
+                        <Button x:Name="MinimizeTrayButton" Content="Minimize to tray" Click="MinimizeTray_Click" Height="34" Padding="12,0"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
     </Grid>
 </Page>

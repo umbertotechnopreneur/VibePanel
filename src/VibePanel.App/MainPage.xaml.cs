@@ -21,6 +21,7 @@ namespace VibePanel.App;
 public sealed partial class MainPage : Page
 {
     private readonly IPanelClient client;
+    private readonly IStudioWindowActions? windowActions;
     private readonly DispatcherTimer refresh = new() { Interval = TimeSpan.FromSeconds(1) };
     private readonly DispatcherTimer colorChanges = new() { Interval = TimeSpan.FromMilliseconds(150) };
     private readonly string settingsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VibePanel", "presentation.json");
@@ -49,9 +50,10 @@ public sealed partial class MainPage : Page
     private Storyboard? fade;
     private bool? appliedLight;
 
-    public MainPage(IPanelClient client)
+    public MainPage(IPanelClient client, IStudioWindowActions? windowActions = null)
     {
         this.client = client;
+        this.windowActions = windowActions;
         InitializeComponent();
         InitializePreviewAppearance();
         LoadChoices();
@@ -92,6 +94,8 @@ public sealed partial class MainPage : Page
         };
         KeyDown += (_, args) =>
         {
+            if (CloseOverlay.Visibility == Visibility.Visible)
+            { if (args.Key == Key.Escape) { CloseOverlay.Visibility = Visibility.Collapsed; args.Handled = true; } return; }
             if (AboutOverlay.Visibility == Visibility.Visible)
             { if (args.Key == Key.Escape) { CloseAbout(); args.Handled = true; } return; }
             if (ProfilesBox.IsDropDownOpen || DevicesBox.IsDropDownOpen || RefreshBox.IsDropDownOpen || QualityBox.IsDropDownOpen || FontsBox.IsDropDownOpen || args.OriginalSource is TextBox) { return; }
@@ -335,6 +339,12 @@ public sealed partial class MainPage : Page
         foreach (var section in new[] { LibraryFrame, AppearanceFrame, OptionsFrame, DisplayFrame, CodexSetupFrame, PreviewBadge, PreviewFrame }) { section.Background = transparent; }
         AboutFrame.Background = surface;
         AboutFrame.BorderBrush = line;
+        CloseFrame.Background = surface;
+        CloseFrame.BorderBrush = line;
+        CloseHeading.Foreground = ink;
+        CloseDescription.Foreground = muted;
+        foreach (var button in new[] { CancelCloseButton, ExitButton, MinimizeTrayButton })
+        { button.Background = surface; button.Foreground = ink; button.BorderBrush = line; button.BorderThickness = new Thickness(1); }
         FiltersPanel.Background = Brush(light ? "#F0EDF5" : "#171A23");
         DisplayDivider.BorderBrush = line;
         foreach (var text in new[] { Heading, SelectedThemeText, LoadingTitle, PositionText, FontScaleText, SaturationText, HueText, BrightnessText, ContrastText, AboutHeading, AboutAuthor, AboutDisclosureHeading, CodexStatusText }) { text.Foreground = ink; }
@@ -592,12 +602,49 @@ public sealed partial class MainPage : Page
         _ = RefreshAsync();
     }
 
-    private void About_Click(object sender, RoutedEventArgs args)
+    private void About_Click(object sender, RoutedEventArgs args) => ShowAbout();
+
+    /// <summary>Open About from the page or the native notification-area menu.</summary>
+    public void ShowAbout()
     {
+        CloseOverlay.Visibility = Visibility.Collapsed;
         AboutOverlay.Visibility = Visibility.Visible;
         CloseAboutButton.Focus();
     }
     private void CloseAbout_Click(object sender, RoutedEventArgs args) => CloseAbout();
+
+    /// <summary>Offer an explicit exit or background choice for the native close button.</summary>
+    public void ShowCloseChoice()
+    {
+        if (unloaded) { return; }
+        AboutOverlay.Visibility = Visibility.Collapsed;
+        MinimizeTrayButton.IsEnabled = windowActions?.CanMinimizeToTray == true;
+        CloseOverlay.Visibility = Visibility.Visible;
+        CancelCloseButton.Focus();
+    }
+
+    private void CancelClose_Click(object sender, RoutedEventArgs args) => CloseOverlay.Visibility = Visibility.Collapsed;
+
+    private void Exit_Click(object sender, RoutedEventArgs args) => ExitApplication();
+
+    /// <summary>Flush pending choices before asking the desktop host to stop.</summary>
+    public void ExitApplication()
+    {
+        if (pendingColorSettings) { colorChanges.Stop(); CommitColorControls(); SaveChoices(); }
+        windowActions?.CloseApplication();
+    }
+
+    private void MinimizeTray_Click(object sender, RoutedEventArgs args)
+    {
+        if (windowActions?.CanMinimizeToTray != true) { return; }
+        try
+        {
+            if (pendingColorSettings) { colorChanges.Stop(); CommitColorControls(); SaveChoices(); }
+            CloseOverlay.Visibility = Visibility.Collapsed;
+            windowActions.MinimizeToTray();
+        }
+        catch (Exception error) { StatusText.Text = "Could not minimize to tray: " + error.Message; }
+    }
     private void CloseAbout() { AboutOverlay.Visibility = Visibility.Collapsed; AboutLink.Focus(); }
 
     private void Category_Changed(object sender, SelectionChangedEventArgs args)

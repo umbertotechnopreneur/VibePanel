@@ -46,3 +46,11 @@ public interface IPanelClient
 {
     Task<T> RequestAsync<T>(string method, object? parameters = null, CancellationToken cancellationToken = default);
 }
+
+/// <summary>Desktop window actions supplied by the host, separate from the USB engine.</summary>
+public interface IStudioWindowActions
+{
+    bool CanMinimizeToTray { get; }
+    void MinimizeToTray();
+    void CloseApplication();
+}

@@ -39,7 +39,7 @@ internal static class VibePanelCli
                 "theme" => Theme(args),
                 "codex" => Codex(args),
                 "diagnostics" => Diagnostics(args),
-                "gui" => Gui(),
+                "gui" => Gui(args),
                 "help" or "--help" or "-h" or null => Help(),
                 _ => Fail("I do not know that command. Run 'vp help'.")
             });
@@ -151,12 +151,16 @@ internal static class VibePanelCli
         return 0;
     }
 
-    private static int Gui()
+    private static int Gui(IReadOnlyList<string> args)
     {
+        if (args.Count > 2 || args.Count == 2 && args[1] != "--start-minimized")
+        { return Fail("Usage: vp gui [--start-minimized]"); }
         var executable = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "VibePanel.exe"));
         if (!File.Exists(executable)) { throw new FileNotFoundException("Open the GUI from the portable folder. VibePanel.exe is missing beside engine/.", executable); }
-        using var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(executable)
-        { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(executable)! });
+        var start = new System.Diagnostics.ProcessStartInfo(executable)
+        { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(executable)! };
+        if (args.Contains("--start-minimized")) { start.ArgumentList.Add("--start-minimized"); }
+        using var process = System.Diagnostics.Process.Start(start);
         if (process is null) { throw new IOException("The Vibe Panel window could not open."); }
         AnsiConsole.WriteLine("Vibe Panel opened. Its window owns one hidden CLI engine.");
         return 0;
@@ -516,6 +520,7 @@ internal static class VibePanelCli
         commands.AddRow("vp codex status|prepare", "Check or prepare my optional Codex plugin. Trust its hooks in Codex.");
         commands.AddRow("vp diagnostics status|on|off|open", "Opt-in local error log, capped at 512 KiB plus one backup.");
         commands.AddRow("vp gui", "Open the desktop window from the portable folder.");
+        commands.AddRow("vp gui --start-minimized", "Start in the Windows tray. Reuses the existing studio instance.");
         commands.AddRow("vp theme media.aurora --export frame.jpg", "Render a Python/Skia theme to a new file. No USB writes.");
         commands.AddRow("vp theme <id> --export frame.jpg --font <name> --light", "Use the same font and light-mode options as the UI.");
         commands.AddRow("vp theme media.aurora --device 1 --seconds 60", "Explicitly stream a theme to one panel at a target 1 fps; Ctrl+C stops.");

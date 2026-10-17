@@ -10,9 +10,17 @@ namespace VibePanel.App;
 
 public sealed partial class App : Application
 {
-    public App(IPanelClient client)
+    private readonly MainPage page;
+
+    public App(IPanelClient client, IStudioWindowActions? windowActions = null)
     {
         InitializeComponent();
-        RootVisual = new MainPage(client);
+        page = new MainPage(client, windowActions);
+        RootVisual = page;
     }
+
+    /// <summary>Marshal a native title-bar close request onto the presentation dispatcher.</summary>
+    public void RequestClose() => page.Dispatcher.BeginInvoke(page.ShowCloseChoice);
+    public void RequestAbout() => page.Dispatcher.BeginInvoke(page.ShowAbout);
+    public void RequestExit() => page.Dispatcher.BeginInvoke(page.ExitApplication);
 }
