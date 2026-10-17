@@ -6,7 +6,11 @@
 4. Choose a theme. Look at the preview.
 5. Choose your USB screen. Press **Show on display**. Press **Stop** to stop.
 
-## Start when you sign in
+Only one window opens. Opening the app again brings it back to the center.
+
+**Close app** stops it. **Cancel** keeps it open. **Minimize to tray** keeps it running by the clock. Right-click its icon for Open, About, manifesto, website, GitHub and Exit.
+
+## Install and start with Windows
 
 From the extracted package, open PowerShell in its folder and run:
 
@@ -14,9 +18,13 @@ From the extracted package, open PowerShell in its folder and run:
 .\Install-VibePanel.ps1
 ```
 
-It installs that exact package for the current user in `%LOCALAPPDATA%\Umberto Giacobbi.biz\Apps\VibePanel` and creates one managed Windows Startup shortcut. At the next sign-in it opens the VibePanel studio. It does **not** connect to a USB screen or send content until you choose a screen and press **Show on display**.
+Find **Vibe Panel** in Start. At Windows sign-in, it starts in the tray. Click its tray icon to open it. USB output starts only when you press **Show on display**.
 
-To remove only the automatic startup, run `./Install-VibePanel.ps1 -DisableStartup` from the same package. The installed files are kept so you can still open VibePanel manually.
+To turn off startup, run `.\Install-VibePanel.ps1 -DisableStartup`.
+
+To uninstall, first quit from the tray menu. Use Windows **Installed apps** or run `.\Uninstall-VibePanel.ps1`. App files move to a backup. Your settings, user themes and Codex plugin stay in place.
+
+From a command line, `VibePanel.exe --start-minimized` starts it in the tray.
 
 ## Make it yours
 

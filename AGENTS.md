@@ -14,6 +14,7 @@ I am Umberto Giacobbi. Vibe Panel is my MIT-licensed holiday hobby project for c
 
 - Use .NET 10 and C# for the engine, OpenSilver Modern + Photino for the viewer, and Python/Skia for offscreen themes. Keep versioned JSON-lines stdin/stdout contracts; no listening network port is needed. The webview belongs to the configuration UI, not the panel renderer.
 - Ship portable ZIP folders. Windows x64/ARM64 hardware support is the current implementation; a portable UI build must never be described as working Linux/macOS USB/audio support without those backends and evidence.
+- The owner requested one Windows studio instance, a notification-area icon and explicit Close/Cancel/Minimize choices. Reopening the app restores and centers that instance. `--start-minimized` starts in the tray. The per-user installer registers one Start entry with the product icon and one tray startup entry; never auto-start USB output.
 - Make frequent focused checkpoint commits on the existing branch. Do not create a branch or workspace to do this.
 - Keep the protocol core independent from the UI and CLI. The UI and CLI must not duplicate USB protocol code.
 - Do not add telemetry, network calls, startup registration, sensor polling, or a hardware-monitoring dependency without an explicit request.
