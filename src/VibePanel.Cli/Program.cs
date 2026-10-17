@@ -39,6 +39,7 @@ internal static class VibePanelCli
                 "theme" => Theme(args),
                 "codex" => Codex(args),
                 "diagnostics" => Diagnostics(args),
+                "sensors" => Sensors(args),
                 "gui" => Gui(args),
                 "help" or "--help" or "-h" or null => Help(),
                 _ => Fail("I do not know that command. Run 'vp help'.")
@@ -222,6 +223,18 @@ internal static class VibePanelCli
         AnsiConsole.WriteLine($"Error logging: {(result.Enabled ? "on" : "off")}. {result.LogPath}");
         AnsiConsole.WriteLine("Local only. The log omits prompts, chat titles, commands, tool arguments and results.");
         return 0;
+    }
+
+    private static int Sensors(IReadOnlyList<string> args)
+    {
+        if (args.Count > 2 || args.Count == 2 && args[1] != "--diagnose")
+        { return Fail("Usage: vp sensors [--diagnose]"); }
+        using var sensors = new WindowsMetricsService(allowDriverLifecycle: true);
+        var snapshot = sensors.ReadSensors();
+        AnsiConsole.WriteLine(System.Text.Json.JsonSerializer.Serialize(snapshot, VibePanel.Contracts.PanelContract.Json));
+        if (args.Contains("--diagnose") && sensors.InitializationFailureDetails is { } details)
+        { Console.Error.WriteLine(details); }
+        return sensors.InitializationFailureDetails is null ? 0 : 1;
     }
 
     private static int Theme(IReadOnlyList<string> args)
@@ -520,6 +533,7 @@ internal static class VibePanelCli
         commands.AddRow("vp fonts", "List installed monospace families available to the Python/Skia renderer.");
         commands.AddRow("vp codex status|prepare", "Check or prepare my optional Codex plugin. Trust its hooks in Codex.");
         commands.AddRow("vp diagnostics status|on|off|open", "Opt-in local error log, capped at 512 KiB plus one backup.");
+        commands.AddRow("vp sensors [--diagnose]", "Read CPU, GPU and RAM once through the sensor library. No audio or USB. --diagnose prints local initialization details.");
         commands.AddRow("vp gui", "Open the desktop window from the portable folder.");
         commands.AddRow("vp gui --start-minimized", "Start in the Windows tray. Reuses the existing studio instance.");
         commands.AddRow("vp theme media.aurora --export frame.jpg", "Render a Python/Skia theme to a new file. No USB writes.");

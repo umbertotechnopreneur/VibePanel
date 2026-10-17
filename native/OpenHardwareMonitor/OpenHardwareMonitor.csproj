@@ -1,0 +1,32 @@
+<!-- VBWR B
+  Project: VibePanel | https://umbertogiacobbi.biz/vibeware/manifesto
+  Copyright (c) 2026 Umberto Giacobbi | SPDX-License-Identifier: MIT
+VBWR E -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <AssemblyName>OpenHardwareMonitorLib</AssemblyName>
+    <RootNamespace>OpenHardwareMonitor</RootNamespace>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <EnableNETAnalyzers>false</EnableNETAnalyzers>
+    <!-- Preserve upstream Win32 marshalling in this dependency; AsAny is still supported. -->
+    <NoWarn>$(NoWarn);CS0618</NoWarn>
+    <OhmSource>$(MSBuildThisFileDirectory)../../artifacts/native/openhardwaremonitor/source</OhmSource>
+  </PropertyGroup>
+  <ItemGroup>
+    <EditorConfigFiles Include="../../.editorconfig" Condition="Exists('../../.editorconfig')" />
+    <PackageReference Include="System.Management" Version="10.0.10" />
+    <PackageReference Include="System.IO.Ports" Version="10.0.10" />
+  </ItemGroup>
+  <Target Name="PrepareOpenHardwareMonitor" BeforeTargets="PrepareForBuild">
+    <Exec Command="pwsh -NoProfile -File &quot;$(MSBuildThisFileDirectory)../../scripts/Prepare-OpenHardwareMonitor.ps1&quot;" />
+    <ItemGroup>
+      <Compile Include="$(OhmSource)/Hardware/**/*.cs;$(OhmSource)/Collections/**/*.cs;$(OhmSource)/Properties/AssemblyLibInfo.cs;$(OhmSource)/Properties/AssemblyVersion.cs" />
+      <EmbeddedResource Include="$(OhmSource)/Hardware/WinRing0.sys" LogicalName="OpenHardwareMonitor.Hardware.WinRing0.sys" />
+      <EmbeddedResource Include="$(OhmSource)/Hardware/WinRing0x64.sys" LogicalName="OpenHardwareMonitor.Hardware.WinRing0x64.sys" />
+    </ItemGroup>
+  </Target>
+</Project>

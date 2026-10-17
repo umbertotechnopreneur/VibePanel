@@ -25,6 +25,9 @@ public sealed class WindowsMetricsService(bool allowDriverLifecycle = false) : I
     private bool initializationAttempted, disposed;
     private long lastRead;
 
+    /// <summary>Local failure details, printed only by the explicitly requested CLI diagnostic command.</summary>
+    public string? InitializationFailureDetails { get; private set; }
+
     /// <summary>Returns the last sample for one second, using monotonic time and no background worker.</summary>
     public HardwareSensorSnapshot ReadSensors()
     {
@@ -128,11 +131,12 @@ public sealed class WindowsMetricsService(bool allowDriverLifecycle = false) : I
         }
         catch (Exception error) when (IsSensorFailure(error))
         {
+            InitializationFailureDetails = error.ToString();
             try { candidate?.Close(); }
             catch (Exception closeError) when (IsSensorFailure(closeError)) { }
             snapshot = HardwareSensorSnapshot.Empty with
             {
-                Notice = "Open Hardware Monitor could not start. Its .NET 10 runtime compatibility and hardware support are unverified."
+                Notice = $"Open Hardware Monitor could not start ({error.GetBaseException().GetType().Name}). Run 'vp sensors --diagnose' for details."
             };
             return false;
         }

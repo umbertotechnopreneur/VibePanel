@@ -86,4 +86,5 @@ using (var bitmap = new Bitmap(stream))
 }
 ResourceChecks.Run(Check, snapshot);
 ScreenChecks.Run(Check);
+SensorDependencyChecks.Run(Check);
 Console.WriteLine($"{count} offline checks passed. No USB handles were opened.");

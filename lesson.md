@@ -13,6 +13,7 @@
 - If a detail is missing, I don't make it up.
 - System themes hide missing fields and empty CPU, GPU or RAM sections. Zero remains a real value. I leave swap out.
 - I use the original Open Hardware Monitor as my only Windows sensor source, at most once a second. I approved its own WinRing0 driver lifecycle on 17 October 2026.
+- I rebuild its pinned source for .NET 10. A successful build of an old DLL did not prove it could read sensors. I include the changed library sources with the portable ZIP.
 - Codex screens skip a closed Codex process. If no screen is eligible, I send a black frame within the active display session.
 - I use the PC's sound for the bars. I don't record it or use the microphone.
 - Preparing the Codex plugin does not install it or trust its hooks. That choice stays inside Codex.
