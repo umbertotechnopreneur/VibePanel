@@ -75,6 +75,20 @@ function Save-ManagedShortcut(
     else { Move-Item -LiteralPath $pendingPath -Destination $Path }
 }
 
+function Save-StableLauncher([string]$Path, [string]$Target, [string]$Root) {
+    Assert-ChildPath $Path $Root
+    Assert-ChildPath $Target $Root
+    $pendingPath = "$Path.$([Guid]::NewGuid().ToString('N')).tmp"
+    Assert-ChildPath $pendingPath $Root
+    try {
+        [System.IO.File]::WriteAllText($pendingPath, "@echo off`r`nstart `"`" `"$Target`" %*`r`n", [Text.Encoding]::ASCII)
+        [System.IO.File]::Move($pendingPath, $Path, $true)
+    }
+    finally {
+        if (Test-Path -LiteralPath $pendingPath) { Remove-Item -LiteralPath $pendingPath -Force }
+    }
+}
+
 $sourceRoot = Get-NormalPath $PSScriptRoot
 $sourceExecutable = Join-Path $sourceRoot 'VibePanel.exe'
 if (-not (Test-Path -LiteralPath $sourceExecutable -PathType Leaf)) {
@@ -90,6 +104,8 @@ foreach ($folder in @($localAppData, $roamingAppData, $startupDirectory, $progra
     Assert-NoReparsePath $folder
 }
 $installRoot = Join-Path $localAppData 'Umberto Giacobbi.biz\Apps\VibePanel'
+$launcherPath = Join-Path $installRoot 'VibePanel.cmd'
+$launcherIcon = Join-Path $installRoot 'VibePanel.ico'
 $backupRoot = Join-Path $roamingAppData 'Umberto Giacobbi.biz\VibePanel\Startup backups'
 $startupShortcut = Join-Path $startupDirectory 'VibePanel.lnk'
 $startShortcut = Join-Path $programsDirectory 'Vibe Panel.lnk'
@@ -97,6 +113,8 @@ $startupMarker = 'VibePanel auto-start managed by Install-VibePanel.ps1'
 $startMarker = 'VibePanel Start menu managed by Install-VibePanel.ps1'
 $uninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\VibePanel'
 Assert-ChildPath $installRoot $localAppData
+Assert-ChildPath $launcherPath $installRoot
+Assert-ChildPath $launcherIcon $installRoot
 Assert-ChildPath $backupRoot $roamingAppData
 Assert-ChildPath $startupShortcut $startupDirectory
 Assert-ChildPath $startShortcut $programsDirectory
@@ -172,8 +190,10 @@ try {
     foreach ($folder in @($startupDirectory, $programsDirectory)) { New-Item -ItemType Directory -Path $folder -Force | Out-Null }
     $installedExecutable = Join-Path $releasePath 'VibePanel.exe'
     $installedIcon = Join-Path $releasePath 'Assets\vibepanel.ico'
-    Save-ManagedShortcut $shell $startShortcut $startMarker $installedExecutable $releasePath $installedIcon '' 1 $backupRoot
-    Save-ManagedShortcut $shell $startupShortcut $startupMarker $installedExecutable $releasePath $installedIcon '--start-minimized' 7 $backupRoot
+    Save-StableLauncher $launcherPath $installedExecutable $installRoot
+    Copy-Item -LiteralPath $installedIcon -Destination $launcherIcon -Force
+    Save-ManagedShortcut $shell $startShortcut $startMarker $launcherPath $installRoot $launcherIcon '' 1 $backupRoot
+    Save-ManagedShortcut $shell $startupShortcut $startupMarker $launcherPath $installRoot $launcherIcon '--start-minimized --restore-last-session' 7 $backupRoot
 
     $uninstaller = Join-Path $releasePath 'Uninstall-VibePanel.ps1'
     $powershellPath = Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::System)) 'WindowsPowerShell\v1.0\powershell.exe'
@@ -191,8 +211,9 @@ try {
         New-ItemProperty -LiteralPath $uninstallKey -Name $name -Value 1 -PropertyType DWord -Force | Out-Null
     }
     Write-Host "Vibe Panel is installed at: $releasePath"
+    Write-Host "Stable launcher: $launcherPath"
     Write-Host "Open it from Start: $startShortcut"
-    Write-Host 'At Windows sign-in, it starts in the tray. USB output still needs Show on display.'
+    Write-Host 'At Windows sign-in, it starts in the tray and resumes the last display session only after you have started one with Show on display.'
 }
 finally {
     if ($null -ne $shell -and [System.Runtime.InteropServices.Marshal]::IsComObject($shell)) {

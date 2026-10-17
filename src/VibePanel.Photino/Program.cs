@@ -17,9 +17,10 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
-        if (args.Any(argument => argument != "--start-minimized"))
-        { Console.Error.WriteLine("Usage: VibePanel.exe [--start-minimized]"); return 2; }
-        var startMinimized = args.Contains("--start-minimized");
+        if (args.Any(argument => argument is not "--start-minimized" and not "--restore-last-session"))
+        { Console.Error.WriteLine("Usage: VibePanel.exe [--start-minimized] [--restore-last-session]"); return 2; }
+        var restoreLastSession = args.Contains("--restore-last-session");
+        var startMinimized = args.Contains("--start-minimized") || restoreLastSession;
         using var instance = new SingleInstanceService();
         if (!instance.IsPrimary)
         {
@@ -66,7 +67,7 @@ internal static class Program
             .SetLogVerbosity(0)
             .SetIconFile(Path.Combine(AppContext.BaseDirectory, "Assets", OperatingSystem.IsWindows() ? "vibepanel.ico" : "vibepanel-icon.png"))
             .Center()
-            .ConfigureOpenSilver(() => application = new App.App(client, actions))
+            .ConfigureOpenSilver(() => application = new App.App(client, actions, restoreLastSession))
             .RegisterWindowClosingHandler((_, _) =>
             {
                 if (Volatile.Read(ref exiting) != 0 || application is null) { return false; }

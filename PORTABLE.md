@@ -18,13 +18,15 @@ From the extracted package, open PowerShell in its folder and run:
 .\Install-VibePanel.ps1
 ```
 
-Find **Vibe Panel** in Start. At Windows sign-in, it starts in the tray. Click its tray icon to open it. USB output starts only when you press **Show on display**.
+Find **Vibe Panel** in Start. Both Start and Windows startup use one stable launcher at `%LOCALAPPDATA%\Umberto Giacobbi.biz\Apps\VibePanel\VibePanel.cmd`; package-version folders are never used directly by those entries.
+
+When you press **Show on display**, Vibe Panel saves the selected compatible screen, theme, profile, colours, refresh rate, quality, font, spectrum and cycling choice. At the next Windows sign-in it starts in the tray and resumes that saved display session. If the screen appears late, it waits and tries again. Press **Stop** to stop the screen now and disable automatic resume for future sign-ins.
 
 To turn off startup, run `.\Install-VibePanel.ps1 -DisableStartup`.
 
 To uninstall, first quit from the tray menu. Use Windows **Installed apps** or run `.\Uninstall-VibePanel.ps1`. App files move to a backup. Your settings, user themes and Codex plugin stay in place.
 
-From a command line, `VibePanel.exe --start-minimized` starts it in the tray.
+From a command line, `VibePanel.exe --start-minimized` starts it in the tray. `VibePanel.exe --restore-last-session` starts in the tray and restores the saved display session.
 
 ## Make it yours
 

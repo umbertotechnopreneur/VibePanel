@@ -62,6 +62,16 @@ foreach ($folder in @($localAppData, $roamingAppData, $startupDirectory, $progra
 }
 $installRoot = [System.IO.Path]::GetFullPath((Join-Path $localAppData 'Umberto Giacobbi.biz\Apps\VibePanel'))
 Assert-NoReparsePath $installRoot
+$launcherPath = Join-Path $installRoot 'VibePanel.cmd'
+$launcherIcon = Join-Path $installRoot 'VibePanel.ico'
+$installPrefix = $installRoot.TrimEnd('\') + '\'
+foreach ($path in @($launcherPath, $launcherIcon)) {
+    $fullPath = [System.IO.Path]::GetFullPath($path)
+    if (-not $fullPath.StartsWith($installPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "The managed launcher file '$fullPath' is outside the VibePanel install folder."
+    }
+    Assert-NoReparsePath $fullPath
+}
 $uninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\VibePanel'
 $registered = $null
 $registeredPath = ''
@@ -89,6 +99,7 @@ if (-not ([System.IO.Path]::GetFullPath($backupRoot).StartsWith($localAppData.Tr
     throw 'The uninstall backup is outside the current user LocalAppData folder.'
 }
 $releases = @()
+$launcherFiles = @($launcherPath, $launcherIcon) | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf }
 if (Test-Path -LiteralPath $installRoot) {
     $releases = @(Get-ChildItem -LiteralPath $installRoot -Directory -Force |
         Where-Object { $_.Name -match '^VibePanel-[0-9a-f]{12}$' } |
@@ -115,14 +126,14 @@ try {
                 throw "Shortcut '$fullPath' belongs to another configuration and was left unchanged."
             }
             $targetPath = [System.IO.Path]::GetFullPath($shortcut.TargetPath)
-            if (-not $targetPath.StartsWith($installRoot.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) {
-                throw "Shortcut '$fullPath' points outside the VibePanel install folder and was left unchanged."
+            if (-not [string]::Equals($targetPath, $launcherPath, [StringComparison]::OrdinalIgnoreCase)) {
+                throw "Shortcut '$fullPath' does not point to the stable VibePanel launcher and was left unchanged."
             }
             $ownedShortcuts += $entry
         }
         finally { [void][System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($shortcut) }
     }
-    if ($ownedShortcuts.Count -gt 0 -or $null -ne $registered -or $releases.Count -gt 0) {
+    if ($ownedShortcuts.Count -gt 0 -or $null -ne $registered -or $releases.Count -gt 0 -or $launcherFiles.Count -gt 0) {
         New-Item -ItemType Directory -Path $backupRoot -Force | Out-Null
         if ($null -ne $registered) { $registered | Export-Clixml -LiteralPath (Join-Path $backupRoot 'Uninstall-entry.xml') }
         $movedReleases = @()
@@ -165,6 +176,16 @@ try {
                 throw 'The shortcut backup is outside its backup folder.'
             }
             Move-Item -LiteralPath $entry.Path -Destination $backupPath
+        }
+        foreach ($file in $launcherFiles) {
+            Assert-NoReparsePath $file
+            $backupPath = Join-Path $backupRoot ([System.IO.Path]::GetFileName($file))
+            Assert-NoReparsePath $backupPath
+            if (-not ([System.IO.Path]::GetFullPath($backupPath).StartsWith($backupRoot + '\', [StringComparison]::OrdinalIgnoreCase)) -or
+                (Test-Path -LiteralPath $backupPath)) {
+                throw 'The launcher backup path is outside the backup folder or already exists.'
+            }
+            Move-Item -LiteralPath $file -Destination $backupPath
         }
         if ($null -ne $registered) { Remove-Item -LiteralPath $uninstallKey }
         Write-Host "Vibe Panel was removed from Start, startup and its install folder. Backup: $backupRoot"

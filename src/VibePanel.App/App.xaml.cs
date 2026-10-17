@@ -12,10 +12,10 @@ public sealed partial class App : Application
 {
     private readonly MainPage page;
 
-    public App(IPanelClient client, IStudioWindowActions? windowActions = null)
+    public App(IPanelClient client, IStudioWindowActions? windowActions = null, bool restoreLastSession = false)
     {
         InitializeComponent();
-        page = new MainPage(client, windowActions);
+        page = new MainPage(client, windowActions, restoreLastSession);
         RootVisual = page;
     }
 
