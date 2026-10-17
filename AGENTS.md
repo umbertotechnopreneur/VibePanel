@@ -53,4 +53,5 @@ I am Umberto Giacobbi. Vibe Panel is my MIT-licensed holiday hobby project for c
 - CI priority is Windows, Linux, then macOS. The owner authorizes an administrator override only for a failed, cancelled, unavailable or stalled macOS-only check when Windows, Linux, other required checks and review requirements pass. Preserve protections and report that limitation. This does not authorize starting tests, builds, Git delivery, installation or publication by itself.
 - Do not commit credentials, local device paths, captures, logs, `artifacts/`, `bin/`, or `obj/`.
 - Use `artifacts/` for generated output. Preserve unrelated working-tree changes.
+- After every requested build/delivery, clean generated `artifacts/`, `bin/`, `obj/`, `temp/`, `tmp/` and generated web resources inside this repository. Keep only the requested final MSI under `artifacts/packages/`. Do not leave staging folders, ZIPs, build tools, logs or caches behind. Keep installed files and user settings outside the repository intact.
 - For C# changes, run restore, format verification, and a Release build before handoff. Do not perform physical-device writes merely to validate a build.

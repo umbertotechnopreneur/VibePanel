@@ -1,0 +1,58 @@
+<!-- VBWR B
+  Project: VibePanel | https://umbertogiacobbi.biz/vibeware/manifesto
+  Copyright (c) 2026 Umberto Giacobbi | SPDX-License-Identifier: MIT
+VBWR E -->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="Vibe Panel" Manufacturer="Umberto Giacobbi" Version="$(var.ProductVersion)"
+           UpgradeCode="D3F87B46-457B-41D3-98B7-249E21D83B63" Scope="perUser" InstallerVersion="500">
+    <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A newer Vibe Panel version is already installed." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+    <Icon Id="ProductIcon" SourceFile="$(var.PayloadRoot)\Assets\vibepanel.ico" />
+    <Property Id="ARPPRODUCTICON" Value="ProductIcon" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/umbertotechnopreneur/VibePanel" />
+    <Property Id="ARPCOMMENTS" Value="Preview build $(var.SourceRevision)" />
+    <Property Id="LEGACY_MANAGED">
+      <RegistrySearch Id="LegacyManagedSearch" Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\VibePanel" Name="VibePanelManaged" Type="raw" />
+    </Property>
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="PublisherFolder" Name="Umberto Giacobbi.biz">
+        <Directory Id="AppsFolder" Name="Apps">
+          <Directory Id="VibePanelRoot" Name="VibePanel">
+            <Directory Id="INSTALLFOLDER" Name="MSI" />
+            <Component Id="StableLauncher" Guid="E7AB0A35-CA28-4367-9885-17B6B934A38D">
+              <File Source="$(var.GeneratedRoot)\VibePanel.cmd" />
+              <RegistryValue Root="HKCU" Key="Software\Umberto Giacobbi.biz\VibePanel\MSI" Name="Launcher" Type="integer" Value="1" KeyPath="yes" />
+            </Component>
+          </Directory>
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Component Id="StartShortcut" Guid="79D28196-7969-4D07-83A6-6EA8456D293C">
+        <RemoveFile Id="PreviousStartShortcut" Name="Vibe Panel.lnk" On="install" />
+        <Shortcut Id="StartMenuShortcut" Name="Vibe Panel" Target="[INSTALLFOLDER]VibePanel.exe" WorkingDirectory="INSTALLFOLDER" Icon="ProductIcon" Description="Vibe Panel theme studio" />
+        <RegistryValue Root="HKCU" Key="Software\Umberto Giacobbi.biz\VibePanel\MSI" Name="StartShortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </StandardDirectory>
+    <StandardDirectory Id="StartupFolder">
+      <Component Id="StartupShortcut" Guid="C49044E3-6CA8-40D6-9949-9C42A9302B12">
+        <RemoveFile Id="PreviousStartupShortcut" Name="VibePanel.lnk" On="install" />
+        <Shortcut Id="SignInShortcut" Name="VibePanel" Target="[INSTALLFOLDER]VibePanel.exe" WorkingDirectory="INSTALLFOLDER" Arguments="--start-minimized --restore-last-session" Icon="ProductIcon" Show="minimized" Description="Vibe Panel saved display at Windows sign-in" />
+        <RegistryValue Root="HKCU" Key="Software\Umberto Giacobbi.biz\VibePanel\MSI" Name="StartupShortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </StandardDirectory>
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="LegacyRegistration" Guid="FB889781-0A9B-484F-AD0E-02D67471EE76" Condition="LEGACY_MANAGED = &quot;#1&quot;">
+        <RemoveRegistryKey Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\VibePanel" Action="removeOnInstall" />
+        <RegistryValue Root="HKCU" Key="Software\Umberto Giacobbi.biz\VibePanel\MSI" Name="MigratedLegacy" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+    <Feature Id="Complete" Title="Vibe Panel" Level="1">
+      <ComponentGroupRef Id="Payload" />
+      <ComponentRef Id="StableLauncher" />
+      <ComponentRef Id="StartShortcut" />
+      <ComponentRef Id="StartupShortcut" />
+      <ComponentRef Id="LegacyRegistration" />
+    </Feature>
+  </Package>
+</Wix>

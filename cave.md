@@ -70,3 +70,5 @@ The white-window report was traced read-only to a running installed studio whose
 After separate approval, I updated the installed package and opened it in preview without startup-output arguments. Read-only inspection confirmed one studio instance with visible host, browser and renderer windows. Its native bridge matched the built DLL. This was not a sensor or USB trial, or a real Windows sign-in check.
 
 This is my hobby project. No warranty.
+
+On 18 October, I requested a real Windows x64 MSI. The first MSI installation returned Windows Installer status 0. I then requested a clean rebuild and removal of generated output, keeping only the final MSI. No tests or MSI validation were run for this packaging change. Upgrade, repair and uninstall behavior have not been tested.

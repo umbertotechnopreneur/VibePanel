@@ -1,6 +1,7 @@
 # My choices
 
 - I'm Umberto Giacobbi. I made Vibe Panel. VibeWare is my initiative.
+- I offer a real per-user Windows MSI as well as the portable ZIP. After a requested build, I keep only its final MSI and remove generated build folders from the repository.
 - I choose which Music, Codex and System screens may appear on the display.
 - I use the music details Windows already has. No Spotify login.
 - People can make their own themes.
