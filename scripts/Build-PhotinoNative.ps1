@@ -47,6 +47,14 @@ $project = Get-Content -LiteralPath $projectPath -Raw
 # Use the selected Visual Studio installation's default C++ toolset. Its ARM64
 # tools may not include the older v143 toolset pinned by the upstream project.
 $project = Replace-Required $project '<PlatformToolset>v143</PlatformToolset>' ''
+# The pinned project imports defaults after its configuration groups. Select
+# the toolset here so x64 cannot fall back to its legacy v100 toolset.
+$project = Replace-Required $project '<Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />' @'
+<Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup>
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
+  </PropertyGroup>
+'@
 Save-Source $projectPath $project
 $headerPath = Join-Path $native 'Photino.h'
 $text = Get-Content -LiteralPath $headerPath -Raw
