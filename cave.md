@@ -39,6 +39,6 @@ The 17 October resource audit limits PNG/JPEG/GIF/BMP wallpaper and legacy artwo
 
 USB discovery runs every ten seconds. Active output also resends an unchanged frame after ten seconds to catch stale handles. A lost session closes and never restarts itself, including in the legacy still-image player.
 
-The Windows x64 Release build has no errors or warnings. Offline regression cases are prepared but not run yet. Repeated physical unplug/replug and long-term memory use remain unchecked. The installed app has not been updated for this change.
+The Windows x64 Release build has no errors or warnings. All 85 approved offline checks passed, including oversized image headers, 32 artwork changes and bundled paths. No USB handles were opened. Repeated physical unplug/replug and long-term memory use remain unchecked. The installed app has not been updated for this change.
 
 This is my hobby project. No warranty.
