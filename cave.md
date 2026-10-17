@@ -27,7 +27,9 @@ The new playback spectrum, stereo VU and Codex setup controls are not checked in
 
 The color controls, monospace font list, theme fades and 25 ms/Poor settings also need a live check.
 
-The new studio layout builds for Windows x64 with no errors or warnings. Its dropdowns, filter switch, color guides and shadow still need my visual check. CPU savings have not been measured. No tests, app or USB trial were run for this change.
+The new studio layout builds for Windows x64 with no errors or warnings. Its dropdowns, filter switch and color guides still need my visual check. CPU savings have not been measured. No tests, app or USB trial were run for this change.
+
+The preview now has a flat, solid backing with no shadow or blur effect. The reported flicker still needs a live check.
 
 The Windows 1 GB guard builds in Release x64. On 17 October, the old app hit about 1.16 GB and triggered the popup and stop. A frozen UI and guard failures still need checking.
 

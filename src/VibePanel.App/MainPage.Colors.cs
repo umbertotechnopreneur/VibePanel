@@ -5,29 +5,18 @@
 
 using System.Windows;
 using System.Windows.Media;
-using System.Windows.Media.Effects;
 
 namespace VibePanel.App;
 
-/// <summary>Color controls and preview decoration; full-frame filtering stays in the engine.</summary>
+/// <summary>Color controls and preview sizing; full-frame filtering stays in the engine.</summary>
 public sealed partial class MainPage
 {
     private int previewPixelWidth, previewPixelHeight;
     private Color themeAccent = Color.FromArgb(255, 138, 186, 213);
-    private readonly DropShadowEffect previewElevation = new()
-    {
-        BlurRadius = 6,
-        ShadowDepth = 4,
-        Direction = 270,
-        Opacity = .45
-    };
 
-    /// <summary>Build the fixed hue guide and attach elevation to the backing rectangle only.</summary>
+    /// <summary>Build the fixed hue guide.</summary>
     private void InitializePreviewAppearance()
     {
-        previewElevation.Color = themeAccent;
-        PreviewShadow.Effect = previewElevation;
-
         string[] spectrum = ["#00D5D5", "#366EFF", "#C447ED", "#EE4D59", "#F3D45A", "#5BD06D", "#00D5D5"];
         var gradient = new LinearGradientBrush { StartPoint = new Point(0, .5), EndPoint = new Point(1, .5) };
         for (var index = 0; index < spectrum.Length; index++)
@@ -74,7 +63,6 @@ public sealed partial class MainPage
         if (accent.Equals(themeAccent)) { return; }
 
         themeAccent = accent;
-        previewElevation.Color = accent;
         if (colorFiltersEnabled) { UpdateColorRamps(); }
     }
 
@@ -136,7 +124,7 @@ public sealed partial class MainPage
     /// <summary>Refit the image when the available viewport changes.</summary>
     private void Preview_SizeChanged(object sender, SizeChangedEventArgs args) => FitPreviewSurface();
 
-    /// <summary>Keep the backing shadow on the image bounds, including portrait and square panels.</summary>
+    /// <summary>Fit the preview and its solid backing, including portrait and square panels.</summary>
     private void FitPreviewSurface()
     {
         if (lastFrame is null || PreviewSurface is null) { return; }

@@ -283,7 +283,7 @@ public sealed partial class MainPage : Page
                     lastRenderedTheme = requestedTheme;
                 }
                 LoadingPanel.Visibility = Visibility.Collapsed;
-                PreviewShadow.Visibility = Visibility.Visible;
+                PreviewBacking.Visibility = Visibility.Visible;
             }
             else
             {
@@ -314,7 +314,7 @@ public sealed partial class MainPage : Page
         preview?.Clear();
         lastFrame = null;
         lastRenderedTheme = null;
-        PreviewShadow.Visibility = Visibility.Collapsed;
+        PreviewBacking.Visibility = Visibility.Collapsed;
         LoadingPanel.Visibility = Visibility.Visible;
     }
 

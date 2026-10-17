@@ -111,8 +111,8 @@ VBWR E -->
                 </Grid>
                 <Grid x:Name="PreviewFrame" Grid.Row="1" Margin="8,6,8,8" SizeChanged="Preview_SizeChanged">
                     <Grid x:Name="PreviewSurface" HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <!-- The shadow belongs to a solid backing, not the changing video image. -->
-                        <Border x:Name="PreviewShadow" Background="#101522" Visibility="Collapsed"/>
+                        <!-- Keep the preview backing opaque and flat, without compositing effects. -->
+                        <Border x:Name="PreviewBacking" Background="#101522" Visibility="Collapsed"/>
                         <!-- Fill the arranged presenter, bypassing its auto-height inner wrapper. -->
                         <html:HtmlPresenter x:Name="PreviewImage" IsHitTestVisible="False" ScrollMode="Disabled" Html="&lt;div id='vp-preview' style='position:absolute;inset:0;overflow:hidden'&gt;&lt;canvas style='position:absolute;inset:0;width:100%;height:100%;opacity:0'&gt;&lt;/canvas&gt;&lt;canvas style='position:absolute;inset:0;width:100%;height:100%'&gt;&lt;/canvas&gt;&lt;/div&gt;"/>
                     </Grid>

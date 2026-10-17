@@ -6,7 +6,7 @@
 - People can make their own themes.
 - I reuse pictures and backgrounds to save work.
 - I can turn color filters off to skip that extra work. My slider values stay saved.
-- Color guides and the preview shadow use the theme's existing accent.
+- Color guides use the theme's existing accent. The preview stays flat, without elevation or shadow.
 - I use type and space to organize the UI, not cards inside cards.
 - I keep my name and About under the title, with VibeWare at the top right.
 - I open a larger, centered window. The preview fits the space; only the theme list scrolls.
