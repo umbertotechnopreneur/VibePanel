@@ -231,7 +231,7 @@ internal static class VibePanelCli
         { return Fail("Usage: vp sensors [--diagnose]"); }
         using var sensors = new WindowsMetricsService(allowDriverLifecycle: true);
         var snapshot = sensors.ReadSensors();
-        AnsiConsole.WriteLine(System.Text.Json.JsonSerializer.Serialize(snapshot, VibePanel.Contracts.PanelContract.Json));
+        Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(snapshot, VibePanel.Contracts.PanelContract.Json));
         if (args.Contains("--diagnose") && sensors.InitializationFailureDetails is { } details)
         { Console.Error.WriteLine(details); }
         return sensors.InitializationFailureDetails is null ? 0 : 1;

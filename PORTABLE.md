@@ -40,7 +40,7 @@ From a command line, `VibePanel.exe --start-minimized` starts the preview in the
 
 You can preview a disabled screen. Codex is off by default on a fresh setup and is skipped on the display when its process is closed. If no enabled screen is available, the active display receives a black frame.
 
-**System** shows available CPU, GPU and physical RAM readings. Missing details hide themselves. There is no swap display. The Windows x64 reader uses the original Open Hardware Monitor source rebuilt for .NET 10; it may manage its WinRing0 driver and some readings may require administrator rights. Windows ARM64 sensors are unavailable. Hardware coverage still needs a live check. `vp sensors --diagnose` requests one sensor read and prints local initialization details, without audio or USB.
+**System** shows available CPU, GPU and physical RAM readings. Missing details hide themselves. There is no swap display. The Windows x64 reader uses the original Open Hardware Monitor source rebuilt for .NET 10; it may manage its WinRing0 driver and some readings may require administrator rights. Windows ARM64 sensors are unavailable. Available readings vary by hardware and privileges. `vp sensors --diagnose` requests one sensor read and prints local initialization details, without audio or USB.
 
 - **Font**: pick a style of letters. **Custom font** lets you type a name.
 - **Saturation**: more or less color.
