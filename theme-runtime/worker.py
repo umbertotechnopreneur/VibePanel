@@ -8,10 +8,15 @@ import hashlib
 import importlib.util
 import json
 import math
+import os
 import pathlib
 import sys
 
 sys.dont_write_bytecode = True
+# Tiny palette arrays do not need NumPy's large default native thread pool.
+# Set this before canvas imports NumPy; it applies only to this worker process.
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["OMP_NUM_THREADS"] = "1"
 # Windows embeddable Python may omit the script folder from its isolated path.
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 MAX_LINE = 20_000_000
