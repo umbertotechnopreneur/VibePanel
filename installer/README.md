@@ -45,10 +45,12 @@ MSI validation. After delivery, run `scripts/Clean-BuildOutputs.ps1 -KeepMsiPath
 with the final file under `artifacts/packages/`. This removes generated output,
 including the local build tool, while preserving that MSI.
 
-Installer execution still needs owner-approved checks: normal/elevated app
-shutdown, cancelled elevation, a shared/foreign driver, locked/pending driver
-removal, upgrade from 0.1.1, repair, uninstall, rollback, and visible progress.
-Compilation alone does not establish these results.
+Windows x64 removal and visible installation of 0.1.4 returned status 0 on the
+owner's machine. Removal of 0.1.2 stopped its elevated app and released its own
+driver. One obsolete pre-MSI uninstall registration remains unresolved despite
+the registry-removal action. Cancelled elevation, shared/foreign drivers,
+locked/pending driver removal, in-place upgrades, repair and rollback still need
+owner-approved checks. See `cave.md` for the exact boundaries.
 
 References: [WiX UI](https://docs.firegiant.com/wix/tools/wixext/wixui/),
 [upgrade order](https://docs.firegiant.com/wix/schema/wxs/majorupgrade/),
