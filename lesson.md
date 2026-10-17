@@ -36,3 +36,4 @@
 - I still need to check memory, speed and security. [My list](cave.md).
 - My MSI shows progress and closes verified app processes before replacing files. I check that my sensor driver has stopped, its service is gone, and its generated file is removed. A successful file read does not prove that a loaded driver can be deleted.
 - I use the selected Visual Studio installation's default toolset for Photino. New Windows runners may omit older ARM64 compilers.
+- I never wait for a browser preview before requesting the next display frame. A hidden or minimized WebView can delay image callbacks. I keep one preview decode with no queue and skip hidden previews while active display output continues.

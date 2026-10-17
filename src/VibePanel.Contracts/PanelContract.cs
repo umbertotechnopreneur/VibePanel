@@ -10,6 +10,7 @@ namespace VibePanel.Contracts;
 /// <summary>Shows the engine's existing JPEG in the configuration UI; never renders or sends USB frames.</summary>
 public interface IStudioPreview
 {
+    bool IsVisible => true;
     Task<PreviewSize> ShowAsync(byte[] jpeg, bool transition);
     void Clear();
 }

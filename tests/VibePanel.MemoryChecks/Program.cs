@@ -27,6 +27,7 @@ internal static class Program
         if (args.Contains("--administrator-check")) { return AdministratorChecks.Run(); }
         if (args.Contains("--startup-check")) { return StartupChecks.Run(); }
         if (args.Contains("--visibility-check")) { return VisibilityChecks.Run(args.Contains("--preview-capture")); }
+        if (args.Contains("--background-check")) { return BackgroundChecks.Run(); }
         var output = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../memory-checks/ui"));
         Directory.CreateDirectory(output);
         using var guard = WindowsMemoryGuard.Start();

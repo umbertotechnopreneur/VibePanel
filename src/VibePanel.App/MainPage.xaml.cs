@@ -59,6 +59,8 @@ public sealed partial class MainPage : Page
     private PanelChoice[] fontChoices = [];
     private string? lastRenderedTheme;
     private byte[]? lastFrame;
+    private bool previewUpdating;
+    private int previewGeneration;
     private bool? appliedLight;
 
     public MainPage(IPanelClient client, IStudioWindowActions? windowActions = null, string? presentationSettingsPath = null, IStudioPreview? preview = null, bool restoreLastSession = false)
@@ -246,15 +248,21 @@ public sealed partial class MainPage : Page
     {
         if (unloaded || !ready || displayBusy || devicesLoading
             || string.IsNullOrEmpty(selectedTheme) && (!displayActive || (catalog?.Themes.Count ?? 0) == 0)) { return; }
+        // The native .NET timer keeps running in the tray. A hidden preview
+        // needs no frames, but an explicitly started display must keep updating.
+        if (preview?.IsVisible == false && !displayActive) { return; }
         if (refreshing) { if (queueIfBusy) { refreshAgain = true; } return; }
         refreshing = true;
         var requestedDisplay = displayActive;
         var engineReplied = false;
         try
         {
-            ApplyAppearance();
-            if (selectedCategory == "codex") { await RefreshCodexStatusAsync(); }
-            if (CycleBox.IsChecked == true && Environment.TickCount64 - lastChange >= 20000) { CycleScreen(); }
+            if (preview?.IsVisible != false)
+            {
+                ApplyAppearance();
+                if (selectedCategory == "codex") { await RefreshCodexStatusAsync(); }
+            }
+            if (cycleThemes && Environment.TickCount64 - lastChange >= 20000) { CycleScreen(); }
             if (string.IsNullOrEmpty(selectedTheme) && (catalog?.Themes.Count ?? 0) == 0) { return; }
             var requestedSelection = selectedTheme;
             // An empty library category can still be browsed while an existing USB session
@@ -299,6 +307,13 @@ public sealed partial class MainPage : Page
             var nextInterval = state.NextFrameMilliseconds is >= 25 and <= 1000
                 ? Math.Min(refreshMilliseconds, state.NextFrameMilliseconds.Value) : refreshMilliseconds;
             refresh.Interval = TimeSpan.FromMilliseconds(nextInterval);
+            if (preview?.IsVisible == false)
+            {
+                // Keep the latest engine state and discard the preview JPEG.
+                // On restore the next frame redraws the preview from fresh data.
+                lastFrame = null;
+                return;
+            }
             UpdateDisplayControls();
             UpdateProfiles(state.Profiles);
             UpdateFrameHeading(renderedTheme, state.FrameSuppressed);
@@ -320,22 +335,12 @@ public sealed partial class MainPage : Page
             if (!state.FrameSuppressed && state.FrameJpeg is { Length: > 0 } frame)
             {
                 UpdatePreviewAccent(state.AccentColor);
-                if (lastFrame is null || !lastFrame.AsSpan().SequenceEqual(frame))
+                if (!previewUpdating && (lastFrame is null || !lastFrame.AsSpan().SequenceEqual(frame)))
                 {
-                    var themeChanged = lastRenderedTheme is not null && lastRenderedTheme != renderedTheme;
-                    if (preview is null) { throw new InvalidOperationException("The desktop preview is unavailable."); }
-                    // The JPEG is data, never an eval string. Wait for decode/draw before another
-                    // frame can start, including at the requested 25 ms refresh interval.
-                    var size = await preview.ShowAsync(frame, themeChanged);
-                    if (unloaded) { return; }
-                    previewPixelWidth = size.Width;
-                    previewPixelHeight = size.Height;
-                    lastFrame = frame;
-                    FitPreviewSurface();
+                    // One preview decode at a time, with no queue. Its browser
+                    // acknowledgement must never hold up the next engine frame.
+                    _ = UpdatePreviewAsync(frame, renderedTheme);
                 }
-                lastRenderedTheme = renderedTheme;
-                LoadingPanel.Visibility = Visibility.Collapsed;
-                PreviewBacking.Visibility = Visibility.Visible;
             }
             else
             {
@@ -364,8 +369,38 @@ public sealed partial class MainPage : Page
         }
     }
 
+    private async Task UpdatePreviewAsync(byte[] frame, string renderedTheme)
+    {
+        previewUpdating = true;
+        var generation = previewGeneration;
+        try
+        {
+            if (preview is null) { throw new InvalidOperationException("The desktop preview is unavailable."); }
+            var themeChanged = lastRenderedTheme is not null && lastRenderedTheme != renderedTheme;
+            var size = await preview.ShowAsync(frame, themeChanged);
+            if (unloaded || generation != previewGeneration || !preview.IsVisible) { return; }
+            previewPixelWidth = size.Width;
+            previewPixelHeight = size.Height;
+            lastFrame = frame;
+            lastRenderedTheme = renderedTheme;
+            FitPreviewSurface();
+            LoadingPanel.Visibility = Visibility.Collapsed;
+            PreviewBacking.Visibility = Visibility.Visible;
+        }
+        catch (Exception error)
+        {
+            if (unloaded || generation != previewGeneration || preview?.IsVisible == false) { return; }
+            StatusText.Text = error.Message;
+            ClearPreview();
+            LoadingTitle.Text = "Preview unavailable.";
+            LoadingText.Text = error.Message;
+        }
+        finally { previewUpdating = false; }
+    }
+
     private void ClearPreview()
     {
+        previewGeneration++;
         preview?.Clear();
         lastFrame = null;
         lastRenderedTheme = null;

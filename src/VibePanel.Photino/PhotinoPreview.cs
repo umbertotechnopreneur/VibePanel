@@ -3,6 +3,7 @@
 // Copyright (c) 2026 Umberto Giacobbi | SPDX-License-Identifier: MIT
 // VBWR E
 using System.Text.Json;
+using System.Runtime.InteropServices;
 using Photino.NET;
 using VibePanel.Contracts;
 
@@ -16,6 +17,11 @@ internal sealed class PhotinoPreview : IStudioPreview, IDisposable
     private TaskCompletionSource<PreviewSize>? pending;
     private long nextId, pendingId;
     private bool disposed;
+
+    // Read native host visibility without asking the browser, which can pause
+    // script and image callbacks while its controller is hidden or minimized.
+    public bool IsVisible => !OperatingSystem.IsWindows()
+        || IsWindowVisible(window.WindowHandle) && !IsIconic(window.WindowHandle);
 
     public PhotinoPreview(PhotinoWindow window)
     {
@@ -76,4 +82,12 @@ internal sealed class PhotinoPreview : IStudioPreview, IDisposable
     {
         lock (sync) { disposed = true; pending?.TrySetCanceled(); pending = null; }
     }
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsWindowVisible(IntPtr handle);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsIconic(IntPtr handle);
 }
