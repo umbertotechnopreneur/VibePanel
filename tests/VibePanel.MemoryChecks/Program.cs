@@ -22,6 +22,7 @@ internal static class Program
     private static int Main(string[] args)
     {
         if (args.FirstOrDefault() == WindowsMemoryGuard.Argument) { return WindowsMemoryGuard.Run(args); }
+        if (args.Contains("--startup-check")) { return StartupChecks.Run(); }
         var output = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../memory-checks/ui"));
         Directory.CreateDirectory(output);
         using var guard = WindowsMemoryGuard.Start();
@@ -192,7 +193,7 @@ internal static class Program
         Console.WriteLine("Offline UI memory paths passed. No USB backend was used.");
     }
 
-    private sealed class FixtureClient : IPanelClient
+    internal sealed class FixtureClient : IPanelClient
     {
         private static readonly string[] ProfileIds = ["wide-1280x480", "square-480", "portrait-240x320"];
         private readonly Dictionary<string, byte[]> jpegs = ProfileIds.ToDictionary(id => id, CreateFrame);
@@ -201,6 +202,16 @@ internal static class Program
         public int Frames { get; private set; }
         public int MaximumStateInFlight { get; private set; }
         public bool RejectFrames { get; set; }
+        public bool RejectStart { get; set; }
+        public PanelChoice[] Devices { get; set; } = [new("offline-fixture", "Offline fixture - no USB")];
+        public int DeviceRequests { get; private set; }
+        public int FontRequests { get; private set; }
+        public int StartRequests { get; private set; }
+        public int StopRequests { get; private set; }
+        public int PresentRequests { get; private set; }
+        public StartOptions? LastStart { get; private set; }
+        public PreviewOptions? LastPresent { get; private set; }
+        public PreviewOptions? LastPreview { get; private set; }
 
         public async Task<T> RequestAsync<T>(string method, object? parameters = null, CancellationToken cancellationToken = default)
         {
@@ -211,14 +222,31 @@ internal static class Program
                     result = new ThemeCatalogDto([new("multimedia", "Multimedia"), new("codex", "OpenAI Codex")],
                         Enumerable.Range(0, 20).Select(i => new ThemeChoiceDto("fixture-" + i, "Offline theme " + i, i < 10 ? "multimedia" : "codex", "Memory fixture", "fixture")).ToArray(), []);
                     break;
-                case "devices": result = new PanelChoice[] { new("offline-fixture", "Offline fixture - no USB") }; break;
+                case "devices":
+                    DeviceRequests++;
+                    if (active && !Devices.Any(device => device.Id == LastStart?.DeviceId)) { active = false; }
+                    result = Devices;
+                    break;
                 case "diagnostics.status": result = new DiagnosticsStatus(false, ""); break;
-                case "fonts": result = new FontCatalogDto(["Cascadia Mono", "Consolas", "Courier New"], "Offline fixture"); break;
+                case "fonts": FontRequests++; result = new FontCatalogDto(["Cascadia Mono", "Consolas", "Courier New"], "Offline fixture"); break;
                 case "codex.status": result = new CodexSetupStatus(false, false, false, "Offline fixture", null, null, ""); break;
-                case "start": active = true; result = new DisplayStartResult(true, "wide-1280x480"); break;
-                case "stop": active = false; result = JsonSerializer.SerializeToElement(new { stopped = true }); break;
+                case "start":
+                    StartRequests++;
+                    LastStart = parameters as StartOptions ?? throw new InvalidOperationException("Missing fixture start options.");
+                    if (RejectStart) { throw new IOException("Offline startup failure fixture."); }
+                    active = true;
+                    result = new DisplayStartResult(true, "wide-1280x480");
+                    break;
+                case "stop": StopRequests++; active = false; result = JsonSerializer.SerializeToElement(new { stopped = true }); break;
                 case "state":
                 case "present":
+                    LastPreview = parameters as PreviewOptions;
+                    if (method == "present")
+                    {
+                        PresentRequests++;
+                        LastPresent = parameters as PreviewOptions;
+                        if (!active) { throw new IOException("Offline display is stopped."); }
+                    }
                     var current = Interlocked.Increment(ref stateInFlight);
                     MaximumStateInFlight = Math.Max(MaximumStateInFlight, current);
                     try
