@@ -72,3 +72,9 @@ After separate approval, I updated the installed package and opened it in previe
 This is my hobby project. No warranty.
 
 On 18 October, I requested a real Windows x64 MSI. The first MSI installation returned Windows Installer status 0. I then requested a clean rebuild and removal of generated output, keeping only the final MSI. No tests or MSI validation were run for this packaging change. Upgrade, repair and uninstall behavior have not been tested.
+
+Later on 18 October, Start opened an old studio from an uninstall backup. After the app closed, its WinRing0 driver was still running from the old install path. Normal process and read-access checks missed the loaded driver. A separate administrator stop and service deletion succeeded, and the service query then reported that it no longer existed.
+
+MSI 0.1.2 adds visible setup/progress and scoped process/driver cleanup before files change, including when upgrading an older MSI. Cleanup checks service removal and generated driver-file deletion; a busy or pending deletion is an error. Installer execution, elevation/cancellation, rollback and physical-device behavior for this new path have not been tested.
+
+Windows x64 restore, C# format verification, Release publishing and native setup-helper compilation passed for this change. I requested no test execution. No new installer or cleanup-helper execution, sensor read, USB trial or ARM64 build was performed.

@@ -2,15 +2,50 @@
   Project: VibePanel | https://umbertogiacobbi.biz/vibeware/manifesto
   Copyright (c) 2026 Umberto Giacobbi | SPDX-License-Identifier: MIT
 VBWR E -->
-<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
   <Package Name="Vibe Panel" Manufacturer="Umberto Giacobbi" Version="$(var.ProductVersion)"
            UpgradeCode="D3F87B46-457B-41D3-98B7-249E21D83B63" Scope="perUser" InstallerVersion="500">
-    <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A newer Vibe Panel version is already installed." />
+    <!-- The new package must release the old app/driver before the old MSI removes files. -->
+    <MajorUpgrade Schedule="afterInstallExecute" AllowSameVersionUpgrades="yes"
+                  DowngradeErrorMessage="A newer Vibe Panel version is already installed." />
     <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
     <Icon Id="ProductIcon" SourceFile="$(var.PayloadRoot)\Assets\vibepanel.ico" />
     <Property Id="ARPPRODUCTICON" Value="ProductIcon" />
     <Property Id="ARPURLINFOABOUT" Value="https://github.com/umbertotechnopreneur/VibePanel" />
     <Property Id="ARPCOMMENTS" Value="Preview build $(var.SourceRevision)" />
+    <Property Id="ARPNOMODIFY" Value="1" />
+    <!-- Preview assemblies can have the same FileVersion. Replace the complete
+         owned payload during an in-place major upgrade or repair. Settings and
+         user themes live outside this tree. -->
+    <Property Id="REINSTALLMODE" Value="amus" />
+    <!-- Setup owns shutdown and never restores USB output after an upgrade. -->
+    <Property Id="MSIRESTARTMANAGERCONTROL" Value="DisableShutdown" />
+    <Property Id="MSIDISABLERMRESTART" Value="1" />
+    <ui:WixUI Id="WixUI_Minimal" />
+    <UIRef Id="WixUI_ErrorProgressText" />
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.InstallerRoot)\License.rtf" />
+    <Binary Id="SetupActions" SourceFile="$(var.SetupHelper)" />
+    <!-- Close before InstallValidate enumerates in-use files. This changes runtime
+         state only; service/file cleanup remains in the deferred transaction. -->
+    <CustomAction Id="CloseVibePanel" BinaryRef="SetupActions"
+                  ExeCommand="--close-apps --ui-level [UILevel]"
+                  Execute="immediate" Return="check" />
+    <!-- Binary-table helper is available even before installation and during removal.
+         It stays per-user; only verified cleanup needing admin rights requests UAC. -->
+    <CustomAction Id="CleanupVibePanel" BinaryRef="SetupActions"
+                  ExeCommand="--cleanup --ui-level [UILevel]"
+                  Execute="deferred" Impersonate="yes" Return="check" />
+    <InstallExecuteSequence>
+      <Custom Action="CloseVibePanel" Before="InstallValidate"
+              Condition="NOT UPGRADINGPRODUCTCODE" />
+      <Custom Action="CleanupVibePanel" Before="RemoveFiles"
+              Condition="NOT UPGRADINGPRODUCTCODE" />
+    </InstallExecuteSequence>
+    <UI>
+      <ProgressText Action="CloseVibePanel">Closing Vibe Panel...</ProgressText>
+      <ProgressText Action="CleanupVibePanel">Closing Vibe Panel and releasing its hardware monitoring driver...</ProgressText>
+    </UI>
     <Property Id="LEGACY_MANAGED">
       <RegistrySearch Id="LegacyManagedSearch" Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\VibePanel" Name="VibePanelManaged" Type="raw" />
     </Property>
@@ -30,6 +65,11 @@ VBWR E -->
     <StandardDirectory Id="ProgramMenuFolder">
       <Component Id="StartShortcut" Guid="79D28196-7969-4D07-83A6-6EA8456D293C">
         <RemoveFile Id="PreviousStartShortcut" Name="Vibe Panel.lnk" On="install" />
+        <RemoveFile Id="PreviousStudioShortcut" Name="Vibe Panel — theme studio.lnk" On="both" />
+        <RemoveFile Id="PreviousAdminCheckShortcut" Name="Vibe Panel - offline administrator checks.lnk" On="both" />
+        <RemoveFile Id="PreviousMemoryCheckShortcut" Name="Vibe Panel - offline memory checks.lnk" On="both" />
+        <RemoveFile Id="PreviousStartupCheckShortcut" Name="Vibe Panel - offline startup checks.lnk" On="both" />
+        <RemoveFile Id="PreviousVisibilityCheckShortcut" Name="Vibe Panel - offline visibility check.lnk" On="both" />
         <Shortcut Id="StartMenuShortcut" Name="Vibe Panel" Target="[INSTALLFOLDER]VibePanel.exe" WorkingDirectory="INSTALLFOLDER" Icon="ProductIcon" Description="Vibe Panel theme studio" />
         <RegistryValue Root="HKCU" Key="Software\Umberto Giacobbi.biz\VibePanel\MSI" Name="StartShortcut" Type="integer" Value="1" KeyPath="yes" />
       </Component>

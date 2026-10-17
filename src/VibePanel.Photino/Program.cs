@@ -40,6 +40,7 @@ internal static class Program
         using var client = new StdioPanelClient();
         PhotinoWindow? window = null;
         WindowsTrayService? tray = null;
+        WindowsSetupShutdown? setupShutdown = null;
         App.App? application = null;
         PhotinoPreview? preview = null;
         var exiting = 0;
@@ -108,6 +109,19 @@ internal static class Program
                     }
                     catch (Exception error) when (error is System.ComponentModel.Win32Exception or IOException or InvalidOperationException)
                     { Console.Error.WriteLine("Vibe Panel tray: " + error.Message); created.SetMinimized(false); }
+                    try
+                    {
+                        setupShutdown = new WindowsSetupShutdown(action =>
+                        {
+                            if (Volatile.Read(ref exiting) == 0) { created.Invoke(action); }
+                        }, () =>
+                        {
+                            if (Volatile.Read(ref exiting) != 0) { return; }
+                            if (application is not null) { application.RequestExit(); } else { actions.CloseApplication(); }
+                        });
+                    }
+                    catch (Exception error) when (error is System.ComponentModel.Win32Exception or IOException or InvalidOperationException or UnauthorizedAccessException or WaitHandleCannotBeOpenedException)
+                    { Console.Error.WriteLine("Vibe Panel setup: shutdown listener unavailable: " + error.Message); }
                 }
                 instance.Listen(action =>
                 {
@@ -120,7 +134,7 @@ internal static class Program
         {
             Interlocked.Exchange(ref exiting, 1);
             preview?.Dispose();
-            if (OperatingSystem.IsWindows()) { tray?.Dispose(); }
+            if (OperatingSystem.IsWindows()) { setupShutdown?.Dispose(); tray?.Dispose(); }
         }
         return 0;
     }

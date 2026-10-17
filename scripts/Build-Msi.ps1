@@ -7,13 +7,16 @@
 param(
     [Parameter(Mandatory)][string]$PayloadPath,
     [ValidateSet('x64', 'ARM64')][string]$Architecture = 'x64',
-    [string]$Version = '0.1.1'
+    [string]$Version = '0.1.2'
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
 $payload = (Resolve-Path -LiteralPath $PayloadPath).Path
 if (-not (Test-Path -LiteralPath (Join-Path $payload 'VibePanel.exe'))) { throw 'The published studio is missing.' }
+& (Join-Path $PSScriptRoot 'Build-SetupActions.ps1') -Architecture $Architecture
+$setupHelper = Join-Path $repo "artifacts/native/msi/$($Architecture.ToLowerInvariant())/VibePanel.SetupActions.exe"
+if (-not (Test-Path -LiteralPath $setupHelper)) { throw 'The native installer cleanup helper is missing.' }
 $toolRoot = Join-Path $repo 'artifacts/tools/wix4'
 $wix = Join-Path $toolRoot 'wix.exe'
 if (-not (Test-Path -LiteralPath $wix)) {
@@ -42,6 +45,7 @@ $directories = @{ '' = $directoryRoot }
 foreach ($file in (Get-ChildItem -LiteralPath $payload -File -Recurse | Sort-Object FullName)) {
     $relative = [IO.Path]::GetRelativePath($payload, $file.FullName)
     if ($relative -in @('Install-VibePanel.ps1', 'Uninstall-VibePanel.ps1')) { continue }
+    if ($file.Name -eq 'OpenHardwareMonitorLib.sys') { throw 'A live sensor driver must never be harvested into the MSI payload.' }
     $folder = [IO.Path]::GetDirectoryName($relative)
     $current = ''
     $parent = $directoryRoot
@@ -63,7 +67,14 @@ $source = Join-Path $generated 'Payload.wxs'
 $document.Save($source)
 $revision = (git -C $repo rev-parse --short HEAD).Trim()
 $output = Join-Path $repo "artifacts/packages/VibePanel-win-$($Architecture.ToLowerInvariant())-$Version.msi"
-# Build only. Do not invoke MSI validation or test commands.
-& $wix build (Join-Path $repo 'installer/Package.wxs') $source -arch $Architecture.ToLowerInvariant() -d "PayloadRoot=$payload" -d "GeneratedRoot=$generated" -d "ProductVersion=$Version" -d "SourceRevision=$revision" -pdbtype none -out $output
-if ($LASTEXITCODE -ne 0) { throw 'MSI compilation failed.' }
+# Keep the extension cache with the generated tools, not in the user profile or source tree.
+Push-Location $toolRoot
+try {
+    & $wix extension add WixToolset.UI.wixext/4.0.6
+    if ($LASTEXITCODE -ne 0) { throw 'Could not restore the pinned Windows Installer UI extension.' }
+    # Build only. Do not invoke MSI validation, tests or the cleanup helper.
+    & $wix build (Join-Path $repo 'installer/Package.wxs') $source -arch $Architecture.ToLowerInvariant() -ext WixToolset.UI.wixext -culture en-US -d "PayloadRoot=$payload" -d "GeneratedRoot=$generated" -d "InstallerRoot=$(Join-Path $repo 'installer')" -d "SetupHelper=$setupHelper" -d "ProductVersion=$Version" -d "SourceRevision=$revision" -intermediatefolder (Join-Path $generated 'intermediate') -pdbtype none -out $output
+    if ($LASTEXITCODE -ne 0) { throw 'MSI compilation failed.' }
+}
+finally { Pop-Location }
 Write-Host "MSI: $output"

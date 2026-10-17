@@ -34,3 +34,4 @@
 - I keep legacy backgrounds in a small memory cache. I check image dimensions before decoding them.
 - I load bundled scripts only from the engine folder, including in local builds.
 - I still need to check memory, speed and security. [My list](cave.md).
+- My MSI shows progress and closes verified app processes before replacing files. I check that my sensor driver has stopped, its service is gone, and its generated file is removed. A successful file read does not prove that a loaded driver can be deleted.
