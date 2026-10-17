@@ -35,4 +35,10 @@ I then fixed native message ownership, moved preview JPEGs outside the JavaScrip
 
 The earlier memory check did not check the preview's on-screen size. I fixed its HTML container height, then checked WebView captures and visible canvas pixels in light/dark mode, after resizing, and with wide, square and portrait fixtures. The image is visible in those captures. Very small windows can still leave little room for it. This was an offline check, not a USB trial.
 
+The 17 October resource audit limits PNG/JPEG/GIF/BMP wallpaper and legacy artwork to 16 megapixels. Other formats use the fallback. Legacy backgrounds stay in a 12-entry/8 MiB memory cache. Bundled scripts load only beside the engine.
+
+USB discovery runs every ten seconds. Active output also resends an unchanged frame after ten seconds to catch stale handles. A lost session closes and never restarts itself, including in the legacy still-image player.
+
+The Windows x64 Release build has no errors or warnings. Offline regression cases are prepared but not run yet. Repeated physical unplug/replug and long-term memory use remain unchecked. The installed app has not been updated for this change.
+
 This is my hobby project. No warranty.

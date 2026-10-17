@@ -89,7 +89,7 @@ internal static class VibePanelCli
                     using var output = new FileStream(Path.GetFullPath(export), FileMode.CreateNew);
                     output.Write(renderer.Render(snapshot, profile with { WireRotation = 0 }, DashboardScenes.Parse(GetOption(args, "--scene") ?? "Music")));
                     AnsiConsole.WriteLine($"Preview saved: {Path.GetFullPath(export)}");
-                    AnsiConsole.WriteLine($"Cached background: {renderer.BackgroundPath}");
+                    AnsiConsole.WriteLine("Background cached in memory.");
                     break;
                 }
                 if (!args.Contains("--watch")) { break; }

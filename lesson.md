@@ -20,4 +20,7 @@
 - I wait for each preview to be drawn, then close its decoded bitmap. The UI keeps two canvases for theme fades.
 - A drawn canvas can still have no visible height. I check its on-screen bounds and a captured image as well.
 - The Python worker uses one native NumPy thread. Tiny palette arrays do not need a large thread pool.
+- I refresh the USB list every ten seconds. Reconnecting a screen does not start output.
+- I keep legacy backgrounds in a small memory cache. I check image dimensions before decoding them.
+- I load bundled scripts only from the engine folder, including in local builds.
 - I still need to check memory, speed and security. [My list](cave.md).

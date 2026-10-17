@@ -84,4 +84,5 @@ using (var bitmap = new Bitmap(stream))
     Check(bitmap.Width == profile.Width && bitmap.Height == profile.Height, "fade preserves native geometry");
     Check(bitmap.GetPixel(160, 300).R > 235, "fade of identical frames preserves the red bar");
 }
+ResourceChecks.Run(Check, snapshot);
 Console.WriteLine($"{count} offline checks passed. No USB handles were opened.");

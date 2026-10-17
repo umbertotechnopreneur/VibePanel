@@ -22,13 +22,15 @@ From the extracted package, open PowerShell in its folder and run:
 
 Find **Vibe Panel** in Start. Both Start and Windows startup use one stable launcher at `%LOCALAPPDATA%\Umberto Giacobbi.biz\Apps\VibePanel\VibePanel.cmd`; package-version folders are never used directly by those entries.
 
-When you press **Show on display**, Vibe Panel saves the selected compatible screen, theme, profile, colours, refresh rate, quality, font, spectrum and cycling choice. At the next Windows sign-in it starts in the tray and resumes that saved display session. If the screen appears late, it waits and tries again. Press **Stop** to stop the screen now and disable automatic resume for future sign-ins.
+Vibe Panel saves the selected screen and studio settings. At Windows sign-in it starts in the tray with USB output off. Press **Show on display** to start output each time.
+
+The device list refreshes every ten seconds without sending panel commands. A missing screen closes its session, including when the picture is still. Reconnect it and press **Show on display** again. **Stop** closes the session too. A preview error alone does not stop USB output.
 
 To turn off startup, run `.\Install-VibePanel.ps1 -DisableStartup`.
 
 To uninstall, first quit from the tray menu. Use Windows **Installed apps** or run `.\Uninstall-VibePanel.ps1`. App files move to a backup. Your settings, user themes and Codex plugin stay in place.
 
-From a command line, `VibePanel.exe --start-minimized` starts it in the tray. `VibePanel.exe --restore-last-session` starts in the tray and restores the saved display session.
+From a command line, `VibePanel.exe --start-minimized` starts it in the tray. The old `--restore-last-session` flag now also starts in the tray with USB output off.
 
 ## Make it yours
 
@@ -44,7 +46,7 @@ Your choices are saved. On short windows, open **Colors +** to see the sliders.
 
 Start with **1 s** updates and **High** quality. **Poor** makes rougher, smaller pictures. **25 ms** asks for very fast updates; your PC or screen may be slower.
 
-For Codex, press **Prepare Codex plugin**. Then finish installation and review its hooks inside Codex. [Help](plugins/vibepanel-codex/README.md).
+For Codex, press **Prepare Codex plugin**. Then finish installation and review its hooks inside Codex. [Help](https://github.com/umbertotechnopreneur/VibePanel/blob/main/plugins/vibepanel-codex/README.md). The bundled files are under `engine/plugins/vibepanel-codex`.
 
 Windows only for now. Windows needs WebView2. No music login is needed. The app does not change volume or record sound.
 
