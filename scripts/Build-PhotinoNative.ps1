@@ -48,6 +48,7 @@ $text = Replace-Required $text 'AutoString ToUTF16String(AutoString source);' 's
 $text = Replace-Required $text 'AutoString ToUTF8String(AutoString source);' 'std::string ToUTF8String(AutoString source);'
 $text = Replace-Required $text 'void SetIconFile(AutoString filename);' 'void SetIconFile(const wchar_t* filename);'
 $text = Replace-Required $text 'std::wstring ToUTF16String(AutoString source);' "std::wstring _ownedIconFileName;`n`tstd::wstring ToUTF16String(AutoString source);"
+$text = Replace-Required $text 'void RefitContent();' "void RefitContent();`n`tvoid SyncWebViewVisibility(bool visible);"
 $text = $text.Replace('#define UNICODE', "#ifndef UNICODE`n#define UNICODE`n#endif").Replace('#define _UNICODE', "#ifndef _UNICODE`n#define _UNICODE`n#endif")
 Save-Source $headerPath $text
 foreach ($fileName in @('Photino.Windows.cpp', 'Photino.Windows.Dialog.cpp')) {
@@ -70,6 +71,30 @@ foreach ($fileName in @('Photino.Windows.cpp', 'Photino.Windows.Dialog.cpp')) {
         $text = Replace-Required $text 'this->_iconFileName = filename;' "_ownedIconFileName = filename ? filename : L`"`";`n`tthis->_iconFileName = _ownedIconFileName.empty() ? nullptr : &_ownedIconFileName[0];"
         $text = [regex]::Replace($text, '(?ms)^AutoString Photino::ToUTF8String\(AutoString source\)\s*\{.*?^\}', "std::string Photino::ToUTF8String(AutoString source)`n{`n`treturn VibePanelNative::ToUtf8(source);`n}")
         $text = [regex]::Replace($text, '(?ms)^AutoString Photino::ToUTF16String\(AutoString source\)\s*\{.*?^\}', "std::wstring Photino::ToUTF16String(AutoString source)`n{`n`treturn VibePanelNative::ToUtf16(reinterpret_cast<const char*>(source));`n}")
+        # Restoring the host HWND does not restore a WebView created while hidden.
+        # Keep the controller in sync for tray hide/show, minimize/restore and its
+        # asynchronous creation. RefitContent already runs on WM_SIZE and creation.
+        $text = Replace-Required $text "`tcase WM_SIZE:" @'
+	case WM_SHOWWINDOW:
+	{
+		Photino* Photino = hwndToPhotino[hwnd];
+		if (Photino) Photino->SyncWebViewVisibility(wParam != FALSE);
+		break;
+	}
+	case WM_SIZE:
+'@
+        $text = Replace-Required $text "void Photino::RefitContent()`n{`n`tif (_webviewController)" @'
+void Photino::SyncWebViewVisibility(bool visible)
+{
+	if (_webviewController)
+		_webviewController->put_IsVisible(visible && !IsIconic(_hWnd));
+}
+
+void Photino::RefitContent()
+{
+	SyncWebViewVisibility(IsWindowVisible(_hWnd) != FALSE);
+	if (_webviewController)
+'@
         if ($text.Contains('new std::wstring') -or $text.Contains('new std::string')) { throw 'An unowned conversion allocation remains.' }
     }
     else {

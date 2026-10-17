@@ -26,6 +26,8 @@ public static class ThemePlayback
         var token = stop.Token;
         using var service = new DashboardService();
         using var renderer = new PythonThemeRenderer();
+        var codexProcess = new CodexProcessMonitor();
+        byte[]? inactiveFrame = null;
         try
         {
             progress?.Report($"Reading the selected panel's profile: {device.Id}.");
@@ -35,8 +37,16 @@ public static class ThemePlayback
             while (!token.IsCancellationRequested)
             {
                 var started = Environment.TickCount64;
-                var snapshot = await service.ReadAsync(includeSystem: false, includeMedia: theme.Category != "codex",
-                    analyzePlayback: theme.Category == "multimedia");
+                if (theme.Category == "codex" && !codexProcess.IsRunning())
+                {
+                    inactiveFrame ??= PanelFrameRenderer.Blank(profile with { Encoding = PanelPixelEncoding.Jpeg, WireRotation = 0 });
+                    if (await output.SendAsync(inactiveFrame, jpegQuality, token))
+                    { progress?.Report("Codex is closed. Its screen is hidden until its process is running."); }
+                    await Task.Delay(1000, token);
+                    continue;
+                }
+                var snapshot = await service.ReadAsync(includeSystem: false, includeMedia: theme.Category == "multimedia",
+                    analyzePlayback: theme.Category == "multimedia", includeSensors: theme.Category == "system");
                 token.ThrowIfCancellationRequested();
                 var jpeg = await renderer.RenderAsync(theme, snapshot, profile with { Encoding = PanelPixelEncoding.Jpeg, WireRotation = 0 },
                     light, ambientDrift, fontFamily, fontScale, jpegQuality, token, saturationPercent, hueDegrees, showSpectrum,

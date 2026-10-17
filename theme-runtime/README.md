@@ -2,9 +2,23 @@
 
 I use a persistent Python worker and Skia's offscreen raster canvas. The engine sends a snapshot once per requested update; a theme draws it and returns one JPEG. No browser, HTTP server, hardware write, media control, or audio recording is part of this renderer.
 
-The two independent packs in `themes/media` and `themes/codex` contain ten themes each. A pack is a folder with `pack.json`; each theme has its own `theme.json` and `render.py`. A multimedia pack does not need Codex or its hooks. Categories come from the manifest's `category`, not translated folder names. Installing a theme never installs or enables a data provider.
+The three independent packs in `themes/media`, `themes/codex` and `themes/system` contain ten themes each. A pack is a folder with `pack.json`; each theme has its own `theme.json` and `render.py`. Multimedia and System packs do not need Codex or its hooks. Categories come from the manifest's `category`, not translated folder names. Installing a theme never installs or enables a data provider.
 
 ## Runtime
+
+### System snapshots
+
+The engine sends `state.sensors` only when collecting System data. A single Open Hardware Monitor reader supplies Windows x64 CPU, NVIDIA/AMD GPU and physical RAM measurements. It caches one snapshot for a second independently of frame refresh. Linux, macOS and Windows ARM64 sensor readers are not implemented.
+
+```json
+{"cpu":{"name":"CPU","usagePercent":38,"clockMHz":4250,"temperatureC":62,"clockLabel":"Average clock","temperatureLabel":"CPU package"},"gpus":[{"name":"GPU","usagePercent":67,"clockMHz":1850,"temperatureC":58,"clockLabel":"Core clock","temperatureLabel":"GPU core"}],"memory":{"totalGiB":32,"usedGiB":12.4,"usagePercent":38.75},"updatedAtUtc":"2026-10-17T07:32:00Z","notice":null}
+```
+
+These example numbers are illustrative. Unknown fields are null. System themes hide missing fields and sections, reflow remaining content, and preserve measured zeroes. RAM uses GiB (2^30 bytes). Swap is excluded. History keeps at most 60 real samples per metric, deduplicated by snapshot timestamp, with a maximum of 64 series. A missing measurement clears its trace. No synthetic graph appears while history is empty.
+
+The stock library may install/load or remove WinRing0 internally. Its driver lifecycle was approved for this integration, but no library, driver or sensor was run during implementation. The original net45 DLL's .NET 10 runtime compatibility is still unverified.
+
+### Python packages
 
 Use CPython 3.11–3.14 with the exact package versions in `requirements.txt`. The desktop host locates the configured Python and starts `worker.py` with `-u`. A portable distribution can bundle that interpreter and the native wheels for its own platform. The dependency versions are pinned; this file is not a wheel-hash lock.
 

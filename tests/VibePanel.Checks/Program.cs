@@ -85,4 +85,5 @@ using (var bitmap = new Bitmap(stream))
     Check(bitmap.GetPixel(160, 300).R > 235, "fade of identical frames preserves the red bar");
 }
 ResourceChecks.Run(Check, snapshot);
+ScreenChecks.Run(Check);
 Console.WriteLine($"{count} offline checks passed. No USB handles were opened.");

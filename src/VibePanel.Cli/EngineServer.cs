@@ -16,6 +16,7 @@ internal sealed class EngineServer : IDisposable
     private readonly DashboardService dashboard = new();
     private readonly DashboardRenderer renderer = new();
     private readonly PythonThemeRenderer themeRenderer = new();
+    private readonly CodexProcessMonitor codexProcess = new();
     private readonly Dictionary<string, DisplayDevice> devices = [];
     private CancellationTokenSource? playbackCancellation;
     private Task? playback;
@@ -27,6 +28,7 @@ internal sealed class EngineServer : IDisposable
     private long snapshotAt;
     private bool snapshotIncludesSystem;
     private bool snapshotIncludesMedia;
+    private bool snapshotIncludesSensors;
     private ThemeCatalogSnapshot? themeCatalog;
     private long previewAt;
     private string? previewNotice;
@@ -95,7 +97,7 @@ internal sealed class EngineServer : IDisposable
                 previousFingerprint = null;
                 preview = null;
                 previewNotice = null;
-                return new ThemeCatalogDto([new("multimedia", "Multimedia"), new("codex", "OpenAI Codex")],
+                return new ThemeCatalogDto([new("multimedia", "Music"), new("codex", "Codex"), new("system", "System")],
                     themeCatalog.Themes.Select(theme => new ThemeChoiceDto(theme.Id, theme.Name, theme.Category, theme.Description, theme.PackId, theme.SupportsSpectrum)).ToArray(), themeCatalog.Notices);
             case "fonts":
                 var fonts = await themeRenderer.ListFontsAsync();
@@ -147,8 +149,7 @@ internal sealed class EngineServer : IDisposable
 
     private async Task<PanelState> StateAsync(PreviewOptions options)
     {
-        if (options.RefreshIntervalMilliseconds is < 25 or > 1000) { throw new ArgumentException("Refresh interval must be between 25 and 1000 ms."); }
-        PythonThemeRenderer.ValidateColorAdjustments(options.SaturationPercent, options.HueDegrees, options.BrightnessPercent, options.ContrastPercent);
+        ValidatePreviewOptions(options);
         ThemeDefinition? theme = null;
         if (options.ThemeId is not null)
         {
@@ -157,13 +158,16 @@ internal sealed class EngineServer : IDisposable
         var scene = theme is null ? DashboardScenes.Parse(options.Scene) : DashboardScene.Music;
         var profile = DisplayProfileCatalog.GetRequired(options.ProfileId) with { Encoding = PanelPixelEncoding.Jpeg, WireRotation = 0 };
         var includeSystem = theme is null;
-        var includeMedia = theme?.Category != "codex";
-        if (lastSnapshot is null || snapshotIncludesSystem != includeSystem || snapshotIncludesMedia != includeMedia || Environment.TickCount64 - snapshotAt >= (theme is null ? 2000 : options.RefreshIntervalMilliseconds))
+        var includeMedia = theme is null || theme.Category == "multimedia";
+        var includeSensors = theme?.Category == "system";
+        if (lastSnapshot is null || snapshotIncludesSystem != includeSystem || snapshotIncludesMedia != includeMedia || snapshotIncludesSensors != includeSensors
+            || Environment.TickCount64 - snapshotAt >= (theme is null ? 2000 : options.RefreshIntervalMilliseconds))
         {
-            lastSnapshot = await dashboard.ReadAsync(includeSystem, includeMedia, analyzePlayback: theme?.Category == "multimedia");
+            lastSnapshot = await dashboard.ReadAsync(includeSystem, includeMedia, analyzePlayback: theme?.Category == "multimedia", includeSensors: includeSensors);
             snapshotAt = Environment.TickCount64;
             snapshotIncludesSystem = includeSystem;
             snapshotIncludesMedia = includeMedia;
+            snapshotIncludesSensors = includeSensors;
         }
         var snapshot = lastSnapshot;
         if (options.IncludeDevices && (discoveredAt == 0 || Environment.TickCount64 - discoveredAt >= 5000))
@@ -211,7 +215,16 @@ internal sealed class EngineServer : IDisposable
             frameMilliseconds, themeOutput?.SubmittedFrames ?? 0,
             options.IncludeFrame && preview is not null && theme is not null ? themeRenderer.AccentColor : null,
             options.IncludeFrame && preview is not null && theme is not null && themeRenderer.IsTransitioning
-                ? themeRenderer.FrameIntervalMilliseconds(options.RefreshIntervalMilliseconds) : null);
+                ? themeRenderer.FrameIntervalMilliseconds(options.RefreshIntervalMilliseconds) : null,
+            theme?.Id, codexProcess.IsRunning());
+    }
+
+    private static void ValidatePreviewOptions(PreviewOptions options)
+    {
+        if (options.RefreshIntervalMilliseconds is < 25 or > 1000) { throw new ArgumentException("Refresh interval must be between 25 and 1000 ms."); }
+        if (options.JpegQuality is not ("poor" or "low" or "medium" or "high")) { throw new ArgumentException("JPEG quality must be Poor, Low, Medium or High."); }
+        PythonThemeRenderer.ValidateColorAdjustments(options.SaturationPercent, options.HueDegrees, options.BrightnessPercent, options.ContrastPercent);
+        ScreenSelectionPolicy.Validate(options.Screens);
     }
 
     private ThemeDefinition FindTheme(string id) => (themeCatalog ??= ThemeCatalog.Read()).Themes.FirstOrDefault(item => item.Id == id)
@@ -245,8 +258,30 @@ internal sealed class EngineServer : IDisposable
         {
             if (options.ThemeId is null || !options.IncludeFrame) { throw new ArgumentException("Display output requires a theme frame."); }
             if (options.ProfileId != output.Profile.Id) { throw new ArgumentException("Use the connected display's detected profile."); }
+            ValidatePreviewOptions(options);
             var started = Stopwatch.GetTimestamp();
-            var state = await StateAsync(options);
+            var processRunning = codexProcess.IsRunning();
+            var requested = FindTheme(options.ThemeId);
+            var chosen = ScreenSelectionPolicy.Resolve(requested, (themeCatalog ??= ThemeCatalog.Read()).Themes, options.Screens, processRunning);
+            if (chosen is null)
+            {
+                var fingerprint = $"blank|{output.Profile.Id}|{options.JpegQuality}";
+                if (previousFingerprint != fingerprint || preview is null)
+                {
+                    var quality = options.JpegQuality switch { "poor" => 20, "low" => 50, "medium" => 75, _ => 90 };
+                    preview = PanelFrameRenderer.Blank(output.Profile with { Encoding = PanelPixelEncoding.Jpeg, WireRotation = 0 }, quality);
+                    previousFingerprint = fingerprint;
+                    previewNotice = null;
+                }
+                await output.SendAsync(preview, options.JpegQuality);
+                frameMilliseconds = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+                Volatile.Write(ref status, "No active screens. Enable a screen to resume.");
+                return new("", "", "", false, "", [], new(null, null, null, null, "", ""), null,
+                    DeviceChoices(), DisplayProfileCatalog.All.Select(item => new PanelChoice(item.Id, item.Name)).ToArray(), [],
+                    true, Volatile.Read(ref status), preview, [], frameMilliseconds, output.SubmittedFrames,
+                    CodexProcessRunning: processRunning, FrameSuppressed: true);
+            }
+            var state = await StateAsync(options with { ThemeId = chosen.Id });
             if (previewNotice is not null || state.FrameJpeg is null) { throw new IOException(previewNotice ?? "The theme did not produce a frame."); }
             await output.SendAsync(state.FrameJpeg, options.JpegQuality);
             frameMilliseconds = Stopwatch.GetElapsedTime(started).TotalMilliseconds;

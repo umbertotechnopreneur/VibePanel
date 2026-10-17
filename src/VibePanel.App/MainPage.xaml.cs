@@ -29,6 +29,13 @@ public sealed partial class MainPage : Page
     private bool startupRestorePending, startupReady;
     private readonly List<CatalogRow> categoryRows = [];
     private readonly List<CatalogRow> themeRows = [];
+    private readonly Dictionary<string, string> screenThemes = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, bool> screenEnabled = new(StringComparer.Ordinal)
+    {
+        ["multimedia"] = true,
+        ["codex"] = false,
+        ["system"] = true
+    };
     private static readonly int[] RefreshIntervals = [1000, 500, 250, 100, 50, 25];
     private ThemeCatalogDto? catalog;
     private bool refreshing, unloaded, ready, updatingChoices, refreshAgain, catalogLoading;
@@ -45,6 +52,8 @@ public sealed partial class MainPage : Page
     private double saturationPercent = 100, hueDegrees;
     private double brightnessPercent, contrastPercent = 100;
     private bool colorFiltersEnabled, cycleThemes;
+    private bool codexProcessRunning, frameSuppressed;
+    private int screenRevision;
     private string? selectedDeviceId;
     private bool showSpectrum = true, updatingColorControls, pendingColorSettings, updatingFonts;
     private PanelChoice[] fontChoices = [];
@@ -79,6 +88,9 @@ public sealed partial class MainPage : Page
         UpdateFilterVisibility();
         SpectrumBox.IsChecked = showSpectrum;
         CycleBox.IsChecked = cycleThemes;
+        MusicScreenBox.IsChecked = screenEnabled["multimedia"];
+        CodexScreenBox.IsChecked = screenEnabled["codex"];
+        SystemScreenBox.IsChecked = screenEnabled["system"];
         ready = true;
         ApplyAppearance();
         AboutVersion.Text = $"Codename · {typeof(App).Assembly.GetName().Version?.ToString(3)} · preview";
@@ -173,6 +185,7 @@ public sealed partial class MainPage : Page
         { label.Visibility = shortWindow ? Visibility.Collapsed : Visibility.Visible; }
 
         CodexSetupFrame.Margin = new Thickness(14, compact ? 10 : 28, 8, 0);
+        ScreensFrame.Margin = new Thickness(14, compact ? 10 : 16, 8, 0);
         CodexHelpText.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
         CodexStatusText.TextWrapping = CodexEventText.TextWrapping = compact ? TextWrapping.NoWrap : TextWrapping.Wrap;
         CodexStatusText.TextTrimming = CodexEventText.TextTrimming = TextTrimming.CharacterEllipsis;
@@ -193,6 +206,15 @@ public sealed partial class MainPage : Page
             CategoriesBox.ItemsSource = categoryRows.ToArray();
             CategoriesBox.SelectedItem = categoryRows.FirstOrDefault(row => row.Id == selectedCategory) ?? categoryRows.FirstOrDefault();
             selectedCategory = (CategoriesBox.SelectedItem as CatalogRow)?.Id ?? "multimedia";
+            foreach (var category in catalog.Categories)
+            {
+                var remembered = screenThemes.GetValueOrDefault(category.Id);
+                if (!catalog.Themes.Any(theme => theme.Category == category.Id && theme.Id == remembered))
+                {
+                    screenThemes[category.Id] = catalog.Themes.FirstOrDefault(theme => theme.Category == category.Id)?.Id ?? "";
+                }
+            }
+            selectedTheme = screenThemes.GetValueOrDefault(selectedCategory, selectedTheme);
             PopulateThemes();
             CatalogText.Text = $"{catalog.Themes.Count} themes · local folders";
             if (catalog.Notices.Count > 0) { StatusText.Text = string.Join(" · ", catalog.Notices); }
@@ -215,13 +237,15 @@ public sealed partial class MainPage : Page
         ThemesBox.ItemsSource = themeRows.ToArray();
         ThemesBox.SelectedItem = themeRows.FirstOrDefault(row => row.Id == selectedTheme) ?? themeRows.FirstOrDefault();
         selectedTheme = (ThemesBox.SelectedItem as CatalogRow)?.Id ?? "";
+        RememberScreenTheme();
         UpdateSelection();
         updatingChoices = wasUpdating;
     }
 
     private async Task RefreshAsync(bool queueIfBusy = true)
     {
-        if (unloaded || !ready || displayBusy || devicesLoading || string.IsNullOrEmpty(selectedTheme)) { return; }
+        if (unloaded || !ready || displayBusy || devicesLoading
+            || string.IsNullOrEmpty(selectedTheme) && (!displayActive || (catalog?.Themes.Count ?? 0) == 0)) { return; }
         if (refreshing) { if (queueIfBusy) { refreshAgain = true; } return; }
         refreshing = true;
         var requestedDisplay = displayActive;
@@ -230,8 +254,14 @@ public sealed partial class MainPage : Page
         {
             ApplyAppearance();
             if (selectedCategory == "codex") { await RefreshCodexStatusAsync(); }
-            if (CycleBox.IsChecked == true && Environment.TickCount64 - lastChange >= 20000) { Navigate(1); }
-            var requestedTheme = selectedTheme;
+            if (CycleBox.IsChecked == true && Environment.TickCount64 - lastChange >= 20000) { CycleScreen(); }
+            if (string.IsNullOrEmpty(selectedTheme) && (catalog?.Themes.Count ?? 0) == 0) { return; }
+            var requestedSelection = selectedTheme;
+            // An empty library category can still be browsed while an existing USB session
+            // needs its eligible fallback (or a black frame when every screen is disabled).
+            var requestedTheme = string.IsNullOrEmpty(selectedTheme)
+                ? ScreenSelections().FirstOrDefault(screen => screen.Enabled && !string.IsNullOrEmpty(screen.ThemeId))?.ThemeId ?? catalog!.Themes[0].Id
+                : selectedTheme;
             var requestedProfile = selectedProfile;
             var requestedLight = IsLight;
             var requestedFont = fontFamily;
@@ -244,36 +274,55 @@ public sealed partial class MainPage : Page
             var requestedBrightness = brightnessPercent;
             var requestedContrast = contrastPercent;
             var requestedFilters = colorFiltersEnabled;
+            var requestedScreenRevision = screenRevision;
+            var requestedScreens = ScreenSelections();
             var state = await client.RequestAsync<PanelState>(requestedDisplay ? "present" : "state", new PreviewOptions(
                 ProfileId: requestedProfile, Light: requestedLight, ThemeId: requestedTheme,
                 FontFamily: requestedFont, FontScale: requestedScale, RefreshIntervalMilliseconds: requestedInterval,
                 JpegQuality: requestedQuality, SaturationPercent: requestedSaturation, HueDegrees: requestedHue,
                 ShowSpectrum: requestedSpectrum, BrightnessPercent: requestedBrightness, ContrastPercent: requestedContrast,
-                ColorFiltersEnabled: requestedFilters));
+                ColorFiltersEnabled: requestedFilters, Screens: requestedScreens));
             engineReplied = true;
             if (unloaded || displayBusy) { return; }
             // A slow frame may complete after the user has selected another theme or font.
-            if (requestedTheme != selectedTheme || requestedProfile != selectedProfile || requestedLight != IsLight || requestedFont != fontFamily || requestedScale != fontScale
+            if (requestedSelection != selectedTheme || requestedProfile != selectedProfile || requestedLight != IsLight || requestedFont != fontFamily || requestedScale != fontScale
                 || requestedInterval != refreshMilliseconds || requestedQuality != jpegQuality || requestedDisplay != displayActive
                 || requestedSaturation != saturationPercent || requestedHue != hueDegrees || requestedSpectrum != showSpectrum
-                || requestedBrightness != brightnessPercent || requestedContrast != contrastPercent || requestedFilters != colorFiltersEnabled)
+                || requestedBrightness != brightnessPercent || requestedContrast != contrastPercent || requestedFilters != colorFiltersEnabled
+                || requestedScreenRevision != screenRevision)
             { refreshAgain = true; return; }
             displayActive = state.DisplayRunning;
+            codexProcessRunning = state.CodexProcessRunning;
+            frameSuppressed = state.FrameSuppressed;
+            var renderedTheme = state.ActiveThemeId ?? requestedTheme;
+            var renderedCategory = catalog?.Themes.FirstOrDefault(theme => theme.Id == renderedTheme)?.Category ?? selectedCategory;
             var nextInterval = state.NextFrameMilliseconds is >= 25 and <= 1000
                 ? Math.Min(refreshMilliseconds, state.NextFrameMilliseconds.Value) : refreshMilliseconds;
             refresh.Interval = TimeSpan.FromMilliseconds(nextInterval);
             UpdateDisplayControls();
             UpdateProfiles(state.Profiles);
-            SourceText.Text = selectedCategory == "codex" ? "OpenAI Codex · local activity"
+            UpdateFrameHeading(renderedTheme, state.FrameSuppressed);
+            SourceText.Text = state.FrameSuppressed ? "No enabled screen is available."
+                : renderedCategory == "codex" ? "OpenAI Codex · local activity"
+                : renderedCategory == "system" ? "Local hardware sensors"
                 : string.IsNullOrWhiteSpace(state.Source) ? "System media session" : state.Source;
             StatusText.Text = state.Notices.Count > 0 ? string.Join(" · ", state.Notices)
                 : displayActive ? state.Status : $"Preview · {refreshMilliseconds} ms · {jpegQuality} JPEG";
-            if (state.FrameJpeg is { Length: > 0 } frame)
+            if (requestedDisplay && !state.FrameSuppressed && renderedTheme != requestedSelection)
+            {
+                var chosenName = catalog?.Themes.FirstOrDefault(theme => theme.Id == requestedSelection)?.Name ?? "No theme";
+                var shownName = catalog?.Themes.FirstOrDefault(theme => theme.Id == renderedTheme)?.Name ?? renderedTheme;
+                StatusText.Text = $"{chosenName} selected · display uses {shownName}. {StatusText.Text}";
+            }
+            ScreensHelpText.Text = screenEnabled["codex"] && !codexProcessRunning
+                ? "Codex is closed, so its screen is skipped on the display. You can still preview it."
+                : "Codex hides when its process is closed. You can preview every theme.";
+            if (!state.FrameSuppressed && state.FrameJpeg is { Length: > 0 } frame)
             {
                 UpdatePreviewAccent(state.AccentColor);
                 if (lastFrame is null || !lastFrame.AsSpan().SequenceEqual(frame))
                 {
-                    var themeChanged = lastRenderedTheme is not null && lastRenderedTheme != requestedTheme;
+                    var themeChanged = lastRenderedTheme is not null && lastRenderedTheme != renderedTheme;
                     if (preview is null) { throw new InvalidOperationException("The desktop preview is unavailable."); }
                     // The JPEG is data, never an eval string. Wait for decode/draw before another
                     // frame can start, including at the requested 25 ms refresh interval.
@@ -283,8 +332,8 @@ public sealed partial class MainPage : Page
                     previewPixelHeight = size.Height;
                     lastFrame = frame;
                     FitPreviewSurface();
-                    lastRenderedTheme = requestedTheme;
                 }
+                lastRenderedTheme = renderedTheme;
                 LoadingPanel.Visibility = Visibility.Collapsed;
                 PreviewBacking.Visibility = Visibility.Visible;
             }
@@ -292,8 +341,10 @@ public sealed partial class MainPage : Page
             {
                 // Never label a previous theme's frame as the newly selected theme.
                 ClearPreview();
-                LoadingTitle.Text = "The theme needs attention.";
-                LoadingText.Text = state.Notices.Count > 0 ? string.Join(" · ", state.Notices) : "No frame is available yet.";
+                LoadingTitle.Text = state.FrameSuppressed ? "No active screens." : "The theme needs attention.";
+                LoadingText.Text = state.FrameSuppressed
+                    ? "Enable a screen to resume display updates."
+                    : state.Notices.Count > 0 ? string.Join(" · ", state.Notices) : "No frame is available yet.";
             }
         }
         catch (Exception error)
@@ -357,7 +408,7 @@ public sealed partial class MainPage : Page
         var muted = Brush(light ? "#716B80" : "#9C9CAF");
         var accent = Brush(light ? "#7854B5" : "#C9AEF3");
         // Sections share the page, without cards. Only the modal needs its own surface.
-        foreach (var section in new[] { LibraryFrame, AppearanceFrame, OptionsFrame, DisplayFrame, CodexSetupFrame, PreviewBadge, PreviewFrame }) { section.Background = transparent; }
+        foreach (var section in new[] { LibraryFrame, AppearanceFrame, OptionsFrame, DisplayFrame, ScreensFrame, CodexSetupFrame, PreviewBadge, PreviewFrame }) { section.Background = transparent; }
         AboutFrame.Background = surface;
         AboutFrame.BorderBrush = line;
         CloseFrame.Background = surface;
@@ -369,8 +420,8 @@ public sealed partial class MainPage : Page
         FiltersPanel.Background = Brush(light ? "#F0EDF5" : "#171A23");
         DisplayDivider.BorderBrush = line;
         foreach (var text in new[] { Heading, SelectedThemeText, LoadingTitle, PositionText, FontScaleText, SaturationText, HueText, BrightnessText, ContrastText, AboutHeading, AboutAuthor, AboutDisclosureHeading, CodexStatusText }) { text.Foreground = ink; }
-        foreach (var text in new[] { Subtitle, Author, HeaderDot, CatalogText, SourceText, StatusText, LoadingText, FontLabel, SizeLabel, GeometryLabel, DeviceLabel, RefreshLabel, QualityLabel, SaturationLabel, HueLabel, BrightnessLabel, ContrastLabel, FiltersStatus, CodexEventText, CodexHelpText, FooterDot2, AboutVersion, AboutDisclosure, AboutInitiative }) { text.Foreground = muted; }
-        foreach (var text in new[] { Eyebrow, LibraryHeading, CategoryText, PreviewBadgeText, CodexSetupHeading }) { text.Foreground = accent; }
+        foreach (var text in new[] { Subtitle, Author, HeaderDot, CatalogText, SourceText, StatusText, LoadingText, FontLabel, SizeLabel, GeometryLabel, DeviceLabel, RefreshLabel, QualityLabel, SaturationLabel, HueLabel, BrightnessLabel, ContrastLabel, FiltersStatus, ScreensHelpText, CodexEventText, CodexHelpText, FooterDot2, AboutVersion, AboutDisclosure, AboutInitiative }) { text.Foreground = muted; }
+        foreach (var text in new[] { Eyebrow, LibraryHeading, CategoryText, PreviewBadgeText, ScreensHeading, CodexSetupHeading }) { text.Foreground = accent; }
         foreach (var link in new[] { Manifesto, AboutLink, TermsLink, PrivacyLink, AboutManifesto, ProjectLink, InitiativeLink, WebsiteLink, AboutTerms, AboutPrivacy }) { link.Foreground = accent; }
         CategoriesBox.Background = ThemesBox.Background = transparent;
         FontBox.Background = surface;
@@ -389,6 +440,7 @@ public sealed partial class MainPage : Page
         LogErrorsBox.Foreground = muted;
         SpectrumBox.Foreground = muted;
         FiltersBox.Foreground = ink;
+        foreach (var box in new[] { MusicScreenBox, CodexScreenBox, SystemScreenBox }) { box.Foreground = ink; }
         foreach (var button in new[] { ReloadButton, PreviousButton, NextButton, ApplyFontButton, FontListButton, ResetColorsButton, SmallerButton, LargerButton, CloseAboutButton, RefreshDevicesButton, StartDisplayButton, StopDisplayButton, CodexRefreshButton, CodexPrepareButton, OpenLogButton })
         { button.Background = transparent; button.Foreground = ink; button.BorderThickness = new Thickness(0); }
         StartDisplayButton.Background = Brush(light ? "#68468F" : "#C5AAE8");
@@ -429,8 +481,10 @@ public sealed partial class MainPage : Page
         CodexSetupFrame.Visibility = selectedCategory == "codex" ? Visibility.Visible : Visibility.Collapsed;
         CategoryText.Text = (categoryRows.FirstOrDefault(row => row.Id == selectedCategory)?.Name ?? selectedCategory).ToUpperInvariant();
         SelectedThemeText.Text = themeRows.FirstOrDefault(row => row.Id == selectedTheme)?.Name ?? "No themes installed";
+        ToolTipService.SetToolTip(SelectedThemeText, null);
         PositionText.Text = $"{ThemesBox.SelectedIndex + 1:00} / {themeRows.Count:00}";
-        PreviousButton.IsEnabled = NextButton.IsEnabled = CycleBox.IsEnabled = themeRows.Count > 1;
+        PreviousButton.IsEnabled = NextButton.IsEnabled = themeRows.Count > 1;
+        CycleBox.IsEnabled = (catalog?.Themes.Count ?? 0) > 1;
         UpdateDisplayControls();
         UpdateRows();
         if (themeRows.Count == 0) { ClearPreview(); LoadingTitle.Text = "This category is empty."; LoadingText.Text = "Add a theme pack and reload the library."; }
@@ -441,6 +495,60 @@ public sealed partial class MainPage : Page
         if (ThemesBox.Items.Count > 0) { ThemesBox.SelectedIndex = (ThemesBox.SelectedIndex + direction + ThemesBox.Items.Count) % ThemesBox.Items.Count; ThemesBox.ScrollIntoView(ThemesBox.SelectedItem); }
     }
 
+    /// <summary>Keep one chosen theme per category, independent of screen eligibility.</summary>
+    private void RememberScreenTheme()
+    {
+        if (string.IsNullOrEmpty(selectedTheme) || screenThemes.GetValueOrDefault(selectedCategory) == selectedTheme) { return; }
+        screenThemes[selectedCategory] = selectedTheme;
+        screenRevision++;
+    }
+
+    private ScreenSelectionDto[] ScreenSelections() => screenEnabled.Select(pair =>
+        new ScreenSelectionDto(pair.Key, screenThemes.GetValueOrDefault(pair.Key, ""), pair.Value)).ToArray();
+
+    /// <summary>Rotate chosen screens; a single enabled screen keeps the former theme rotation.</summary>
+    private void CycleScreen()
+    {
+        lastChange = Environment.TickCount64;
+        var screens = ScreenSelections().Where(screen => screen.Enabled && !string.IsNullOrEmpty(screen.ThemeId)
+            && (!displayActive || screen.Category != "codex" || codexProcessRunning)).ToArray();
+        if (screens.Length == 0) { return; }
+        if (screens.Length == 1 && selectedCategory == screens[0].Category) { Navigate(1); return; }
+        var current = Array.FindIndex(screens, screen => screen.Category == selectedCategory);
+        var next = screens[(current + 1) % screens.Length];
+        CategoriesBox.SelectedItem = categoryRows.FirstOrDefault(row => row.Id == next.Category);
+    }
+
+    private void Screen_Changed(object sender, RoutedEventArgs args)
+    {
+        if (!ready || updatingChoices) { return; }
+        screenEnabled["multimedia"] = MusicScreenBox.IsChecked == true;
+        screenEnabled["codex"] = CodexScreenBox.IsChecked == true;
+        screenEnabled["system"] = SystemScreenBox.IsChecked == true;
+        screenRevision++;
+        lastChange = Environment.TickCount64;
+        SaveChoices();
+        _ = RefreshAsync();
+    }
+
+    /// <summary>Label the JPEG actually returned without changing the user's chosen theme.</summary>
+    private void UpdateFrameHeading(string themeId, bool suppressed)
+    {
+        if (suppressed)
+        {
+            CategoryText.Text = "DISPLAY PAUSED";
+            SelectedThemeText.Text = "No active screens";
+            ToolTipService.SetToolTip(SelectedThemeText, null);
+            return;
+        }
+        var theme = catalog?.Themes.FirstOrDefault(item => item.Id == themeId);
+        if (theme is null) { return; }
+        var category = categoryRows.FirstOrDefault(item => item.Id == theme.Category)?.Name ?? theme.Category;
+        CategoryText.Text = category.ToUpperInvariant();
+        SelectedThemeText.Text = theme.Name;
+        ToolTipService.SetToolTip(SelectedThemeText, themeId != selectedTheme ? "The selected screen is unavailable. Showing this enabled screen on the display." : null);
+    }
+
     private void UpdateDisplayControls()
     {
         StartDisplayButton.IsEnabled = !displayBusy && !displayActive && !devicesLoading && DevicesBox.SelectedItem is PanelChoice && !string.IsNullOrEmpty(selectedTheme);
@@ -448,7 +556,7 @@ public sealed partial class MainPage : Page
         DevicesBox.IsEnabled = !displayBusy && !displayActive && !devicesLoading;
         RefreshDevicesButton.IsEnabled = !displayBusy && !displayActive && !devicesLoading;
         ProfilesBox.IsEnabled = !displayBusy && !displayActive;
-        PreviewBadgeText.Text = displayActive ? "LIVE DISPLAY" : "LOCAL PREVIEW";
+        PreviewBadgeText.Text = displayActive ? frameSuppressed ? "DISPLAY PAUSED" : "LIVE DISPLAY" : "LOCAL PREVIEW";
     }
 
     private async Task RefreshDevicesAsync()
@@ -736,7 +844,7 @@ public sealed partial class MainPage : Page
     {
         if (!ready || updatingChoices) { return; }
         selectedCategory = (CategoriesBox.SelectedItem as CatalogRow)?.Id ?? "multimedia";
-        selectedTheme = "";
+        selectedTheme = screenThemes.GetValueOrDefault(selectedCategory, "");
         PopulateThemes();
         lastChange = Environment.TickCount64;
         SaveChoices();
@@ -746,6 +854,7 @@ public sealed partial class MainPage : Page
     {
         if (!ready || updatingChoices) { return; }
         selectedTheme = (ThemesBox.SelectedItem as CatalogRow)?.Id ?? "";
+        RememberScreenTheme();
         lastChange = Environment.TickCount64;
         UpdateSelection();
         SaveChoices();
@@ -925,6 +1034,25 @@ public sealed partial class MainPage : Page
             if (json.TryGetProperty("theme", out var mode) && mode.TryGetInt32(out var value)) { appearance = value is >= 0 and <= 2 ? value : 0; }
             if (json.TryGetProperty("category", out var category)) { selectedCategory = category.GetString() ?? selectedCategory; }
             if (json.TryGetProperty("themeId", out var theme)) { selectedTheme = theme.GetString() ?? ""; }
+            if (!string.IsNullOrEmpty(selectedTheme)) { screenThemes[selectedCategory] = selectedTheme; }
+            if (json.TryGetProperty("screens", out var screens) && screens.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var screen in screens.EnumerateArray())
+                {
+                    if (screen.ValueKind != JsonValueKind.Object || !screen.TryGetProperty("category", out var screenCategory)
+                        || screenCategory.ValueKind != JsonValueKind.String || screenCategory.GetString() is not { } categoryId
+                        || !screenEnabled.ContainsKey(categoryId)) { continue; }
+                    if (screen.TryGetProperty("enabled", out var enabled) && enabled.ValueKind is JsonValueKind.True or JsonValueKind.False)
+                    { screenEnabled[categoryId] = enabled.GetBoolean(); }
+                    if (screen.TryGetProperty("themeId", out var screenTheme) && screenTheme.ValueKind == JsonValueKind.String)
+                    { screenThemes[categoryId] = screenTheme.GetString() ?? ""; }
+                }
+            }
+            else if (selectedCategory == "codex")
+            {
+                // Preserve a saved Codex session from settings predating screen toggles.
+                screenEnabled["codex"] = true;
+            }
             if (json.TryGetProperty("profile", out var profile)) { selectedProfile = profile.GetString() ?? selectedProfile; }
             if (json.TryGetProperty("profileSelection", out var profileChoice)) { profileSelection = profileChoice.GetString() ?? "auto"; }
             if (json.TryGetProperty("font", out var font)) { fontFamily = font.GetString() ?? fontFamily; }
@@ -948,7 +1076,8 @@ public sealed partial class MainPage : Page
         {
             Directory.CreateDirectory(Path.GetDirectoryName(settingsPath)!);
             var temporary = settingsPath + ".tmp";
-            File.WriteAllText(temporary, JsonSerializer.Serialize(new { theme = appearance, category = selectedCategory, themeId = selectedTheme, profile = selectedProfile, profileSelection, font = fontFamily, fontScale, refreshMilliseconds, jpegQuality, saturationPercent, hueDegrees, brightnessPercent, contrastPercent, showSpectrum, colorFiltersEnabled, cycleThemes, deviceId = selectedDeviceId }));
+            var screens = ScreenSelections().Select(screen => new { category = screen.Category, themeId = screen.ThemeId, enabled = screen.Enabled }).ToArray();
+            File.WriteAllText(temporary, JsonSerializer.Serialize(new { theme = appearance, category = selectedCategory, themeId = selectedTheme, profile = selectedProfile, profileSelection, font = fontFamily, fontScale, refreshMilliseconds, jpegQuality, saturationPercent, hueDegrees, brightnessPercent, contrastPercent, showSpectrum, colorFiltersEnabled, cycleThemes, screens, deviceId = selectedDeviceId }));
             File.Move(temporary, settingsPath, overwrite: true);
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException) { StatusText.Text = "The preference changed but could not be saved."; }

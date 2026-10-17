@@ -279,7 +279,8 @@ internal static class VibePanelCli
         if (File.Exists(path)) { throw new IOException("The export file already exists. Choose a new path."); }
         using var service = new DashboardService();
         using var renderer = new PythonThemeRenderer();
-        var snapshot = service.ReadAsync(includeSystem: false, includeMedia: theme.Category != "codex").GetAwaiter().GetResult();
+        var snapshot = service.ReadAsync(includeSystem: false, includeMedia: theme.Category == "multimedia",
+            includeSensors: theme.Category == "system").GetAwaiter().GetResult();
         var frame = renderer.RenderAsync(theme, snapshot, profile, args.Contains("--light"), args.Contains("--ambient-drift"), font, scale, quality,
             saturationPercent: saturation, hueDegrees: hue, showSpectrum: showSpectrum,
             brightnessPercent: brightness, contrastPercent: contrast).GetAwaiter().GetResult();

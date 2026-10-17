@@ -105,7 +105,8 @@ public sealed class PythonThemeRenderer : IDisposable
                     },
                     clock = new { iso = now.ToString("O", CultureInfo.InvariantCulture), locale = CultureInfo.CurrentCulture.Name },
                     desktop = new { palette = environment.DesktopPalette() },
-                    codex = environment.CodexActivity()
+                    codex = environment.CodexActivity(),
+                    sensors = snapshot.Sensors
                 }
             };
             try

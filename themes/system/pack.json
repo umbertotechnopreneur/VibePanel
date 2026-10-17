@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "id": "vibepanel.system",
+  "name": "Vibe Panel · System",
+  "version": "1.0.0",
+  "author": "Umberto Giacobbi",
+  "license": "MIT",
+  "description": "Ten themes for available CPU, GPU and RAM readings.",
+  "categories": [
+    "system"
+  ],
+  "themes": [
+    "themes/signal",
+    "themes/ledger",
+    "themes/orbit",
+    "themes/terminal",
+    "themes/thermal",
+    "themes/blueprint",
+    "themes/horizon",
+    "themes/blocks",
+    "themes/quiet",
+    "themes/pulse"
+  ],
+  "branding": {
+    "begin": "VBWR B",
+    "end": "VBWR E"
+  }
+}

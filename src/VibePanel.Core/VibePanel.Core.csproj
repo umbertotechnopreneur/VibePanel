@@ -16,6 +16,10 @@ VBWR E -->
     <ProjectReference Include="../VibePanel.Contracts/VibePanel.Contracts.csproj" />
     <PackageReference Include="System.Drawing.Common" Version="10.0.10" />
     <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
+    <!-- Original OHM 0.9.6 is a net45 library. Its known framework fallback is explicit;
+         runtime compatibility with .NET 10 has not been checked. This is not the 1.x fork. -->
+    <PackageReference Include="OpenHardwareMonitor" Version="[0.9.6]" NoWarn="NU1701" />
+    <!-- OHM uses this internally for SMBIOS; Vibe Panel does not query a WMI provider. -->
     <PackageReference Include="System.Management" Version="10.0.10" />
   </ItemGroup>
 </Project>

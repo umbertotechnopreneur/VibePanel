@@ -3,122 +3,218 @@
 // Copyright (c) 2026 Umberto Giacobbi | SPDX-License-Identifier: MIT
 // VBWR E
 
-using System.Management;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Text;
+using Ohm = OpenHardwareMonitor.Hardware;
 
 namespace VibePanel.Core;
 
-/// <summary>Reads existing Windows/NVIDIA facilities; never installs a sensor driver.</summary>
-public sealed class WindowsMetricsService : IDisposable
+/// <summary>
+/// Reads CPU, GPU and physical RAM through the original Open Hardware Monitor library only.
+/// Construction does not open hardware. The library's driver lifecycle requires explicit consent.
+/// </summary>
+public sealed class WindowsMetricsService(bool allowDriverLifecycle = false) : IDisposable
 {
-    private ulong previousIdle, previousTotal;
-    private DateTime nextSensorRead;
-    private double? cpuTemperature;
-    private string cpuSource = "No existing sensor provider";
-    private bool nvmlInitialized, nvmlUnavailable;
+    private const int MaximumHardware = 64;
+    private const int MaximumDepth = 8;
+    private const int MaximumSensorsPerDevice = 1024;
+    private const int MaximumGpus = 8;
+    private readonly object sync = new();
+    private Ohm.Computer? computer;
+    private HardwareSensorSnapshot snapshot = HardwareSensorSnapshot.Empty;
+    private bool initializationAttempted, disposed;
+    private long lastRead;
 
-    public MachineMetrics Read()
+    /// <summary>Returns the last sample for one second, using monotonic time and no background worker.</summary>
+    public HardwareSensorSnapshot ReadSensors()
     {
-        double? cpu = null;
-        if (GetSystemTimes(out var idle, out var kernel, out var user))
+        lock (sync)
         {
-            var total = kernel + user;
-            if (previousTotal != 0 && total > previousTotal)
+            if (disposed) { return HardwareSensorSnapshot.Empty; }
+            var now = Stopwatch.GetTimestamp();
+            if (lastRead != 0 && Stopwatch.GetElapsedTime(lastRead, now) < TimeSpan.FromSeconds(1))
             {
-                cpu = Math.Clamp(100.0 * (1 - (double)(idle - previousIdle) / (total - previousTotal)), 0, 100);
+                return snapshot;
             }
-            previousIdle = idle;
-            previousTotal = total;
-        }
-        if (DateTime.UtcNow >= nextSensorRead)
-        {
-            nextSensorRead = DateTime.UtcNow.AddSeconds(30);
-            ReadExistingCpuSensor();
-        }
-        double? gpu = null, temperature = null;
-        var gpuName = "GPU";
-        var gpuSource = "No supported driver sensor";
-        if (!nvmlUnavailable)
-        {
+            lastRead = now;
+            if (!EnsureComputer()) { return snapshot; }
+
             try
             {
-                if (!nvmlInitialized) { nvmlInitialized = nvmlInit_v2() == 0; }
-                if (nvmlInitialized && nvmlDeviceGetHandleByIndex_v2(0, out var device) == 0)
+                HardwareDeviceSensors? cpu = null;
+                HardwareMemorySensors? memory = null;
+                var gpus = new List<HardwareDeviceSensors>();
+                var failed = false;
+                foreach (var hardware in EnumerateHardware(computer!.Hardware))
                 {
-                    var name = new StringBuilder(96);
-                    if (nvmlDeviceGetName(device, name, 96) == 0) { gpuName = name.ToString(); }
-                    if (nvmlDeviceGetUtilizationRates(device, out var utilization) == 0) { gpu = utilization.Gpu; }
-                    if (nvmlDeviceGetTemperature(device, 0, out var degrees) == 0) { temperature = degrees; }
-                    gpuSource = "NVIDIA driver / NVML (GPU 0)";
-                }
-                else { nvmlUnavailable = true; }
-            }
-            catch (Exception error) when (error is DllNotFoundException or EntryPointNotFoundException or BadImageFormatException)
-            { nvmlUnavailable = true; }
-        }
-        return new(cpu, cpuTemperature, gpu, temperature, gpuName, cpuSource, gpuSource);
-    }
-
-    private void ReadExistingCpuSensor()
-    {
-        cpuTemperature = null;
-        cpuSource = "No existing sensor provider";
-        foreach (var provider in new[] { "LibreHardwareMonitor", "OpenHardwareMonitor" })
-        {
-            try
-            {
-                var options = new System.Management.EnumerationOptions { Timeout = TimeSpan.FromSeconds(1), ReturnImmediately = false };
-                using var query = new ManagementObjectSearcher(new ManagementScope($"root\\{provider}"), new ObjectQuery("SELECT Name, Value FROM Sensor WHERE SensorType = 'Temperature'"), options);
-                using var sensors = query.Get();
-                foreach (ManagementObject sensor in sensors)
-                {
-                    using (sensor)
+                    try
                     {
-                        var name = sensor["Name"]?.ToString() ?? "";
-                        if (!name.Contains("CPU", StringComparison.OrdinalIgnoreCase)) { continue; }
-                        var value = Convert.ToDouble(sensor["Value"], System.Globalization.CultureInfo.InvariantCulture);
-                        if (value is > 0 and < 150 && (cpuTemperature is null || value > cpuTemperature))
+                        hardware.Update();
+                        var sensors = hardware.Sensors.Take(MaximumSensorsPerDevice).ToArray();
+                        switch (hardware.HardwareType)
                         {
-                            cpuTemperature = value;
-                            cpuSource = $"{provider}: hottest CPU sensor";
+                            case Ohm.HardwareType.CPU when cpu is null:
+                                cpu = ReadCpu(hardware.Name, sensors);
+                                break;
+                            case Ohm.HardwareType.GpuNvidia or Ohm.HardwareType.GpuAti when gpus.Count < MaximumGpus:
+                                gpus.Add(ReadGpu(hardware.Name, sensors));
+                                break;
+                            case Ohm.HardwareType.RAM when memory is null:
+                                memory = ReadMemory(sensors);
+                                break;
                         }
                     }
+                    catch (Exception error) when (IsSensorFailure(error)) { failed = true; }
                 }
-                if (cpuTemperature is not null) { return; }
+                snapshot = new(cpu, gpus.ToArray(), memory, DateTimeOffset.UtcNow,
+                    failed ? "Some Open Hardware Monitor measurements are unavailable." : null);
             }
-            catch (Exception error) when (error is ManagementException or COMException or UnauthorizedAccessException) { }
+            catch (Exception error) when (IsSensorFailure(error))
+            {
+                // Clear a failed sample rather than presenting our previous sample as current.
+                snapshot = HardwareSensorSnapshot.Empty with { Notice = "Open Hardware Monitor readings are unavailable." };
+            }
+            lastRead = Stopwatch.GetTimestamp();
+            return snapshot;
         }
     }
+
+    /// <summary>Preserves the legacy scene contract, derived from the same cached library sample.</summary>
+    public MachineMetrics Read()
+    {
+        var sensors = ReadSensors();
+        var gpu = sensors.Gpus.FirstOrDefault();
+        return new(sensors.Cpu?.UsagePercent, sensors.Cpu?.TemperatureC, gpu?.UsagePercent, gpu?.TemperatureC,
+            gpu?.Name ?? "GPU",
+            sensors.Cpu?.TemperatureC is null ? "Unavailable" : $"Open Hardware Monitor: {sensors.Cpu.TemperatureLabel}",
+            gpu is null ? "Unavailable" : "Open Hardware Monitor (first detected GPU)");
+    }
+
+    private bool EnsureComputer()
+    {
+        if (computer is not null) { return true; }
+        if (initializationAttempted) { return false; }
+        initializationAttempted = true;
+        if (!System.OperatingSystem.IsWindows())
+        {
+            snapshot = HardwareSensorSnapshot.Empty with { Notice = "Hardware sensors are not implemented for this system." };
+            return false;
+        }
+        if (RuntimeInformation.OSArchitecture is not (Architecture.X64 or Architecture.X86)
+            || RuntimeInformation.ProcessArchitecture is not (Architecture.X64 or Architecture.X86))
+        {
+            snapshot = HardwareSensorSnapshot.Empty with { Notice = "Open Hardware Monitor 0.9.6 does not support Windows ARM64." };
+            return false;
+        }
+        if (!allowDriverLifecycle)
+        {
+            // Stock OHM has no public option to prevent WinRing0 installation or service removal.
+            // Holding a preflight device handle also blocks its exclusive open and can trigger installation.
+            snapshot = HardwareSensorSnapshot.Empty with
+            {
+                Notice = "Hardware sensors are disabled: Open Hardware Monitor's driver lifecycle has not been authorized."
+            };
+            return false;
+        }
+
+        Ohm.Computer? candidate = null;
+        try
+        {
+            candidate = new Ohm.Computer { CPUEnabled = true, GPUEnabled = true, RAMEnabled = true };
+            // This library may install/load WinRing0 internally. Only the explicit constructor opt-in permits this call.
+            candidate.Open();
+            computer = candidate;
+            return true;
+        }
+        catch (Exception error) when (IsSensorFailure(error))
+        {
+            try { candidate?.Close(); }
+            catch (Exception closeError) when (IsSensorFailure(closeError)) { }
+            snapshot = HardwareSensorSnapshot.Empty with
+            {
+                Notice = "Open Hardware Monitor could not start. Its .NET 10 runtime compatibility and hardware support are unverified."
+            };
+            return false;
+        }
+    }
+
+    private static HardwareDeviceSensors ReadCpu(string name, Ohm.ISensor[] sensors)
+    {
+        var usage = FindValue(sensors, Ohm.SensorType.Load, "CPU Total", percentage: true);
+        var clocks = sensors.Where(sensor => sensor.SensorType == Ohm.SensorType.Clock
+            && sensor.Name.Contains("Core", StringComparison.OrdinalIgnoreCase)
+            && !sensor.Name.Contains("Bus", StringComparison.OrdinalIgnoreCase))
+            .Select(sensor => Value(sensor, nonnegative: true)).OfType<double>().ToArray();
+        var temperatures = sensors.Where(sensor => sensor.SensorType == Ohm.SensorType.Temperature)
+            .Select(sensor => (Sensor: sensor, Value: Value(sensor))).Where(item => item.Value is not null).ToArray();
+        var package = temperatures.FirstOrDefault(item => item.Sensor.Name.Equals("CPU Package", StringComparison.OrdinalIgnoreCase));
+        var temperature = package.Value;
+        var temperatureLabel = temperature is not null ? "CPU package" : null;
+        if (temperature is null && temperatures.Length > 0)
+        {
+            temperature = temperatures.Max(item => item.Value);
+            temperatureLabel = "Hottest CPU sensor";
+        }
+        return new(name, usage, clocks.Length == 0 ? null : clocks.Average(), temperature,
+            clocks.Length == 0 ? null : "Average clock", temperatureLabel);
+    }
+
+    private static HardwareDeviceSensors ReadGpu(string name, Ohm.ISensor[] sensors) => new(name,
+        FindValue(sensors, Ohm.SensorType.Load, "GPU Core", percentage: true),
+        FindValue(sensors, Ohm.SensorType.Clock, "GPU Core", nonnegative: true),
+        FindValue(sensors, Ohm.SensorType.Temperature, "GPU Core"), "Core clock", "GPU core");
+
+    private static HardwareMemorySensors? ReadMemory(Ohm.ISensor[] sensors)
+    {
+        // Original OHM's Data values are GiB, despite its GB display label.
+        var used = FindValue(sensors, Ohm.SensorType.Data, "Used Memory", nonnegative: true);
+        var available = FindValue(sensors, Ohm.SensorType.Data, "Available Memory", nonnegative: true);
+        var usage = FindValue(sensors, Ohm.SensorType.Load, "Memory", percentage: true);
+        double? total = used is not null && available is not null ? used + available : null;
+        return total is null && used is null && usage is null ? null : new(total, used, usage);
+    }
+
+    private static double? FindValue(IEnumerable<Ohm.ISensor> sensors, Ohm.SensorType type, string name,
+        bool percentage = false, bool nonnegative = false) => sensors
+        .Where(sensor => sensor.SensorType == type && sensor.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+        .Select(sensor => Value(sensor, percentage, nonnegative)).FirstOrDefault(value => value is not null);
+
+    private static double? Value(Ohm.ISensor sensor, bool percentage = false, bool nonnegative = false)
+    {
+        if (sensor.Value is not float value || !float.IsFinite(value)) { return null; }
+        if (percentage && value is < 0 or > 100 || nonnegative && value < 0) { return null; }
+        return value;
+    }
+
+    private static IEnumerable<Ohm.IHardware> EnumerateHardware(IEnumerable<Ohm.IHardware> roots)
+    {
+        var pending = new Queue<(Ohm.IHardware Hardware, int Depth)>();
+        foreach (var root in roots.Take(MaximumHardware)) { pending.Enqueue((root, 0)); }
+        var visited = new HashSet<Ohm.IHardware>(ReferenceEqualityComparer.Instance);
+        while (pending.Count > 0 && visited.Count < MaximumHardware)
+        {
+            var (hardware, depth) = pending.Dequeue();
+            if (!visited.Add(hardware)) { continue; }
+            yield return hardware;
+            if (depth >= MaximumDepth) { continue; }
+            foreach (var child in hardware.SubHardware.Take(MaximumHardware - visited.Count - pending.Count))
+            {
+                pending.Enqueue((child, depth + 1));
+            }
+        }
+    }
+
+    private static bool IsSensorFailure(Exception error) => error is not (OutOfMemoryException or StackOverflowException or AccessViolationException);
 
     public void Dispose()
     {
-        if (nvmlInitialized) { _ = nvmlShutdown(); nvmlInitialized = false; }
+        lock (sync)
+        {
+            if (disposed) { return; }
+            disposed = true;
+            try { computer?.Close(); }
+            catch (Exception error) when (IsSensorFailure(error)) { }
+            finally { computer = null; snapshot = HardwareSensorSnapshot.Empty; }
+        }
     }
-
-    [DllImport("kernel32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool GetSystemTimes(out ulong idle, out ulong kernel, out ulong user);
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct Utilization { public uint Gpu; public uint Memory; }
-
-    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    [DllImport("nvml.dll", CallingConvention = CallingConvention.Cdecl)]
-    private static extern int nvmlInit_v2();
-    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    [DllImport("nvml.dll", CallingConvention = CallingConvention.Cdecl)]
-    private static extern int nvmlShutdown();
-    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    [DllImport("nvml.dll", CallingConvention = CallingConvention.Cdecl)]
-    private static extern int nvmlDeviceGetHandleByIndex_v2(uint index, out nint device);
-    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    [DllImport("nvml.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    private static extern int nvmlDeviceGetName(nint device, StringBuilder name, uint length);
-    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    [DllImport("nvml.dll", CallingConvention = CallingConvention.Cdecl)]
-    private static extern int nvmlDeviceGetTemperature(nint device, uint sensor, out uint temperature);
-    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    [DllImport("nvml.dll", CallingConvention = CallingConvention.Cdecl)]
-    private static extern int nvmlDeviceGetUtilizationRates(nint device, out Utilization utilization);
 }

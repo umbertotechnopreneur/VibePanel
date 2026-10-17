@@ -35,6 +35,18 @@ CODEX_IDENTITIES = {
     "dispatch": ("#10242F", "#F0F5F4", ("#63A4B8", "#CF9270", "#597BA5", "#99C1B2")),
     "chronicle": ("#2B241E", "#FCF5E9", ("#C3A070", "#A9B797", "#C69079", "#869D9B")),
 }
+SYSTEM_IDENTITIES = {
+    "signal": ("#0D161C", "#F1F6F2", ("#7BE5C0", "#76D5E9", "#B6CF94", "#92A5B7")),
+    "ledger": ("#25221D", "#F6F2E8", ("#DA986D", "#98B699", "#B4A290", "#D2B98B")),
+    "orbit": ("#111827", "#FAF5E9", ("#E8B96C", "#B6C998", "#D59074", "#9DAFC4")),
+    "terminal": ("#07150D", "#F0F6E9", ("#91DD8B", "#B4DCA0", "#69BDA0", "#94B584")),
+    "thermal": ("#25150F", "#FFF0E6", ("#FF9F67", "#F7C16E", "#CB9680", "#C6C399")),
+    "blueprint": ("#092849", "#EDF5FB", ("#8EDAF2", "#A8C9F9", "#90D8C4", "#A8BBD1")),
+    "horizon": ("#211D2D", "#F8F1EA", ("#E6AEA1", "#9BC6BA", "#C7B5D8", "#D5BE9F")),
+    "blocks": ("#111B38", "#F5F1E7", ("#7191FF", "#F4CF4D", "#A0CBB8", "#C3BDDD")),
+    "quiet": ("#18231F", "#F3F5EF", ("#A6C3AE", "#9CBAB9", "#C6C8AF", "#ADB6B0")),
+    "pulse": ("#090D15", "#F5F3F8", ("#63D8EA", "#EC97D4", "#B6C59B", "#A8AFC6")),
+}
 MEDIA_TREATMENTS = {
     "aurora": {"photo": True, "blur": 21, "dark": .24, "light": .48, "blob": .18},
     "editorial": {"photo": False, "blob": .50},
@@ -242,6 +254,7 @@ class ThemeContext:
         self.media = state.get("media") or {}
         self.audio = state.get("audio") or {}
         self.codex = state.get("codex") or {}
+        self.sensors = state.get("sensors") if isinstance(state.get("sensors"), dict) else {}
         self.desktop = state.get("desktop") or {}
         self.clock = state.get("clock") or {}
         self.light = bool(request.get("light"))
@@ -284,6 +297,12 @@ class ThemeContext:
             self.base = light_base if self.light else dark_base
             self.fg = blend("#172035" if self.light else "#F9F8FD", anchors[0], .10)
             self.muted = blend("#626471" if self.light else "#B9BBCD", anchors[2], .18)
+        elif self.category == "system":
+            dark_base, light_base, anchors = SYSTEM_IDENTITIES.get(self.style, SYSTEM_IDENTITIES["signal"])
+            self.palette = tuple(blend(anchor, "#263D41", .42) if self.light else anchor for anchor in anchors)
+            self.base = light_base if self.light else dark_base
+            self.fg = "#25332E" if self.light else "#EDF4F1"
+            self.muted = "#5E6E66" if self.light else "#9AAEA7"
         elif self.style in ("editorial", "orbit", "duotone"):
             self.base = "#FFF7ED" if self.light else blend("#101924", self.dominant, .18)
         self.accent = blend(self.palette[0], "#193B68" if self.light else "#CBEAFF", .42)

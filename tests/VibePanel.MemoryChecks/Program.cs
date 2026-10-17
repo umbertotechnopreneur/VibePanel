@@ -23,6 +23,7 @@ internal static class Program
     {
         if (args.FirstOrDefault() == WindowsMemoryGuard.Argument) { return WindowsMemoryGuard.Run(args); }
         if (args.Contains("--startup-check")) { return StartupChecks.Run(); }
+        if (args.Contains("--visibility-check")) { return VisibilityChecks.Run(args.Contains("--preview-capture")); }
         var output = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../memory-checks/ui"));
         Directory.CreateDirectory(output);
         using var guard = WindowsMemoryGuard.Start();
