@@ -63,6 +63,8 @@ public interface IPanelClient
 public interface IStudioWindowActions
 {
     bool CanMinimizeToTray { get; }
+    bool CanRestartAsAdministrator => false;
+    Task<bool> RestartAsAdministratorAsync() => Task.FromResult(false);
     void MinimizeToTray();
     void CloseApplication();
 }

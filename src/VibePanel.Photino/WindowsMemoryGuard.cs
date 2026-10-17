@@ -27,10 +27,10 @@ internal static class WindowsMemoryGuard
     private const uint KillOnJobClose = 0x2000;
 
     /// <summary>Finish the handshake before creating the engine or WebView children.</summary>
-    public static Process Start()
+    public static Session Start()
     {
         var token = Guid.NewGuid().ToString("N");
-        using var pipe = new NamedPipeServerStream(PipeName(token), PipeDirection.In, 1,
+        var pipe = new NamedPipeServerStream(PipeName(token), PipeDirection.InOut, 1,
             PipeTransmissionMode.Byte, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
         using var current = Process.GetCurrentProcess();
         var executable = Environment.ProcessPath ?? throw new IOException("The app path is unavailable.");
@@ -57,9 +57,9 @@ internal static class WindowsMemoryGuard
             var ready = new byte[1];
             pipe.ReadExactlyAsync(ready, timeout.Token).AsTask().GetAwaiter().GetResult();
             if (ready[0] != 1) { throw new IOException("The memory guard is unavailable."); }
-            return guard;
+            return new Session(guard, pipe);
         }
-        catch { guard.Dispose(); throw; }
+        catch { pipe.Dispose(); guard.Dispose(); throw; }
     }
 
     /// <summary>Internal child mode. Never creates a studio, engine, tray icon or USB session.</summary>
@@ -70,8 +70,8 @@ internal static class WindowsMemoryGuard
             || !Guid.TryParseExact(args[3], "N", out _)) { return 2; }
         try
         {
-            using var pipe = new NamedPipeClientStream(".", PipeName(args[3]), PipeDirection.Out,
-                PipeOptions.CurrentUserOnly);
+            using var pipe = new NamedPipeClientStream(".", PipeName(args[3]), PipeDirection.InOut,
+                PipeOptions.CurrentUserOnly | PipeOptions.Asynchronous);
             pipe.Connect(10_000);
             // A command-line PID alone never authorizes attaching a job to another process.
             if (!GetNamedPipeServerProcessId(pipe.SafePipeHandle, out var serverId) || serverId != processId) { return 2; }
@@ -99,26 +99,78 @@ internal static class WindowsMemoryGuard
             pipe.WriteByte(1);
             pipe.Flush();
 
-            while (!studio.WaitForExit(PollMilliseconds))
+            using var restartLifetime = new CancellationTokenSource();
+            // This existing guard is outside the studio's kill-on-close job. Launching
+            // here prevents the replacement from being killed with the previous studio.
+            _ = ServeRestartAsync(pipe, processId, startedAt, restartLifetime.Token);
+
+            try
             {
-                // Windows tracks the aggregate peak, including short spikes between polls.
-                if (!QueryInformationJobObject(job, ExtendedLimitInformation, out var usage, size, IntPtr.Zero))
+                while (!studio.WaitForExit(PollMilliseconds))
                 {
-                    if (studio.HasExited) { return 0; }
-                    RecordStop("memory.query.failed");
-                    return StopWithNotice(job, "The memory guard stopped working.\nVibe Panel will close in 2 seconds to protect your PC.");
-                }
-                if (priorBytes > MaximumBytes || usage.PeakJobMemoryUsed.ToUInt64() > MaximumBytes - priorBytes)
-                {
-                    RecordStop("memory.limit", usage.PeakJobMemoryUsed.ToUInt64(), priorBytes);
-                    return StopWithNotice(job, "Vibe Panel went over its 1 GB memory limit.\nThe app and its child processes will stop in 2 seconds.");
+                    // Windows tracks the aggregate peak, including short spikes between polls.
+                    if (!QueryInformationJobObject(job, ExtendedLimitInformation, out var usage, size, IntPtr.Zero))
+                    {
+                        if (studio.HasExited) { return 0; }
+                        RecordStop("memory.query.failed");
+                        return StopWithNotice(job, "The memory guard stopped working.\nVibe Panel will close in 2 seconds to protect your PC.");
+                    }
+                    if (priorBytes > MaximumBytes || usage.PeakJobMemoryUsed.ToUInt64() > MaximumBytes - priorBytes)
+                    {
+                        RecordStop("memory.limit", usage.PeakJobMemoryUsed.ToUInt64(), priorBytes);
+                        return StopWithNotice(job, "Vibe Panel went over its 1 GB memory limit.\nThe app and its child processes will stop in 2 seconds.");
+                    }
                 }
             }
+            finally { restartLifetime.Cancel(); }
             // Closing the job also stops any engine, Python or WebView left after a normal exit.
             return 0;
         }
         catch (Exception error) when (error is Win32Exception or IOException or InvalidOperationException or ArgumentException)
         { return 1; } // The studio refuses to open without a successful handshake.
+    }
+
+    private static async Task ServeRestartAsync(NamedPipeClientStream pipe, int studioId, long studioStart, CancellationToken token)
+    {
+        var command = new byte[1];
+        try
+        {
+            while (await pipe.ReadAsync(command, token) == 1)
+            {
+                if (command[0] != 1) { return; }
+                byte result;
+                try
+                {
+                    using var replacement = Process.Start(WindowsElevation.CreateStartInfo(studioId, studioStart));
+                    result = replacement is null ? (byte)0 : (byte)1;
+                }
+                catch (Win32Exception error) when (error.NativeErrorCode == 1223) { result = 2; }
+                catch (Exception error) when (error is Win32Exception or IOException or InvalidOperationException) { result = 0; }
+                await pipe.WriteAsync(new byte[] { result }, token);
+                await pipe.FlushAsync(token);
+                if (result == 1) { return; }
+            }
+        }
+        catch (Exception error) when (error is IOException or OperationCanceledException or ObjectDisposedException) { }
+    }
+
+    internal sealed class Session(Process guard, NamedPipeServerStream pipe) : IDisposable
+    {
+        internal async Task<bool> RestartAsAdministratorAsync()
+        {
+            await pipe.WriteAsync(new byte[] { 1 });
+            await pipe.FlushAsync();
+            var response = new byte[1];
+            await pipe.ReadExactlyAsync(response);
+            return response[0] switch
+            {
+                1 => true,
+                2 => false,
+                _ => throw new IOException("Windows could not start the administrator instance.")
+            };
+        }
+
+        public void Dispose() { pipe.Dispose(); guard.Dispose(); }
     }
 
     public static void ShowUnavailable() => ShowNotice("The memory guard could not start.\nVibe Panel will not open without memory protection.");

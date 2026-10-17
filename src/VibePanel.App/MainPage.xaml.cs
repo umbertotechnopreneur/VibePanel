@@ -40,7 +40,7 @@ public sealed partial class MainPage : Page
     private ThemeCatalogDto? catalog;
     private bool refreshing, unloaded, ready, updatingChoices, refreshAgain, catalogLoading;
     private bool displayActive, displayBusy, devicesLoading;
-    private bool codexLoading, codexPreparing, diagnosticsChanging, diagnosticsEnabled;
+    private bool codexLoading, codexPreparing, diagnosticsChanging, diagnosticsEnabled, restartingAsAdministrator;
     private long codexStatusAt;
     private int refreshMilliseconds = 1000;
     private string jpegQuality = "high";
@@ -420,7 +420,7 @@ public sealed partial class MainPage : Page
         FiltersPanel.Background = Brush(light ? "#F0EDF5" : "#171A23");
         DisplayDivider.BorderBrush = line;
         foreach (var text in new[] { Heading, SelectedThemeText, LoadingTitle, PositionText, FontScaleText, SaturationText, HueText, BrightnessText, ContrastText, AboutHeading, AboutAuthor, AboutDisclosureHeading, CodexStatusText }) { text.Foreground = ink; }
-        foreach (var text in new[] { Subtitle, Author, HeaderDot, CatalogText, SourceText, StatusText, LoadingText, FontLabel, SizeLabel, GeometryLabel, DeviceLabel, RefreshLabel, QualityLabel, SaturationLabel, HueLabel, BrightnessLabel, ContrastLabel, FiltersStatus, ScreensHelpText, CodexEventText, CodexHelpText, FooterDot2, AboutVersion, AboutDisclosure, AboutInitiative }) { text.Foreground = muted; }
+        foreach (var text in new[] { Subtitle, Author, HeaderDot, CatalogText, SourceText, StatusText, LoadingText, FontLabel, SizeLabel, GeometryLabel, DeviceLabel, RefreshLabel, QualityLabel, SaturationLabel, HueLabel, BrightnessLabel, ContrastLabel, FiltersStatus, ScreensHelpText, CodexEventText, CodexHelpText, FooterDot2, AboutVersion, AboutDisclosure, AboutInitiative, AdministratorHelp }) { text.Foreground = muted; }
         foreach (var text in new[] { Eyebrow, LibraryHeading, CategoryText, PreviewBadgeText, ScreensHeading, CodexSetupHeading }) { text.Foreground = accent; }
         foreach (var link in new[] { Manifesto, AboutLink, TermsLink, PrivacyLink, AboutManifesto, ProjectLink, InitiativeLink, WebsiteLink, AboutTerms, AboutPrivacy }) { link.Foreground = accent; }
         CategoriesBox.Background = ThemesBox.Background = transparent;
@@ -441,7 +441,7 @@ public sealed partial class MainPage : Page
         SpectrumBox.Foreground = muted;
         FiltersBox.Foreground = ink;
         foreach (var box in new[] { MusicScreenBox, CodexScreenBox, SystemScreenBox }) { box.Foreground = ink; }
-        foreach (var button in new[] { ReloadButton, PreviousButton, NextButton, ApplyFontButton, FontListButton, ResetColorsButton, SmallerButton, LargerButton, CloseAboutButton, RefreshDevicesButton, StartDisplayButton, StopDisplayButton, CodexRefreshButton, CodexPrepareButton, OpenLogButton })
+        foreach (var button in new[] { ReloadButton, PreviousButton, NextButton, ApplyFontButton, FontListButton, ResetColorsButton, SmallerButton, LargerButton, CloseAboutButton, RefreshDevicesButton, StartDisplayButton, StopDisplayButton, CodexRefreshButton, CodexPrepareButton, OpenLogButton, AdministratorButton })
         { button.Background = transparent; button.Foreground = ink; button.BorderThickness = new Thickness(0); }
         StartDisplayButton.Background = Brush(light ? "#68468F" : "#C5AAE8");
         StartDisplayButton.Foreground = Brush(light ? "#FFFFFF" : "#1C1428");
@@ -479,6 +479,8 @@ public sealed partial class MainPage : Page
     {
         SpectrumBox.IsEnabled = catalog?.Themes.FirstOrDefault(theme => theme.Id == selectedTheme)?.SupportsSpectrum == true;
         CodexSetupFrame.Visibility = selectedCategory == "codex" ? Visibility.Visible : Visibility.Collapsed;
+        AdministratorPanel.Visibility = selectedCategory == "system" && windowActions?.CanRestartAsAdministrator == true
+            ? Visibility.Visible : Visibility.Collapsed;
         CategoryText.Text = (categoryRows.FirstOrDefault(row => row.Id == selectedCategory)?.Name ?? selectedCategory).ToUpperInvariant();
         SelectedThemeText.Text = themeRows.FirstOrDefault(row => row.Id == selectedTheme)?.Name ?? "No themes installed";
         ToolTipService.SetToolTip(SelectedThemeText, null);
@@ -815,6 +817,24 @@ public sealed partial class MainPage : Page
     private void CancelClose_Click(object sender, RoutedEventArgs args) => CloseOverlay.Visibility = Visibility.Collapsed;
 
     private void Exit_Click(object sender, RoutedEventArgs args) => ExitApplication();
+
+    private async void Administrator_Click(object sender, RoutedEventArgs args)
+    {
+        if (restartingAsAdministrator || windowActions?.CanRestartAsAdministrator != true) { return; }
+        restartingAsAdministrator = true;
+        AdministratorButton.IsEnabled = false;
+        // Keep the existing session alive until Windows accepts the elevated launch.
+        try
+        {
+            colorChanges.Stop();
+            if (pendingColorSettings) { CommitColorControls(); }
+            SaveChoices();
+            if (await windowActions.RestartAsAdministratorAsync()) { ExitApplication(); }
+            else { StatusText.Text = "Administrator restart canceled. The current session is still running."; }
+        }
+        catch (Exception error) { StatusText.Text = "Could not reopen as administrator: " + error.Message; }
+        finally { restartingAsAdministrator = false; AdministratorButton.IsEnabled = true; }
+    }
 
     /// <summary>Flush pending choices before asking the desktop host to stop.</summary>
     public void ExitApplication()

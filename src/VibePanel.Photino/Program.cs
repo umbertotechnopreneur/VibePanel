@@ -19,6 +19,11 @@ internal static class Program
     {
         if (OperatingSystem.IsWindows() && args.FirstOrDefault() == WindowsMemoryGuard.Argument)
         { return WindowsMemoryGuard.Run(args); }
+        if (args.FirstOrDefault() == WindowsElevation.Argument)
+        {
+            if (!OperatingSystem.IsWindows() || !WindowsElevation.WaitForPreviousStudio(args)) { return 2; }
+            args = []; // An explicit administrator restart never restores USB output or tray startup.
+        }
         if (args.Any(argument => argument is not "--start-minimized" and not "--restore-last-session"))
         { Console.Error.WriteLine("Usage: VibePanel.exe [--start-minimized] [--restore-last-session]"); return 2; }
         var restoreLastSession = OperatingSystem.IsWindows() && args.Contains("--restore-last-session");
@@ -40,6 +45,9 @@ internal static class Program
         var exiting = 0;
         var actions = new StudioWindowActions(
             () => OperatingSystem.IsWindows() && tray is { Ready: true },
+            () => OperatingSystem.IsWindows() && memoryGuard is not null && !WindowsElevation.IsAdministrator,
+            () => OperatingSystem.IsWindows() && memoryGuard is not null
+                ? memoryGuard.RestartAsAdministratorAsync() : Task.FromResult(false),
             () => window?.Invoke(() => { if (OperatingSystem.IsWindows()) { tray?.HideWindow(); } }),
             () => window?.Invoke(() =>
             {
@@ -117,7 +125,7 @@ internal static class Program
         return 0;
     }
 
-    private static System.Diagnostics.Process? StartMemoryGuard()
+    private static WindowsMemoryGuard.Session? StartMemoryGuard()
     {
         if (!OperatingSystem.IsWindows()) { return null; }
         try { return WindowsMemoryGuard.Start(); }
@@ -142,9 +150,11 @@ internal static class Program
             area.Top + Math.Max(0, (area.Height - window.Size.Height) / 2)));
     }
 
-    private sealed class StudioWindowActions(Func<bool> canMinimize, Action minimize, Action close) : IStudioWindowActions
+    private sealed class StudioWindowActions(Func<bool> canMinimize, Func<bool> canRestart, Func<Task<bool>> restart, Action minimize, Action close) : IStudioWindowActions
     {
         public bool CanMinimizeToTray => canMinimize();
+        public bool CanRestartAsAdministrator => canRestart();
+        public Task<bool> RestartAsAdministratorAsync() => restart();
         public void MinimizeToTray() => minimize();
         public void CloseApplication() => close();
     }

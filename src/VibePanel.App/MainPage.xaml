@@ -142,7 +142,7 @@ VBWR E -->
                     <CheckBox x:Name="CycleBox" Grid.Column="5" Content="Auto-cycle · 20s" VerticalAlignment="Center" FontSize="11" Checked="Cycle_Changed" Unchecked="Cycle_Changed" ToolTipService.ToolTip="Rotate enabled screens every 20 seconds. With one screen, rotate its themes."/>
                 </Grid>
                 <Grid x:Name="OptionsFrame" Grid.Row="3" Margin="0,6,0,16">
-                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel Margin="0,0,16,0">
@@ -212,6 +212,11 @@ VBWR E -->
                             </Grid>
                         </StackPanel>
                     </Border>
+                    <Grid x:Name="AdministratorPanel" Grid.Row="2" Visibility="Collapsed" Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <TextBlock x:Name="AdministratorHelp" Text="CPU clock and temperature may need administrator rights." FontSize="11" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <Button x:Name="AdministratorButton" Grid.Column="1" Content="Reopen as administrator" Click="Administrator_Click" Height="30" Padding="10,0" FontSize="11" ToolTipService.ToolTip="Save your choices, stop output and reopen in preview. Themes will also run as administrator."/>
+                    </Grid>
                 </Grid>
                 <Grid x:Name="DisplayFrame" Grid.Row="4">
                     <Border x:Name="DisplayDivider" BorderThickness="0,1,0,0" VerticalAlignment="Top"/>

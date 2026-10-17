@@ -22,6 +22,9 @@ internal static class Program
     private static int Main(string[] args)
     {
         if (args.FirstOrDefault() == WindowsMemoryGuard.Argument) { return WindowsMemoryGuard.Run(args); }
+        if (args.FirstOrDefault() == WindowsElevation.Argument) { return AdministratorChecks.FinishHandoff(args); }
+        if (args.Contains("--elevation-handoff-check")) { return AdministratorChecks.StartHandoff(); }
+        if (args.Contains("--administrator-check")) { return AdministratorChecks.Run(); }
         if (args.Contains("--startup-check")) { return StartupChecks.Run(); }
         if (args.Contains("--visibility-check")) { return VisibilityChecks.Run(args.Contains("--preview-capture")); }
         var output = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../memory-checks/ui"));
@@ -204,6 +207,7 @@ internal static class Program
         public int MaximumStateInFlight { get; private set; }
         public bool RejectFrames { get; set; }
         public bool RejectStart { get; set; }
+        public bool IncludeSystem { get; init; }
         public PanelChoice[] Devices { get; set; } = [new("offline-fixture", "Offline fixture - no USB")];
         public int DeviceRequests { get; private set; }
         public int FontRequests { get; private set; }
@@ -220,8 +224,11 @@ internal static class Program
             switch (method)
             {
                 case "themes":
-                    result = new ThemeCatalogDto([new("multimedia", "Multimedia"), new("codex", "OpenAI Codex")],
-                        Enumerable.Range(0, 20).Select(i => new ThemeChoiceDto("fixture-" + i, "Offline theme " + i, i < 10 ? "multimedia" : "codex", "Memory fixture", "fixture")).ToArray(), []);
+                    result = new ThemeCatalogDto(IncludeSystem
+                        ? [new("multimedia", "Multimedia"), new("codex", "OpenAI Codex"), new("system", "System")]
+                        : [new("multimedia", "Multimedia"), new("codex", "OpenAI Codex")],
+                        Enumerable.Range(0, IncludeSystem ? 30 : 20).Select(i => new ThemeChoiceDto("fixture-" + i, "Offline theme " + i,
+                            i < 10 ? "multimedia" : i < 20 ? "codex" : "system", "Memory fixture", "fixture")).ToArray(), []);
                     break;
                 case "devices":
                     DeviceRequests++;

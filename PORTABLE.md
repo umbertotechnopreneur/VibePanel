@@ -42,6 +42,8 @@ You can preview a disabled screen. Codex is off by default on a fresh setup and 
 
 **System** shows available CPU, GPU and physical RAM readings. Missing details hide themselves. There is no swap display. The Windows x64 reader uses the original Open Hardware Monitor source rebuilt for .NET 10; it may manage its WinRing0 driver and some readings may require administrator rights. Windows ARM64 sensors are unavailable. Available readings vary by hardware and privileges. `vp sensors --diagnose` requests one sensor read and prints local initialization details, without audio or USB.
 
+On Windows, **Reopen as administrator** appears in System when the studio is not elevated. It saves your choices and reopens in local preview. Current display output stops after Windows accepts the launch. Canceling keeps the current studio running. Themes also run with administrator rights in that session.
+
 - **Font**: pick a style of letters. **Custom font** lets you type a name.
 - **Saturation**: more or less color.
 - **Hue**: change the colors.
