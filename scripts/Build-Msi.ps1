@@ -7,7 +7,7 @@
 param(
     [Parameter(Mandatory)][string]$PayloadPath,
     [ValidateSet('x64', 'ARM64')][string]$Architecture = 'x64',
-    [string]$Version = '0.1.3'
+    [string]$Version = '0.1.4'
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -73,7 +73,7 @@ try {
     & $wix extension add WixToolset.UI.wixext/4.0.6
     if ($LASTEXITCODE -ne 0) { throw 'Could not restore the pinned Windows Installer UI extension.' }
     # Build only. Do not invoke MSI validation, tests or the cleanup helper.
-    & $wix build (Join-Path $repo 'installer/Package.wxs') $source -arch $Architecture.ToLowerInvariant() -ext WixToolset.UI.wixext -culture en-US -d "PayloadRoot=$payload" -d "GeneratedRoot=$generated" -d "InstallerRoot=$(Join-Path $repo 'installer')" -d "SetupHelper=$setupHelper" -d "ProductVersion=$Version" -d "SourceRevision=$revision" -intermediatefolder (Join-Path $generated 'intermediate') -pdbtype none -out $output
+    & $wix build (Join-Path $repo 'installer/Package.wxs') $source -arch $Architecture.ToLowerInvariant() -ext WixToolset.UI.wixext -culture en-US -d "PayloadRoot=$payload" -d "GeneratedRoot=$generated" -d "InstallerRoot=$(Join-Path $repo 'installer')" -d "SetupHelper=$setupHelper" -d "SetupGate=$(Join-Path (Split-Path $setupHelper) 'VibePanel.SetupGate.dll')" -d "ProductVersion=$Version" -d "SourceRevision=$revision" -intermediatefolder (Join-Path $generated 'intermediate') -pdbtype none -out $output
     if ($LASTEXITCODE -ne 0) { throw 'MSI compilation failed.' }
 }
 finally { Pop-Location }

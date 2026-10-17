@@ -55,7 +55,7 @@ internal static class WindowsElevation
                 || !string.Equals(previous.MainModule?.FileName, Environment.ProcessPath, StringComparison.OrdinalIgnoreCase))
             { return false; }
             // Acquire the single-instance mutex only after the former studio and its engine close.
-            return previous.WaitForExit(30_000);
+            return previous.WaitForExit(65_000);
         }
         catch (ArgumentException) { return true; } // The validated launch can reach us after its parent exited.
         catch (InvalidOperationException) { return true; } // The retained parent exited while its metadata was being read.

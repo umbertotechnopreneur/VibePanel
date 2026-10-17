@@ -12,6 +12,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using OpenSilver.Themes.Modern;
 using VibePanel.Contracts;
+using VibePanel.Studio;
 
 namespace VibePanel.App;
 
@@ -21,63 +22,62 @@ public sealed partial class MainPage : Page
     private readonly IPanelClient client;
     private readonly IStudioWindowActions? windowActions;
     private readonly IStudioPreview? preview;
-    private readonly DispatcherTimer refresh = new() { Interval = TimeSpan.FromSeconds(1) };
+    private readonly StudioSession session;
+    public StudioSession Session => session;
+    private readonly bool ownsSession;
+    private readonly DispatcherTimer refresh = new() { Interval = TimeSpan.FromMilliseconds(100) };
     private readonly DispatcherTimer colorChanges = new() { Interval = TimeSpan.FromMilliseconds(150) };
-    private readonly DispatcherTimer deviceRefresh = new() { Interval = TimeSpan.FromSeconds(10) };
-    private readonly string settingsPath;
-    private readonly string? startupDeviceId, startupThemeId;
-    private bool startupRestorePending, startupReady;
     private readonly List<CatalogRow> categoryRows = [];
     private readonly List<CatalogRow> themeRows = [];
-    private readonly Dictionary<string, string> screenThemes = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, bool> screenEnabled = new(StringComparer.Ordinal)
-    {
-        ["multimedia"] = true,
-        ["codex"] = false,
-        ["system"] = true
-    };
+    private System.Collections.Concurrent.ConcurrentDictionary<string, string> screenThemes => session.Model.ScreenThemes;
+    private System.Collections.Concurrent.ConcurrentDictionary<string, bool> screenEnabled => session.Model.ScreenEnabled;
     private static readonly int[] RefreshIntervals = [1000, 500, 250, 100, 50, 25];
     private ThemeCatalogDto? catalog;
-    private bool refreshing, unloaded, ready, updatingChoices, refreshAgain, catalogLoading;
-    private bool displayActive, displayBusy, devicesLoading;
+    private bool unloaded, ready, updatingChoices, catalogLoading;
+    private bool displayActive => session.Snapshot.DisplayActive;
+    private bool displayBusy => session.Snapshot.Busy;
+    private bool startupRestorePending => session.Snapshot.StartupPending;
+    private bool devicesLoading;
     private bool codexLoading, codexPreparing, diagnosticsChanging, diagnosticsEnabled, restartingAsAdministrator;
-    private long codexStatusAt;
-    private int refreshMilliseconds = 1000;
-    private string jpegQuality = "high";
-    private string profileSelection = "auto";
-    private long lastChange = Environment.TickCount64;
-    private string selectedCategory = "multimedia", selectedTheme = "", selectedProfile = "wide-1280x480", fontFamily = "Cascadia Mono";
-    private int appearance;
-    private double fontScale = 1;
-    private double saturationPercent = 100, hueDegrees;
-    private double brightnessPercent, contrastPercent = 100;
-    private bool colorFiltersEnabled, cycleThemes;
-    private bool codexProcessRunning, frameSuppressed;
-    private int screenRevision;
-    private string? selectedDeviceId;
-    private bool showSpectrum = true, updatingColorControls, pendingColorSettings, updatingFonts;
+    private long codexStatusAt, appliedFrameRevision;
+    private bool codexProcessRunning => session.Snapshot.Frame?.CodexProcessRunning == true;
+    private bool frameSuppressed => session.Snapshot.Frame?.FrameSuppressed == true;
+    private bool updatingColorControls, pendingColorSettings, updatingFonts;
     private PanelChoice[] fontChoices = [];
     private string? lastRenderedTheme;
     private byte[]? lastFrame;
     private bool previewUpdating;
     private int previewGeneration;
     private bool? appliedLight;
+    private PanelChoice[]? appliedDevices;
+    private int refreshMilliseconds { get => session.Model.Preferences.RefreshMilliseconds; set => session.Model.Edit(p => p.RefreshMilliseconds = value); }
+    private string jpegQuality { get => session.Model.Preferences.JpegQuality; set => session.Model.Edit(p => p.JpegQuality = value); }
+    private string profileSelection { get => session.Model.Preferences.ProfileSelection; set => session.Model.Edit(p => p.ProfileSelection = value); }
+    private long lastChange { get => session.Model.Preferences.LastChange; set => session.Model.Edit(p => p.LastChange = value); }
+    private string selectedCategory { get => session.Model.Preferences.SelectedCategory; set => session.Model.Edit(p => p.SelectedCategory = value); }
+    private string selectedTheme { get => session.Model.Preferences.SelectedTheme; set => session.Model.Edit(p => p.SelectedTheme = value); }
+    private string selectedProfile { get => session.Model.Preferences.SelectedProfile; set => session.Model.Edit(p => p.SelectedProfile = value); }
+    private string fontFamily { get => session.Model.Preferences.FontFamily; set => session.Model.Edit(p => p.FontFamily = value); }
+    private int appearance { get => session.Model.Preferences.Appearance; set => session.Model.Edit(p => p.Appearance = value); }
+    private double fontScale { get => session.Model.Preferences.FontScale; set => session.Model.Edit(p => p.FontScale = value); }
+    private double saturationPercent { get => session.Model.Preferences.SaturationPercent; set => session.Model.Edit(p => p.SaturationPercent = value); }
+    private double hueDegrees { get => session.Model.Preferences.HueDegrees; set => session.Model.Edit(p => p.HueDegrees = value); }
+    private double brightnessPercent { get => session.Model.Preferences.BrightnessPercent; set => session.Model.Edit(p => p.BrightnessPercent = value); }
+    private double contrastPercent { get => session.Model.Preferences.ContrastPercent; set => session.Model.Edit(p => p.ContrastPercent = value); }
+    private bool colorFiltersEnabled { get => session.Model.Preferences.ColorFiltersEnabled; set => session.Model.Edit(p => p.ColorFiltersEnabled = value); }
+    private bool cycleThemes { get => session.Model.Preferences.CycleThemes; set => session.Model.Edit(p => p.CycleThemes = value); }
+    private string? selectedDeviceId { get => session.Model.Preferences.SelectedDeviceId; set => session.Model.Edit(p => p.SelectedDeviceId = value); }
+    private bool showSpectrum { get => session.Model.Preferences.ShowSpectrum; set => session.Model.Edit(p => p.ShowSpectrum = value); }
 
-    public MainPage(IPanelClient client, IStudioWindowActions? windowActions = null, string? presentationSettingsPath = null, IStudioPreview? preview = null, bool restoreLastSession = false)
+    public MainPage(IPanelClient client, IStudioWindowActions? windowActions = null, string? presentationSettingsPath = null, IStudioPreview? preview = null, bool restoreLastSession = false, StudioSession? session = null)
     {
-        this.client = client;
         this.windowActions = windowActions;
         this.preview = preview;
-        settingsPath = presentationSettingsPath ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VibePanel", "presentation.json");
+        this.session = session ?? new StudioSession(client, presentationSettingsPath ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VibePanel", "presentation.json"), restoreLastSession);
+        this.client = this.session;
+        ownsSession = session is null;
         InitializeComponent();
         InitializePreviewAppearance();
-        LoadChoices();
-        if (restoreLastSession && !string.IsNullOrEmpty(selectedDeviceId) && !string.IsNullOrEmpty(selectedTheme))
-        {
-            startupDeviceId = selectedDeviceId;
-            startupThemeId = selectedTheme;
-            startupRestorePending = true;
-        }
         RefreshBox.ItemsSource = RefreshIntervals.Select(value => new PanelChoice(value.ToString(), value == 1000 ? "1 s" : $"{value} ms")).ToArray();
         RefreshBox.SelectedItem = ((PanelChoice[])RefreshBox.ItemsSource).First(item => item.Id == refreshMilliseconds.ToString());
         QualityBox.ItemsSource = new[] { new PanelChoice("poor", "Poor"), new PanelChoice("low", "Low"), new PanelChoice("medium", "Medium"), new PanelChoice("high", "High") };
@@ -99,29 +99,26 @@ public sealed partial class MainPage : Page
         Loaded += async (_, _) =>
         {
             unloaded = false;
-            startupReady = false;
             await LoadCatalogAsync();
             await RefreshDevicesAsync();
             await LoadDiagnosticsAsync();
             await RefreshAsync();
             await LoadFontsAsync();
-            startupReady = true;
-            await RestoreStartupDisplayAsync();
             if (!unloaded)
             {
                 refresh.Start();
-                deviceRefresh.Start();
             }
         };
         Unloaded += (_, _) =>
         {
-            unloaded = true; refresh.Stop(); deviceRefresh.Stop(); colorChanges.Stop();
+            unloaded = true;
+            if (ownsSession) { _ = this.session.ShutdownAsync(); }
+            refresh.Stop(); colorChanges.Stop();
             ClearPreview();
             if (pendingColorSettings) { CommitColorControls(); }
             SaveChoices();
         };
         refresh.Tick += async (_, _) => await RefreshAsync(queueIfBusy: false);
-        deviceRefresh.Tick += async (_, _) => await RefreshDevicesAsync();
         colorChanges.Tick += async (_, _) =>
         {
             colorChanges.Stop(); CommitColorControls();
@@ -129,6 +126,8 @@ public sealed partial class MainPage : Page
         };
         KeyDown += (_, args) =>
         {
+            if (PaletteOverlay.Visibility == Visibility.Visible)
+            { if (args.Key == Key.Escape) { ClosePalette_Click(this, args); args.Handled = true; } return; }
             if (CloseOverlay.Visibility == Visibility.Visible)
             { if (args.Key == Key.Escape) { CloseOverlay.Visibility = Visibility.Collapsed; args.Handled = true; } return; }
             if (AboutOverlay.Visibility == Visibility.Visible)
@@ -200,7 +199,8 @@ public sealed partial class MainPage : Page
         ReloadButton.IsEnabled = false;
         try
         {
-            catalog = await client.RequestAsync<ThemeCatalogDto>("themes");
+            if (session.Snapshot.Catalog is null) { await session.ReloadCatalogAsync(); }
+            catalog = session.Snapshot.Catalog ?? throw new IOException("Theme catalog unavailable.");
             if (unloaded) { return; }
             updatingChoices = true;
             categoryRows.Clear();
@@ -244,129 +244,60 @@ public sealed partial class MainPage : Page
         updatingChoices = wasUpdating;
     }
 
-    private async Task RefreshAsync(bool queueIfBusy = true)
+    private Task RefreshAsync(bool queueIfBusy = true)
     {
-        if (unloaded || !ready || displayBusy || devicesLoading
-            || string.IsNullOrEmpty(selectedTheme) && (!displayActive || (catalog?.Themes.Count ?? 0) == 0)) { return; }
-        // The native .NET timer keeps running in the tray. A hidden preview
-        // needs no frames, but an explicitly started display must keep updating.
-        if (preview?.IsVisible == false && !displayActive) { return; }
-        if (refreshing) { if (queueIfBusy) { refreshAgain = true; } return; }
-        refreshing = true;
-        var requestedDisplay = displayActive;
-        var engineReplied = false;
-        try
+        session.PreviewVisible = preview?.IsVisible != false;
+        if (queueIfBusy) { session.Wake(); }
+        if (unloaded || !ready || preview?.IsVisible == false) { lastFrame = null; return Task.CompletedTask; }
+        var current = session.Snapshot;
+        ApplyAppearance();
+        if (selectedCategory == "codex") { _ = RefreshCodexStatusAsync(); }
+        ApplyDevices(current.Devices);
+        var p = session.Model.Preferences;
+        if ((CategoriesBox.SelectedItem as CatalogRow)?.Id != p.SelectedCategory || (ThemesBox.SelectedItem as CatalogRow)?.Id != p.SelectedTheme)
         {
-            if (preview?.IsVisible != false)
-            {
-                ApplyAppearance();
-                if (selectedCategory == "codex") { await RefreshCodexStatusAsync(); }
-            }
-            if (cycleThemes && Environment.TickCount64 - lastChange >= 20000) { CycleScreen(); }
-            if (string.IsNullOrEmpty(selectedTheme) && (catalog?.Themes.Count ?? 0) == 0) { return; }
-            var requestedSelection = selectedTheme;
-            // An empty library category can still be browsed while an existing USB session
-            // needs its eligible fallback (or a black frame when every screen is disabled).
-            var requestedTheme = string.IsNullOrEmpty(selectedTheme)
-                ? ScreenSelections().FirstOrDefault(screen => screen.Enabled && !string.IsNullOrEmpty(screen.ThemeId))?.ThemeId ?? catalog!.Themes[0].Id
-                : selectedTheme;
-            var requestedProfile = selectedProfile;
-            var requestedLight = IsLight;
-            var requestedFont = fontFamily;
-            var requestedScale = fontScale;
-            var requestedInterval = refreshMilliseconds;
-            var requestedQuality = jpegQuality;
-            var requestedSaturation = saturationPercent;
-            var requestedHue = hueDegrees;
-            var requestedSpectrum = showSpectrum;
-            var requestedBrightness = brightnessPercent;
-            var requestedContrast = contrastPercent;
-            var requestedFilters = colorFiltersEnabled;
-            var requestedScreenRevision = screenRevision;
-            var requestedScreens = ScreenSelections();
-            var state = await client.RequestAsync<PanelState>(requestedDisplay ? "present" : "state", new PreviewOptions(
-                ProfileId: requestedProfile, Light: requestedLight, ThemeId: requestedTheme,
-                FontFamily: requestedFont, FontScale: requestedScale, RefreshIntervalMilliseconds: requestedInterval,
-                JpegQuality: requestedQuality, SaturationPercent: requestedSaturation, HueDegrees: requestedHue,
-                ShowSpectrum: requestedSpectrum, BrightnessPercent: requestedBrightness, ContrastPercent: requestedContrast,
-                ColorFiltersEnabled: requestedFilters, Screens: requestedScreens));
-            engineReplied = true;
-            if (unloaded || displayBusy) { return; }
-            // A slow frame may complete after the user has selected another theme or font.
-            if (requestedSelection != selectedTheme || requestedProfile != selectedProfile || requestedLight != IsLight || requestedFont != fontFamily || requestedScale != fontScale
-                || requestedInterval != refreshMilliseconds || requestedQuality != jpegQuality || requestedDisplay != displayActive
-                || requestedSaturation != saturationPercent || requestedHue != hueDegrees || requestedSpectrum != showSpectrum
-                || requestedBrightness != brightnessPercent || requestedContrast != contrastPercent || requestedFilters != colorFiltersEnabled
-                || requestedScreenRevision != screenRevision)
-            { refreshAgain = true; return; }
-            displayActive = state.DisplayRunning;
-            codexProcessRunning = state.CodexProcessRunning;
-            frameSuppressed = state.FrameSuppressed;
-            var renderedTheme = state.ActiveThemeId ?? requestedTheme;
-            var renderedCategory = catalog?.Themes.FirstOrDefault(theme => theme.Id == renderedTheme)?.Category ?? selectedCategory;
-            var nextInterval = state.NextFrameMilliseconds is >= 25 and <= 1000
-                ? Math.Min(refreshMilliseconds, state.NextFrameMilliseconds.Value) : refreshMilliseconds;
-            refresh.Interval = TimeSpan.FromMilliseconds(nextInterval);
-            if (preview?.IsVisible == false)
-            {
-                // Keep the latest engine state and discard the preview JPEG.
-                // On restore the next frame redraws the preview from fresh data.
-                lastFrame = null;
-                return;
-            }
-            UpdateDisplayControls();
-            UpdateProfiles(state.Profiles);
-            UpdateFrameHeading(renderedTheme, state.FrameSuppressed);
-            SourceText.Text = state.FrameSuppressed ? "No enabled screen is available."
-                : renderedCategory == "codex" ? "OpenAI Codex · local activity"
-                : renderedCategory == "system" ? "Local hardware sensors"
-                : string.IsNullOrWhiteSpace(state.Source) ? "System media session" : state.Source;
-            StatusText.Text = state.Notices.Count > 0 ? string.Join(" · ", state.Notices)
-                : displayActive ? state.Status : $"Preview · {refreshMilliseconds} ms · {jpegQuality} JPEG";
-            if (requestedDisplay && !state.FrameSuppressed && renderedTheme != requestedSelection)
-            {
-                var chosenName = catalog?.Themes.FirstOrDefault(theme => theme.Id == requestedSelection)?.Name ?? "No theme";
-                var shownName = catalog?.Themes.FirstOrDefault(theme => theme.Id == renderedTheme)?.Name ?? renderedTheme;
-                StatusText.Text = $"{chosenName} selected · display uses {shownName}. {StatusText.Text}";
-            }
-            ScreensHelpText.Text = screenEnabled["codex"] && !codexProcessRunning
-                ? "Codex is closed, so its screen is skipped on the display. You can still preview it."
-                : "Codex hides when its process is closed. You can preview every theme.";
-            if (!state.FrameSuppressed && state.FrameJpeg is { Length: > 0 } frame)
-            {
-                UpdatePreviewAccent(state.AccentColor);
-                if (!previewUpdating && (lastFrame is null || !lastFrame.AsSpan().SequenceEqual(frame)))
-                {
-                    // One preview decode at a time, with no queue. Its browser
-                    // acknowledgement must never hold up the next engine frame.
-                    _ = UpdatePreviewAsync(frame, renderedTheme);
-                }
-            }
-            else
-            {
-                // Never label a previous theme's frame as the newly selected theme.
-                ClearPreview();
-                LoadingTitle.Text = state.FrameSuppressed ? "No active screens." : "The theme needs attention.";
-                LoadingText.Text = state.FrameSuppressed
-                    ? "Enable a screen to resume display updates."
-                    : state.Notices.Count > 0 ? string.Join(" · ", state.Notices) : "No frame is available yet.";
-            }
+            updatingChoices = true;
+            CategoriesBox.SelectedItem = categoryRows.FirstOrDefault(row => row.Id == p.SelectedCategory);
+            PopulateThemes();
+            updatingChoices = false;
         }
-        catch (Exception error)
+        UpdateDisplayControls();
+        StatusText.Text = current.Status;
+        if (current.Frame is not { } state || current.FrameRevision == appliedFrameRevision && lastFrame is not null) { return Task.CompletedTask; }
+        appliedFrameRevision = current.FrameRevision;
+        UpdateProfiles(state.Profiles);
+        var renderedTheme = state.ActiveThemeId ?? selectedTheme;
+        var category = catalog?.Themes.FirstOrDefault(theme => theme.Id == renderedTheme)?.Category ?? selectedCategory;
+        UpdateFrameHeading(renderedTheme, state.FrameSuppressed);
+        SourceText.Text = state.FrameSuppressed ? "No enabled screen is available." : category == "codex" ? "OpenAI Codex · local activity"
+            : category == "system" ? "Local hardware sensors" : state.Source;
+        if (state.Notices.Count > 0) { StatusText.Text = string.Join(" · ", state.Notices); }
+        ScreensHelpText.Text = screenEnabled["codex"] && !codexProcessRunning
+            ? "Codex is closed, so its screen is skipped on the display. You can still preview it."
+            : "Codex hides when its process is closed. You can preview every theme.";
+        if (!state.FrameSuppressed && state.FrameJpeg is { Length: > 0 } frame)
         {
-            // A browser decode/draw failure says nothing about the open USB session.
-            refresh.Interval = TimeSpan.FromMilliseconds(refreshMilliseconds);
-            if (requestedDisplay && !engineReplied) { displayActive = false; UpdateDisplayControls(); }
-            StatusText.Text = error.Message;
+            UpdatePreviewAccent(state.AccentColor);
+            if (!previewUpdating && (lastFrame is null || !lastFrame.AsSpan().SequenceEqual(frame))) { _ = UpdatePreviewAsync(frame, renderedTheme); }
+        }
+        else
+        {
             ClearPreview();
-            LoadingTitle.Text = engineReplied ? "Preview unavailable." : requestedDisplay ? "Display stopped." : "Waiting for the local engine.";
-            LoadingText.Text = error.Message;
+            LoadingTitle.Text = state.FrameSuppressed ? "No active screens." : "The theme needs attention.";
+            LoadingText.Text = state.Notices.Count > 0 ? string.Join(" · ", state.Notices) : "No frame is available yet.";
         }
-        finally
-        {
-            refreshing = false;
-            if (refreshAgain && !unloaded && !displayBusy) { refreshAgain = false; Dispatcher.BeginInvoke(async () => await RefreshAsync()); }
-        }
+        return Task.CompletedTask;
+    }
+
+    private void ApplyDevices(PanelChoice[]? choices)
+    {
+        if (choices is null || ReferenceEquals(choices, appliedDevices)) { return; }
+        appliedDevices = choices;
+        var wasUpdating = updatingChoices;
+        updatingChoices = true;
+        DevicesBox.ItemsSource = choices;
+        DevicesBox.SelectedItem = choices.FirstOrDefault(item => item.Id == selectedDeviceId);
+        updatingChoices = wasUpdating;
     }
 
     private async Task UpdatePreviewAsync(byte[] frame, string renderedTheme)
@@ -444,6 +375,11 @@ public sealed partial class MainPage : Page
         var accent = Brush(light ? "#7854B5" : "#C9AEF3");
         // Sections share the page, without cards. Only the modal needs its own surface.
         foreach (var section in new[] { LibraryFrame, AppearanceFrame, OptionsFrame, DisplayFrame, ScreensFrame, CodexSetupFrame, PreviewBadge, PreviewFrame }) { section.Background = transparent; }
+        PaletteFrame.Background = surface; PaletteFrame.BorderBrush = line;
+        foreach (var text in new[] { PaletteHeading, PalettePrimaryLabel, PaletteSecondaryLabel, PaletteAccentLabel, PaletteWarningLabel, PaletteInfoLabel }) { text.Foreground = ink; }
+        PaletteHelp.Foreground = muted; PaletteError.Foreground = Brush(light ? "#A12D35" : "#FFADB3");
+        foreach (var box in new[] { PalettePrimary, PaletteSecondary, PaletteAccent, PaletteWarning, PaletteInfo }) { box.Background = surface; box.Foreground = ink; box.BorderBrush = line; }
+        foreach (var button in new[] { PaletteButton, PaletteReset, PaletteCancel, PaletteApply }) { button.Background = surface; button.Foreground = ink; button.BorderBrush = line; }
         AboutFrame.Background = surface;
         AboutFrame.BorderBrush = line;
         CloseFrame.Background = surface;
@@ -537,24 +473,10 @@ public sealed partial class MainPage : Page
     {
         if (string.IsNullOrEmpty(selectedTheme) || screenThemes.GetValueOrDefault(selectedCategory) == selectedTheme) { return; }
         screenThemes[selectedCategory] = selectedTheme;
-        screenRevision++;
     }
 
     private ScreenSelectionDto[] ScreenSelections() => screenEnabled.Select(pair =>
         new ScreenSelectionDto(pair.Key, screenThemes.GetValueOrDefault(pair.Key, ""), pair.Value)).ToArray();
-
-    /// <summary>Rotate chosen screens; a single enabled screen keeps the former theme rotation.</summary>
-    private void CycleScreen()
-    {
-        lastChange = Environment.TickCount64;
-        var screens = ScreenSelections().Where(screen => screen.Enabled && !string.IsNullOrEmpty(screen.ThemeId)
-            && (!displayActive || screen.Category != "codex" || codexProcessRunning)).ToArray();
-        if (screens.Length == 0) { return; }
-        if (screens.Length == 1 && selectedCategory == screens[0].Category) { Navigate(1); return; }
-        var current = Array.FindIndex(screens, screen => screen.Category == selectedCategory);
-        var next = screens[(current + 1) % screens.Length];
-        CategoriesBox.SelectedItem = categoryRows.FirstOrDefault(row => row.Id == next.Category);
-    }
 
     private void Screen_Changed(object sender, RoutedEventArgs args)
     {
@@ -562,7 +484,6 @@ public sealed partial class MainPage : Page
         screenEnabled["multimedia"] = MusicScreenBox.IsChecked == true;
         screenEnabled["codex"] = CodexScreenBox.IsChecked == true;
         screenEnabled["system"] = SystemScreenBox.IsChecked == true;
-        screenRevision++;
         lastChange = Environment.TickCount64;
         SaveChoices();
         _ = RefreshAsync();
@@ -598,112 +519,28 @@ public sealed partial class MainPage : Page
 
     private async Task RefreshDevicesAsync()
     {
-        if (unloaded || devicesLoading || displayBusy) { return; }
+        if (devicesLoading) { return; }
         devicesLoading = true;
-        var discovered = false;
-        UpdateDisplayControls();
-        try
-        {
-            var choices = await client.RequestAsync<PanelChoice[]>("devices");
-            if (unloaded) { return; }
-            discovered = true;
-            var previous = selectedDeviceId ?? (DevicesBox.SelectedItem as PanelChoice)?.Id;
-            // The engine closes a missing session during discovery, even for a still frame.
-            var disconnected = displayActive && !choices.Any(item => item.Id == selectedDeviceId);
-            if (disconnected) { displayActive = false; }
-            var selected = choices.FirstOrDefault(item => item.Id == previous);
-            // An old interface path can change after a driver reinstall. With one compatible
-            // screen, choosing it is unambiguous; with several, keep waiting for the saved one.
-            if (selected is null && !startupRestorePending && (string.IsNullOrEmpty(previous) || choices.Length == 1)) { selected = choices.FirstOrDefault(); }
-            var wasUpdating = updatingChoices;
-            updatingChoices = true;
-            DevicesBox.ItemsSource = choices;
-            DevicesBox.SelectedItem = selected;
-            updatingChoices = wasUpdating;
-            if (disconnected) { StatusText.Text = "USB display disconnected. Reconnect it, then press Show on display."; }
-            else if (choices.Length == 0 && !displayActive) { StatusText.Text = "Connect a USB display. The list refreshes every 10 seconds."; }
-        }
+        try { await session.RefreshDevicesAsync(); ApplyDevices(session.Snapshot.Devices); }
         catch (Exception error) { StatusText.Text = error.Message; }
         finally { devicesLoading = false; UpdateDisplayControls(); }
-        if (discovered) { await RestoreStartupDisplayAsync(); }
     }
 
     private async void StartDisplay_Click(object sender, RoutedEventArgs args)
     {
-        startupRestorePending = false;
-        if (displayBusy || displayActive || DevicesBox.SelectedItem is not PanelChoice device || string.IsNullOrEmpty(selectedTheme)) { return; }
-        await StartDisplayAsync(device);
-    }
-
-    private async Task StartDisplayAsync(PanelChoice device)
-    {
-        if (displayBusy || displayActive || devicesLoading || string.IsNullOrEmpty(selectedTheme)) { return; }
-        displayBusy = true;
-        UpdateDisplayControls();
-        StatusText.Text = "Connecting to the selected display…";
-        try
-        {
-            var result = await client.RequestAsync<DisplayStartResult>("start", new StartOptions(device.Id, profileSelection, ThemeId: selectedTheme));
-            displayActive = result.Accepted;
-            if (displayActive)
-            {
-                selectedDeviceId = device.Id;
-            }
-            if (result.ProfileId is { } detected)
-            {
-                updatingChoices = true;
-                selectedProfile = detected;
-                ProfilesBox.SelectedItem = (ProfilesBox.ItemsSource as IEnumerable<PanelChoice>)?.FirstOrDefault(item => item.Id == profileSelection);
-                updatingChoices = false;
-            }
-            SaveChoices();
-        }
-        catch (Exception error) { StatusText.Text = error.Message; }
-        finally { updatingChoices = false; displayBusy = false; UpdateDisplayControls(); }
-        if (displayActive) { await RefreshAsync(); }
+        if (displayBusy || displayActive || DevicesBox.SelectedItem is not PanelChoice device) { return; }
+        await session.StartAsync(device.Id);
+        await RefreshAsync();
     }
 
     private async void StopDisplay_Click(object sender, RoutedEventArgs args)
     {
         if (displayBusy || !displayActive && !startupRestorePending) { return; }
-        startupRestorePending = false;
-        displayBusy = true;
-        UpdateDisplayControls();
-        try
-        {
-            await client.RequestAsync<JsonElement>("stop");
-            displayActive = false;
-            SaveChoices();
-            StatusText.Text = "Display stopped.";
-        }
-        catch (Exception error) { StatusText.Text = error.Message; }
-        finally { displayBusy = false; UpdateDisplayControls(); }
+        await session.StopAsync();
+        await RefreshAsync();
     }
 
     private async void RefreshDevices_Click(object sender, RoutedEventArgs args) => await RefreshDevicesAsync();
-
-    /// <summary>One Windows-startup start, for the saved device and theme only.</summary>
-    private async Task RestoreStartupDisplayAsync()
-    {
-        if (!startupRestorePending || !startupReady || unloaded || displayBusy || displayActive || devicesLoading || catalog is null) { return; }
-        if (!catalog.Themes.Any(theme => theme.Id == startupThemeId) || selectedTheme != startupThemeId)
-        {
-            startupRestorePending = false;
-            StatusText.Text = "The saved startup theme is unavailable or changed. Press Show on display to choose again.";
-            UpdateDisplayControls();
-            return;
-        }
-        var device = (DevicesBox.ItemsSource as IEnumerable<PanelChoice>)?.FirstOrDefault(item => item.Id == startupDeviceId);
-        if (device is null)
-        {
-            StatusText.Text = "Waiting for the saved USB display. Stop cancels startup output for this run.";
-            return;
-        }
-        // Consume before the I/O: a failed or ambiguous start must never be replayed.
-        startupRestorePending = false;
-        UpdateDisplayControls();
-        await StartDisplayAsync(device);
-    }
 
     private async Task RefreshCodexStatusAsync(bool force = false)
     {
@@ -806,7 +643,7 @@ public sealed partial class MainPage : Page
         if (!ready || updatingChoices) { return; }
         if (DevicesBox.SelectedItem is PanelChoice device)
         {
-            if (device.Id != startupDeviceId) { startupRestorePending = false; }
+            session.CancelStartup();
             selectedDeviceId = device.Id;
             SaveChoices();
         }
@@ -923,7 +760,11 @@ public sealed partial class MainPage : Page
         SaveChoices();
         _ = RefreshAsync();
     }
-    private async void Reload_Click(object sender, RoutedEventArgs args) { await LoadCatalogAsync(); await RefreshAsync(); }
+    private async void Reload_Click(object sender, RoutedEventArgs args)
+    {
+        try { await session.ReloadCatalogAsync(); await LoadCatalogAsync(); await RefreshAsync(); }
+        catch (Exception error) { StatusText.Text = error.Message; }
+    }
     private void Previous_Click(object sender, RoutedEventArgs args) => Navigate(-1);
     private void Next_Click(object sender, RoutedEventArgs args) => Navigate(1);
     private void Auto_Click(object sender, RoutedEventArgs args) => SetAppearance(0);
@@ -1024,8 +865,9 @@ public sealed partial class MainPage : Page
     private void Color_Changed(object sender, RoutedPropertyChangedEventArgs<double> args)
     {
         if (!ready || updatingColorControls) { return; }
-        // Slider values are drafts until the debounce expires; the refresh loop
-        // keeps using the applied values instead of rebuilding a filter for every move.
+        // Keep current choices in the model immediately, including during native
+        // tray/setup shutdown. Debounce only disk persistence and preview wakeups.
+        CommitColorControls();
         SaturationText.Text = $"{Math.Round(SaturationSlider.Value):0}%";
         HueText.Text = $"{Math.Round(HueSlider.Value):0}°";
         BrightnessText.Text = $"{Math.Round(BrightnessSlider.Value):+0;-0;0}%";
@@ -1037,10 +879,13 @@ public sealed partial class MainPage : Page
 
     private void CommitColorControls()
     {
-        saturationPercent = Math.Round(SaturationSlider.Value);
-        hueDegrees = Math.Round(HueSlider.Value);
-        brightnessPercent = Math.Round(BrightnessSlider.Value);
-        contrastPercent = Math.Round(ContrastSlider.Value);
+        session.Model.Edit(p =>
+        {
+            p.SaturationPercent = Math.Round(SaturationSlider.Value);
+            p.HueDegrees = Math.Round(HueSlider.Value);
+            p.BrightnessPercent = Math.Round(BrightnessSlider.Value);
+            p.ContrastPercent = Math.Round(ContrastSlider.Value);
+        });
         pendingColorSettings = false;
     }
 
@@ -1079,64 +924,7 @@ public sealed partial class MainPage : Page
     }
     private static SolidColorBrush Brush(string hex) => new((Color)ColorConverter.ConvertFromString(hex));
 
-    private void LoadChoices()
-    {
-        try
-        {
-            if (!File.Exists(settingsPath)) { return; }
-            using var document = JsonDocument.Parse(File.ReadAllText(settingsPath));
-            var json = document.RootElement;
-            if (json.TryGetProperty("theme", out var mode) && mode.TryGetInt32(out var value)) { appearance = value is >= 0 and <= 2 ? value : 0; }
-            if (json.TryGetProperty("category", out var category)) { selectedCategory = category.GetString() ?? selectedCategory; }
-            if (json.TryGetProperty("themeId", out var theme)) { selectedTheme = theme.GetString() ?? ""; }
-            if (!string.IsNullOrEmpty(selectedTheme)) { screenThemes[selectedCategory] = selectedTheme; }
-            if (json.TryGetProperty("screens", out var screens) && screens.ValueKind == JsonValueKind.Array)
-            {
-                foreach (var screen in screens.EnumerateArray())
-                {
-                    if (screen.ValueKind != JsonValueKind.Object || !screen.TryGetProperty("category", out var screenCategory)
-                        || screenCategory.ValueKind != JsonValueKind.String || screenCategory.GetString() is not { } categoryId
-                        || !screenEnabled.ContainsKey(categoryId)) { continue; }
-                    if (screen.TryGetProperty("enabled", out var enabled) && enabled.ValueKind is JsonValueKind.True or JsonValueKind.False)
-                    { screenEnabled[categoryId] = enabled.GetBoolean(); }
-                    if (screen.TryGetProperty("themeId", out var screenTheme) && screenTheme.ValueKind == JsonValueKind.String)
-                    { screenThemes[categoryId] = screenTheme.GetString() ?? ""; }
-                }
-            }
-            else if (selectedCategory == "codex")
-            {
-                // Preserve a saved Codex session from settings predating screen toggles.
-                screenEnabled["codex"] = true;
-            }
-            if (json.TryGetProperty("profile", out var profile)) { selectedProfile = profile.GetString() ?? selectedProfile; }
-            if (json.TryGetProperty("profileSelection", out var profileChoice)) { profileSelection = profileChoice.GetString() ?? "auto"; }
-            if (json.TryGetProperty("font", out var font)) { fontFamily = font.GetString() ?? fontFamily; }
-            if (json.TryGetProperty("fontScale", out var scale) && scale.TryGetDouble(out var number) && double.IsFinite(number)) { fontScale = Math.Clamp(number, 0.7, 1.5); }
-            if (json.TryGetProperty("refreshMilliseconds", out var interval) && interval.TryGetInt32(out var milliseconds) && RefreshIntervals.Contains(milliseconds)) { refreshMilliseconds = milliseconds; }
-            if (json.TryGetProperty("jpegQuality", out var quality) && quality.GetString() is "poor" or "low" or "medium" or "high") { jpegQuality = quality.GetString()!; }
-            if (json.TryGetProperty("saturationPercent", out var saturation) && saturation.TryGetDouble(out var saturationValue) && double.IsFinite(saturationValue)) { saturationPercent = Math.Clamp(saturationValue, 0, 200); }
-            if (json.TryGetProperty("hueDegrees", out var hue) && hue.TryGetDouble(out var hueValue) && double.IsFinite(hueValue)) { hueDegrees = Math.Clamp(hueValue, -180, 180); }
-            if (json.TryGetProperty("brightnessPercent", out var brightness) && brightness.TryGetDouble(out var brightnessValue) && double.IsFinite(brightnessValue)) { brightnessPercent = Math.Clamp(brightnessValue, -100, 100); }
-            if (json.TryGetProperty("contrastPercent", out var contrast) && contrast.TryGetDouble(out var contrastValue) && double.IsFinite(contrastValue)) { contrastPercent = Math.Clamp(contrastValue, 0, 200); }
-            if (json.TryGetProperty("showSpectrum", out var spectrum) && spectrum.ValueKind is JsonValueKind.True or JsonValueKind.False) { showSpectrum = spectrum.GetBoolean(); }
-            if (json.TryGetProperty("colorFiltersEnabled", out var filters) && filters.ValueKind is JsonValueKind.True or JsonValueKind.False) { colorFiltersEnabled = filters.GetBoolean(); }
-            if (json.TryGetProperty("cycleThemes", out var cycle) && cycle.ValueKind is JsonValueKind.True or JsonValueKind.False) { cycleThemes = cycle.GetBoolean(); }
-            if (json.TryGetProperty("deviceId", out var device) && device.ValueKind == JsonValueKind.String) { selectedDeviceId = device.GetString(); }
-        }
-        catch (Exception error) when (error is IOException or JsonException or InvalidOperationException or UnauthorizedAccessException) { }
-    }
-    private void SaveChoices()
-    {
-        try
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(settingsPath)!);
-            var temporary = settingsPath + ".tmp";
-            var screens = ScreenSelections().Select(screen => new { category = screen.Category, themeId = screen.ThemeId, enabled = screen.Enabled }).ToArray();
-            File.WriteAllText(temporary, JsonSerializer.Serialize(new { theme = appearance, category = selectedCategory, themeId = selectedTheme, profile = selectedProfile, profileSelection, font = fontFamily, fontScale, refreshMilliseconds, jpegQuality, saturationPercent, hueDegrees, brightnessPercent, contrastPercent, showSpectrum, colorFiltersEnabled, cycleThemes, screens, deviceId = selectedDeviceId }));
-            File.Move(temporary, settingsPath, overwrite: true);
-        }
-        catch (Exception error) when (error is IOException or UnauthorizedAccessException) { StatusText.Text = "The preference changed but could not be saved."; }
-    }
+    private void SaveChoices() => session.Save();
 
     public sealed class CatalogRow(string id, string name, string description = "", string number = "") : INotifyPropertyChanged
     {

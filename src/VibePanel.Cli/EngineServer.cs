@@ -178,6 +178,9 @@ internal sealed class EngineServer : IDisposable
         var fingerprint = theme is null
             ? DashboardRenderer.Fingerprint(snapshot, scene) + profile.Id + options.Light + drift
             : $"{theme.Id}|{profile.Id}|{options.Light}|{options.AmbientDrift}|{options.FontFamily}|{options.FontScale}|{options.JpegQuality}|{options.SaturationPercent}|{options.HueDegrees}|{options.ShowSpectrum}|{options.BrightnessPercent}|{options.ContrastPercent}|{options.ColorFiltersEnabled}";
+        var paletteKey = theme?.Id + (options.Light ? "@light" : "@dark");
+        var palette = options.Palettes?.GetValueOrDefault(paletteKey) ?? options.Palettes?.GetValueOrDefault(theme?.Id ?? "");
+        fingerprint += "|" + JsonSerializer.Serialize(palette, PanelContract.Json);
         var configurationChanged = previousFingerprint != fingerprint;
         var refreshInterval = previewNotice is null ? themeRenderer.FrameIntervalMilliseconds(options.RefreshIntervalMilliseconds) : 5000;
         if (options.IncludeFrame && (configurationChanged || theme is not null && Environment.TickCount64 - previewAt >= refreshInterval))
@@ -192,7 +195,7 @@ internal sealed class EngineServer : IDisposable
                 {
                     preview = await themeRenderer.RenderAsync(theme, snapshot, profile, options.Light, options.AmbientDrift, options.FontFamily, options.FontScale, options.JpegQuality,
                         saturationPercent: options.SaturationPercent, hueDegrees: options.HueDegrees, showSpectrum: options.ShowSpectrum,
-                        brightnessPercent: options.BrightnessPercent, contrastPercent: options.ContrastPercent, colorFiltersEnabled: options.ColorFiltersEnabled);
+                        brightnessPercent: options.BrightnessPercent, contrastPercent: options.ContrastPercent, colorFiltersEnabled: options.ColorFiltersEnabled, palette: palette);
                     previewNotice = null;
                 }
                 catch (Exception error) when (error is not OutOfMemoryException)
@@ -225,6 +228,11 @@ internal sealed class EngineServer : IDisposable
         if (options.JpegQuality is not ("poor" or "low" or "medium" or "high")) { throw new ArgumentException("JPEG quality must be Poor, Low, Medium or High."); }
         PythonThemeRenderer.ValidateColorAdjustments(options.SaturationPercent, options.HueDegrees, options.BrightnessPercent, options.ContrastPercent);
         ScreenSelectionPolicy.Validate(options.Screens);
+        if (options.Palettes is { } palettes)
+        {
+            if (palettes.Count > 16 || palettes.Keys.Any(key => key.Length > 110)) { throw new ArgumentException("Too many palette overrides."); }
+            foreach (var palette in palettes.Values) { if (palette is null) { throw new ArgumentException("Invalid palette."); } palette.Validate(); }
+        }
     }
 
     private ThemeDefinition FindTheme(string id) => (themeCatalog ??= ThemeCatalog.Read()).Themes.FirstOrDefault(item => item.Id == id)

@@ -56,4 +56,31 @@ Export makes a new picture on the PC. It does not open USB. Only use `--device N
 
 **Themes run code on your PC. For now, only get them from the official repo.**
 
+## Theme palette
+
+Every theme receives palette v1: `s.palette.textPrimary`, `textSecondary`,
+`accent`, `warning` and `info`. Existing numeric series such as `s.palette[0]`
+still work. `s.fg`, `s.muted` and `s.accent` use the resolved semantic colors.
+Use `s.palette.to_json()` for the five named values.
+
+Optional manifest defaults use `paletteVersion: 1` and `palette`:
+
+```json
+{
+  "paletteVersion": 1,
+  "palette": {
+    "accent": "#C9AEF3",
+    "dark": { "textPrimary": "#F5F5FC", "warning": "#FFC16E" },
+    "light": { "textPrimary": "#182133", "info": "#245C91" }
+  }
+}
+```
+
+Colors must be `#RRGGBB`. Omitted or null values inherit the defaults.
+The order is shared defaults, manifest defaults, light/dark defaults, then
+personal overrides. In the gallery, **Theme colors** edits the selected theme
+and appearance. Reset removes that override. Installed theme files stay intact.
+Palette colors are drawing inputs; the separate Color filters switch controls
+the final whole-image saturation, hue, brightness and contrast pass.
+
 [Full drawing API](https://github.com/umbertotechnopreneur/VibePanel/blob/codex/usb-transport/theme-runtime/README.md) · [Engine commands](engine-protocol.md). In the ZIP, the full API guide is in `engine/theme-runtime/README.md`.

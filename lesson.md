@@ -37,3 +37,6 @@
 - My MSI shows progress and closes verified app processes before replacing files. I check that my sensor driver has stopped, its service is gone, and its generated file is removed. A successful file read does not prove that a loaded driver can be deleted.
 - I use the selected Visual Studio installation's default toolset for Photino. New Windows runners may omit older ARM64 compilers.
 - I never wait for a browser preview before requesting the next display frame. A hidden or minimized WebView can delay image callbacks. I keep one preview decode with no queue and skip hidden previews while active display output continues.
+- I keep preferences, startup and the display loop in a UI-independent studio model. Views send commands and read the latest snapshot; hiding or blocking a view does not own the output lifetime.
+- I hold the single-instance lock until the engine has finished closing. Setup blocks new launches until commit or rollback. A maximized window stays maximized when restored from the tray.
+- Themes share five named palette colors. Personal overrides belong to the theme and its light/dark appearance, outside the installed files.

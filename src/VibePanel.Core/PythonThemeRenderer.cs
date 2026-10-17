@@ -8,6 +8,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using VibePanel.Contracts;
 
 namespace VibePanel.Core;
 
@@ -36,11 +37,12 @@ public sealed class PythonThemeRenderer : IDisposable
         bool light = false, bool ambientDrift = false, string fontFamily = "Cascadia Mono", double fontScale = 1,
         string jpegQuality = "high", CancellationToken cancellationToken = default,
         double saturationPercent = 100, double hueDegrees = 0, bool showSpectrum = true,
-        double brightnessPercent = 0, double contrastPercent = 100, bool colorFiltersEnabled = true)
+        double brightnessPercent = 0, double contrastPercent = 100, bool colorFiltersEnabled = true, ThemePalette? palette = null)
     {
         if (string.IsNullOrWhiteSpace(fontFamily) || fontFamily.Length > 128 || fontFamily.Any(char.IsControl)) { throw new ArgumentException("Choose a font family of 1–128 printable characters."); }
         if (!double.IsFinite(fontScale) || fontScale is < 0.65 or > 1.6) { throw new ArgumentException("Font scale must be between 0.65 and 1.6."); }
         if (jpegQuality is not ("poor" or "low" or "medium" or "high")) { throw new ArgumentException("JPEG quality must be poor, low, medium or high."); }
+        palette?.Validate();
         ValidateColorAdjustments(saturationPercent, hueDegrees, brightnessPercent, contrastPercent);
         await gate.WaitAsync(cancellationToken);
         try
@@ -92,6 +94,8 @@ public sealed class PythonThemeRenderer : IDisposable
                 brightnessPercent,
                 contrastPercent,
                 colorFiltersEnabled,
+                paletteVersion = 1,
+                palette,
                 state = new
                 {
                     media = mediaState,

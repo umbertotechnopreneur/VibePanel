@@ -21,6 +21,10 @@ to `%LOCALAPPDATA%\VibePanel\logs\setup.log`. The helper is embedded in the MSI;
 it adds no installed service or runtime dependency.
 
 The new MSI releases resources before removing an older MSI, including 0.1.1.
+During file changes, a per-user named event blocks new studio launches. The
+installer clears it on commit or rollback; ending its host process also releases
+it. Setup gives the studio up to sixty seconds to drain its worker and engine
+before its existing scoped termination fallback.
 Keep the existing payload component identities stable for this upgrade order.
 Setup replaces its complete owned payload, including preview assemblies with
 unchanged file versions. Edited bundled files can be replaced; user themes and
@@ -32,7 +36,7 @@ create its driver again on a later owner-requested sensor read.
 Publish with `scripts/Publish.ps1`, then pass its staging folder to:
 
 ```powershell
-./scripts/Build-Msi.ps1 -PayloadPath artifacts/staging/<published-folder> -Architecture x64 -Version 0.1.3
+./scripts/Build-Msi.ps1 -PayloadPath artifacts/staging/<published-folder> -Architecture x64 -Version 0.1.4
 ```
 
 The build uses existing Visual Studio C++ tools and restores WiX 4.0.6 and its

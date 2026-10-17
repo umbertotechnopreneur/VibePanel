@@ -468,7 +468,7 @@ void StopProcesses(const Scope& scope, const Log& log) {
             Handle event(OpenEventW(EVENT_MODIFY_STATE, FALSE, eventName.c_str()));
             if (event && !SetEvent(event.get())) { Fail(L"Cannot request Vibe Panel shutdown"); }
         }
-        const ULONGLONG deadline = GetTickCount64() + 10000;
+        const ULONGLONG deadline = GetTickCount64() + 60000;
         while (GetTickCount64() < deadline
             && std::any_of(processes.begin(), processes.end(), [](const Process& process) {
                 return WaitForSingleObject(process.handle.get(), 0) == WAIT_TIMEOUT;

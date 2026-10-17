@@ -13,6 +13,7 @@ import numpy as np
 import skia
 
 from color_adjustments import ColorAdjustments
+from palette import ThemePalette
 
 _CACHE = OrderedDict()
 _COVERS = OrderedDict()
@@ -306,6 +307,14 @@ class ThemeContext:
         elif self.style in ("editorial", "orbit", "duotone"):
             self.base = "#FFF7ED" if self.light else blend("#101924", self.dominant, .18)
         self.accent = blend(self.palette[0], "#193B68" if self.light else "#CBEAFF", .42)
+        self.palette = ThemePalette(self.palette, {
+            "textPrimary": self.fg, "textSecondary": self.muted, "accent": self.accent,
+            "warning": "#9E5218" if self.light else "#FFC16E",
+            "info": self.accent,
+        }, manifest, request.get("palette"), self.light)
+        self.fg = self.palette.textPrimary
+        self.muted = self.palette.textSecondary
+        self.accent = self.palette.accent
         self.title = clean(self.media.get("title"), "Nothing playing")
         self.artist = clean(self.media.get("artist"), "Waiting for a media session")
         self.album = clean(self.media.get("album"))
@@ -344,7 +353,7 @@ class ThemeContext:
         self.approval = self.event == "PermissionRequest" and self.is_live and not self.stale
         self.ready = self.event == "Stop" and not self.stale
         if self.approval:
-            self.signal = "#9E5218" if self.light else "#FFC16E"
+            self.signal = self.palette.warning
         elif self.ready:
             self.signal = "#26754D" if self.light else "#8DE2AE"
         elif self.event == "Interrupt" and not self.stale:
@@ -352,7 +361,7 @@ class ThemeContext:
         elif not self.event or self.stale or self.event == "SessionEnd":
             self.signal = self.muted
         else:
-            self.signal = self.accent
+            self.signal = self.palette.info
         try:
             self.now = datetime.fromisoformat(str(self.clock.get("iso", "")).replace("Z", "+00:00"))
         except ValueError:
@@ -603,7 +612,7 @@ class Canvas:
                 for row in range(0, full_height, 60):
                     native.drawLine(0, row, full_width, row, self.paint(ctx.palette[0], .06, 1))
             if ctx.category == "codex" and (ctx.approval or ctx.ready):
-                glow_color = "#FFA83D" if ctx.approval else "#57C88D"
+                glow_color = ctx.palette.warning if ctx.approval else "#57C88D"
                 for left, top, radius in ((1.03, .24, .44), (-.10, .93, .35)):
                     shader = skia.GradientShader.MakeRadial((left * self.width, top * self.height), self.width * radius,
                         [color(glow_color, .58 if ctx.light else .72), color(glow_color, 0)])

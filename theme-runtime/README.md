@@ -26,6 +26,8 @@ The upstream [Skia package](https://pypi.org/project/skia-python/144.0.post2/) p
 
 ## Protocol 1
 
+The semantic palette has five stable roles: `textPrimary`, `textSecondary`, `accent`, `warning` and `info`. Themes read them through `context.palette`; requests and manifests use a `palette` JSON object with `paletteVersion: 1`. Colors are `#RRGGBB`, with null inheriting the default. The gallery's **Theme colors** editor saves overrides per theme and light/dark appearance. See [the theme guide](../docs/theme-packs.md) for precedence and examples. Color filters remain a separate final-image operation.
+
 One UTF-8 JSON object per line, request and response IDs preserved:
 
 ```json

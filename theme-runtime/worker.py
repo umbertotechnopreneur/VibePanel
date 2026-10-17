@@ -64,6 +64,8 @@ def render(request: dict) -> dict:
         raise RuntimeError("Python theme dependencies are missing. Install theme-runtime/requirements.txt in the configured Python runtime. " + IMPORT_ERROR)
     if request.get("version", 1) != 1 or request.get("method", "render") != "render":
         raise ValueError("Unsupported theme worker request.")
+    if request.get("paletteVersion", 1) != 1:
+        raise ValueError("Unsupported palette version.")
     # Reject invalid controls before importing a theme. The resolved theme overrides
     # are checked again by the native filter helper after render/finish.
     for name, default, minimum, maximum in (
@@ -114,7 +116,7 @@ def render(request: dict) -> dict:
     transition_active = False
     if context.category == "multimedia":
         scope = (str(folder), manifest.get("id"), width, height, context.light,
-                 context.font_family, context.font_scale)
+                 context.font_family, context.font_scale, tuple(context.palette.to_json().items()))
         track = (context.source, context.title, context.artist, context.album, context.cover_key)
         snapshot, transition_active = TRACK_TRANSITION.compose(snapshot, scope, track)
     else:

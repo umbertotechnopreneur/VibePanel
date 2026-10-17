@@ -2,6 +2,9 @@
 
 Each execution needs the owner's explicit approval. These checks do not run in CI or open a USB device.
 
+- `tests/VibePanel.StudioChecks` checks the UI-independent session with a fake client and no window: output and rotation, deferred startup cancellation, failed-session recovery, settings/palette round trips, and draining a held request on shutdown. Build the project, then run its Release executable only after approval.
+- `python -B tests/check_palette.py` checks semantic names, inheritance, light/dark precedence, numeric-series compatibility and invalid values. It imports no renderer or hardware provider. Execution needs approval too.
+
 - Build `tests/VibePanel.MemoryChecks/VibePanel.MemoryChecks.csproj` in Release x64, then run `tests/Measure-PreviewMemory.ps1`. It uses an isolated settings file and a fake engine. It covers fast preview, twenty theme choices, fades, appearance, colors, fonts, quality, simulated output and errors. It checks actual browser drawing and stops at 900 MB for the process family. Reports stay in `artifacts/memory-checks/`.
 - For a separately approved visual check, build that project with `-p:PreviewCapture=true`, then run `tests/Measure-PreviewMemory.ps1 -PreviewCapture`. This opt-in diagnostic DLL uses WebView2's native capture API, without a debugging port. PNGs under `artifacts/memory-checks/ui/` show the complete WebView. The check also reads on-screen canvas bounds and fixture pixels, in light/dark mode, after resizing and with wide, square and portrait frames. The portable app never includes the capture export.
 - After separate owner approval, run the Release x64 `VibePanel.MemoryChecks.exe --startup-check`. It uses a hidden window, isolated settings and a fake client. It checks saved startup output, the real ten-second discovery timer, Stop, failures, exact device/theme selection, and close/reopen settings. No engine or USB backend runs. A 90-second watchdog bounds the check.

@@ -7,6 +7,7 @@ using System.Drawing;
 using OpenSilver.Photino;
 using Photino.NET;
 using VibePanel.Contracts;
+using VibePanel.Studio;
 
 namespace VibePanel.Photino;
 
@@ -28,6 +29,7 @@ internal static class Program
         { Console.Error.WriteLine("Usage: VibePanel.exe [--start-minimized] [--restore-last-session]"); return 2; }
         var restoreLastSession = OperatingSystem.IsWindows() && args.Contains("--restore-last-session");
         var startMinimized = args.Contains("--start-minimized") || restoreLastSession;
+        if (OperatingSystem.IsWindows() && WindowsSetupGate.IsInstalling()) { if (!startMinimized) { WindowsSetupGate.ShowBusy(); } return 3; }
         using var instance = new SingleInstanceService();
         if (!instance.IsPrimary)
         {
@@ -38,6 +40,7 @@ internal static class Program
         using var memoryGuard = StartMemoryGuard();
         if (OperatingSystem.IsWindows() && memoryGuard is null) { return 1; }
         using var client = new StdioPanelClient();
+        using var session = new StudioSession(client, Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VibePanel", "presentation.json"), restoreLastSession);
         PhotinoWindow? window = null;
         WindowsTrayService? tray = null;
         WindowsSetupShutdown? setupShutdown = null;
@@ -53,7 +56,7 @@ internal static class Program
             () => window?.Invoke(() =>
             {
                 if (Interlocked.Exchange(ref exiting, 1) != 0) { return; }
-                instance.Dispose();
+                session.Save();
                 if (OperatingSystem.IsWindows()) { tray?.Dispose(); }
                 window?.Close();
             }));
@@ -64,9 +67,12 @@ internal static class Program
             window.Invoke(() =>
             {
                 if (Volatile.Read(ref exiting) != 0) { return; }
-                if (OperatingSystem.IsWindows()) { tray?.ShowWindow(); }
-                window.SetMinimized(false);
-                CenterOnWorkArea(window);
+                if (OperatingSystem.IsWindows() && tray is { Ready: true })
+                {
+                    tray.ShowWindow();
+                    if (!tray.IsMaximized) { CenterOnWorkArea(window); }
+                }
+                else { window.SetMinimized(false); CenterOnWorkArea(window); }
             });
         }
 
@@ -81,7 +87,7 @@ internal static class Program
             .SetLogVerbosity(0)
             .SetIconFile(Path.Combine(AppContext.BaseDirectory, "Assets", OperatingSystem.IsWindows() ? "vibepanel.ico" : "vibepanel-icon.png"))
             .Center()
-            .ConfigureOpenSilver(() => application = new App.App(client, actions, preview: preview = new PhotinoPreview(window!), restoreLastSession: restoreLastSession))
+            .ConfigureOpenSilver(() => application = new App.App(client, actions, preview: preview = new PhotinoPreview(window!), restoreLastSession: restoreLastSession, session: session))
             .RegisterWindowClosingHandler((_, _) =>
             {
                 if (Volatile.Read(ref exiting) != 0 || application is null) { return false; }
@@ -99,7 +105,7 @@ internal static class Program
                     {
                         tray = new WindowsTrayService(created.WindowHandle, Path.Combine(AppContext.BaseDirectory, "Assets", "vibepanel.ico"),
                             ShowStudio,
-                            () => { if (application is not null) { application.RequestExit(); } else { actions.CloseApplication(); } },
+                            () => actions.CloseApplication(),
                             showAbout: () => { ShowStudio(); application?.RequestAbout(); },
                             openManifesto: () => OpenWebsite("https://umbertogiacobbi.biz/vibeware/manifesto"),
                             openWebsite: () => OpenWebsite("https://umbertogiacobbi.biz"),
@@ -117,7 +123,7 @@ internal static class Program
                         }, () =>
                         {
                             if (Volatile.Read(ref exiting) != 0) { return; }
-                            if (application is not null) { application.RequestExit(); } else { actions.CloseApplication(); }
+                            actions.CloseApplication();
                         });
                     }
                     catch (Exception error) when (error is System.ComponentModel.Win32Exception or IOException or InvalidOperationException or UnauthorizedAccessException or WaitHandleCannotBeOpenedException)
@@ -129,6 +135,8 @@ internal static class Program
                 }, ShowStudio);
             })
             .Load(page);
+        // Native visibility is advisory only. The session never waits for the UI.
+        using var visibility = new System.Threading.Timer(_ => session.PreviewVisible = preview?.IsVisible == true, null, 0, 250);
         try { window.WaitForClose(); }
         finally
         {

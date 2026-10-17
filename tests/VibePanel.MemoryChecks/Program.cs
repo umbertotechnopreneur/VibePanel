@@ -21,6 +21,7 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        if (args.FirstOrDefault() is "--setup-gate-check" or "--setup-gate-owner") { return SetupGateChecks.Run(args); }
         if (args.FirstOrDefault() == WindowsMemoryGuard.Argument) { return WindowsMemoryGuard.Run(args); }
         if (args.FirstOrDefault() == WindowsElevation.Argument) { return AdministratorChecks.FinishHandoff(args); }
         if (args.Contains("--elevation-handoff-check")) { return AdministratorChecks.StartHandoff(); }

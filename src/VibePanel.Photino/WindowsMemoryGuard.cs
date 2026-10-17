@@ -158,10 +158,11 @@ internal static class WindowsMemoryGuard
     {
         internal async Task<bool> RestartAsAdministratorAsync()
         {
-            await pipe.WriteAsync(new byte[] { 1 });
-            await pipe.FlushAsync();
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+            await pipe.WriteAsync(new byte[] { 1 }, deadline.Token);
+            await pipe.FlushAsync(deadline.Token);
             var response = new byte[1];
-            await pipe.ReadExactlyAsync(response);
+            await pipe.ReadExactlyAsync(response, deadline.Token);
             return response[0] switch
             {
                 1 => true,

@@ -41,7 +41,7 @@ internal static class StartupChecks
                 {
                     if (firstClient.Frames == 0 || Interlocked.Exchange(ref started, 1) != 0) { return; }
                     timer.Stop();
-                    try { await ExerciseAsync(app, firstClient, preview, output); exitCode = 0; }
+                    try { await ExerciseAsync(app, firstClient, preview, window!, output); exitCode = 0; }
                     catch (Exception error) { Console.Error.WriteLine(error); }
                     finally { window!.Invoke(() => window.Close()); }
                 };
@@ -63,7 +63,7 @@ internal static class StartupChecks
         return exitCode;
     }
 
-    private static async Task ExerciseAsync(App app, Program.FixtureClient first, PhotinoPreview preview, string output)
+    private static async Task ExerciseAsync(App app, Program.FixtureClient first, PhotinoPreview preview, PhotinoWindow window, string output)
     {
         var count = 0;
         void Check(bool value, string name)
@@ -76,7 +76,9 @@ internal static class StartupChecks
         {
             var page = new MainPage(client, windowActions: actions, presentationSettingsPath: Settings(output, theme, device), preview: preview, restoreLastSession: restore);
             app.RootVisual = page;
-            await WaitAsync(() => Ready(page) && client.Frames > 0 && client.FontRequests > 0);
+            // A hidden preview now intentionally produces no frames. Catalog and
+            // controls still initialize while the independent startup worker runs.
+            await WaitAsync(() => Ready(page) && client.FontRequests > 0);
             return page;
         }
         async Task Poll(MainPage page)
@@ -144,7 +146,7 @@ internal static class StartupChecks
         ((ComboBox)closingPage.FindName("RefreshBox")).SelectedIndex = 2;
         ((Slider)closingPage.FindName("BrightnessSlider")).Value = 17;
         closingPage.ExitApplication();
-        var savedPath = (string)typeof(MainPage).GetField("settingsPath", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(closingPage)!;
+        var savedPath = closingPage.Session.Model.SettingsPath;
         using (var saved = JsonDocument.Parse(File.ReadAllText(savedPath)))
         {
             Check(actions.CloseRequests == 1 && saved.RootElement.GetProperty("themeId").GetString() == "fixture-7"
@@ -153,14 +155,15 @@ internal static class StartupChecks
         var reopened = new Program.FixtureClient();
         var reopenedPage = new MainPage(reopened, presentationSettingsPath: savedPath, preview: preview);
         app.RootVisual = reopenedPage;
+        window.Invoke(() => ShowWindow(window.WindowHandle, 9));
         await WaitAsync(() => Ready(reopenedPage) && reopened.FontRequests > 0 && reopened.Frames > 0);
         Check(reopened.StartRequests == 0 && reopened.LastPreview is { ThemeId: "fixture-7", JpegQuality: "medium", RefreshIntervalMilliseconds: 250, BrightnessPercent: 17 }, "reopening restores the same current settings directly in the preview");
         Console.WriteLine($"{count} hidden-window startup checks passed. Only a fake client was used. No USB backend was opened.");
     }
 
-    private static bool Ready(MainPage page) => new[] { "startupReady", "displayBusy", "devicesLoading", "refreshing" }
-        .Select(name => (bool)typeof(MainPage).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(page)!)
-        .SequenceEqual(new[] { true, false, false, false });
+    private static bool Ready(MainPage page) => page.Session.Snapshot.Catalog is not null && !page.Session.Snapshot.Busy
+        && (bool)typeof(MainPage).GetField("ready", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(page)!
+        && !(bool)typeof(MainPage).GetField("devicesLoading", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(page)!;
 
     private static async Task WaitAsync(Func<bool> ready, TimeSpan? timeout = null)
     {

@@ -25,6 +25,10 @@ VBWR E -->
     <ui:WixUI Id="WixUI_Minimal" />
     <UIRef Id="WixUI_ErrorProgressText" />
     <WixVariable Id="WixUILicenseRtf" Value="$(var.InstallerRoot)\License.rtf" />
+    <Binary Id="SetupGate" SourceFile="$(var.SetupGate)" />
+    <CustomAction Id="BeginSetupGate" BinaryRef="SetupGate" DllEntry="BeginSetup" Execute="deferred" Impersonate="yes" Return="check" />
+    <CustomAction Id="RollbackSetupGate" BinaryRef="SetupGate" DllEntry="EndSetup" Execute="rollback" Impersonate="yes" Return="check" />
+    <CustomAction Id="CommitSetupGate" BinaryRef="SetupGate" DllEntry="EndSetup" Execute="commit" Impersonate="yes" Return="check" />
     <Binary Id="SetupActions" SourceFile="$(var.SetupHelper)" />
     <!-- Close before InstallValidate enumerates in-use files. This changes runtime
          state only; service/file cleanup remains in the deferred transaction. -->
@@ -37,6 +41,9 @@ VBWR E -->
                   ExeCommand="--cleanup --ui-level [UILevel]"
                   Execute="deferred" Impersonate="yes" Return="check" />
     <InstallExecuteSequence>
+      <Custom Action="RollbackSetupGate" After="InstallInitialize" Condition="NOT UPGRADINGPRODUCTCODE" />
+      <Custom Action="BeginSetupGate" After="RollbackSetupGate" Condition="NOT UPGRADINGPRODUCTCODE" />
+      <Custom Action="CommitSetupGate" After="BeginSetupGate" Condition="NOT UPGRADINGPRODUCTCODE" />
       <Custom Action="CloseVibePanel" Before="InstallValidate"
               Condition="NOT UPGRADINGPRODUCTCODE" />
       <Custom Action="CleanupVibePanel" Before="RemoveFiles"

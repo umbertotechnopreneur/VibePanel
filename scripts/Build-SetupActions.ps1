@@ -27,6 +27,8 @@ if (-not $msbuild) { throw 'Existing Visual Studio C++ tools are required. This 
 New-Item -ItemType Directory -Path $destination -Force | Out-Null
 & $msbuild (Join-Path $repo 'installer/SetupActions/SetupActions.vcxproj') /nologo /m /v:minimal /p:Configuration=Release "/p:Platform=$Architecture" "/p:OutDir=$destination\" "/p:IntDir=$destination\obj\"
 if ($LASTEXITCODE -ne 0) { throw 'Vibe Panel setup helper compilation failed.' }
+& $msbuild (Join-Path $repo 'installer/SetupActions/SetupGate.vcxproj') /nologo /m /v:minimal /p:Configuration=Release "/p:Platform=$Architecture" "/p:OutDir=$destination\" "/p:IntDir=$destination\gate-obj\"
+if ($LASTEXITCODE -ne 0) { throw 'Vibe Panel setup gate compilation failed.' }
 $executable = Join-Path $destination 'VibePanel.SetupActions.exe'
 if (-not (Test-Path -LiteralPath $executable)) { throw 'The setup helper executable is missing.' }
 Write-Host "Setup helper ($Architecture): $executable. No tests or cleanup actions executed."

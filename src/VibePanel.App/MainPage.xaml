@@ -173,7 +173,7 @@ VBWR E -->
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                 <CheckBox x:Name="FiltersBox" Content="Color filters" FontSize="12" Checked="Filters_Changed" Unchecked="Filters_Changed" ToolTipService.ToolTip="Turn off to skip color processing. Your slider values are kept."/>
                                 <TextBlock x:Name="FiltersStatus" Grid.Column="1" Text="Off · original colors" FontSize="10" Margin="14,0" VerticalAlignment="Center"/>
-                                <Button x:Name="ResetColorsButton" Grid.Column="2" Content="Reset" Click="ResetColors_Click" Height="26" Padding="10,0" Visibility="Collapsed" ToolTipService.ToolTip="Restore the four original color values"/>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal"><Button x:Name="PaletteButton" Content="Theme colors" Click="Palette_Click" Height="26" Padding="10,0" Margin="0,0,8,0"/><Button x:Name="ResetColorsButton" Content="Reset" Click="ResetColors_Click" Height="26" Padding="10,0" Visibility="Collapsed" ToolTipService.ToolTip="Restore the four original color values"/></StackPanel>
                             </Grid>
                             <Grid x:Name="ColorControls" Margin="0,10,0,0" Visibility="Collapsed">
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -253,6 +253,25 @@ VBWR E -->
                     <TextBlock x:Name="FooterDot2" Text=" · " FontSize="10" VerticalAlignment="Center" Margin="6,0"/>
                     <HyperlinkButton x:Name="PrivacyLink" Content="Privacy" NavigateUri="https://umbertogiacobbi.biz/privacy/" TargetName="_blank" FontSize="10"/>
             </StackPanel>
+        </Grid>
+        <Grid x:Name="PaletteOverlay" Grid.RowSpan="3" Background="#B0000000" Visibility="Collapsed">
+            <Border x:Name="PaletteFrame" Width="440" Padding="24" BorderThickness="1" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="20">
+                <StackPanel>
+                    <TextBlock x:Name="PaletteHeading" FontSize="18" Text="Theme colors" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="PaletteHelp" Text="Use #RRGGBB. Leave empty to inherit the theme color. Saved for this theme and appearance." TextWrapping="Wrap" Margin="0,10,0,14"/>
+                    <Grid Margin="0,4"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="150"/></Grid.ColumnDefinitions><TextBlock x:Name="PalettePrimaryLabel" Text="Primary text" VerticalAlignment="Center"/><TextBox x:Name="PalettePrimary" Grid.Column="1" MaxLength="7" Height="30"/></Grid>
+                    <Grid Margin="0,4"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="150"/></Grid.ColumnDefinitions><TextBlock x:Name="PaletteSecondaryLabel" Text="Secondary text" VerticalAlignment="Center"/><TextBox x:Name="PaletteSecondary" Grid.Column="1" MaxLength="7" Height="30"/></Grid>
+                    <Grid Margin="0,4"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="150"/></Grid.ColumnDefinitions><TextBlock x:Name="PaletteAccentLabel" Text="Accent" VerticalAlignment="Center"/><TextBox x:Name="PaletteAccent" Grid.Column="1" MaxLength="7" Height="30"/></Grid>
+                    <Grid Margin="0,4"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="150"/></Grid.ColumnDefinitions><TextBlock x:Name="PaletteWarningLabel" Text="Warning" VerticalAlignment="Center"/><TextBox x:Name="PaletteWarning" Grid.Column="1" MaxLength="7" Height="30"/></Grid>
+                    <Grid Margin="0,4"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="150"/></Grid.ColumnDefinitions><TextBlock x:Name="PaletteInfoLabel" Text="Info" VerticalAlignment="Center"/><TextBox x:Name="PaletteInfo" Grid.Column="1" MaxLength="7" Height="30"/></Grid>
+                    <TextBlock x:Name="PaletteError" TextWrapping="Wrap" Margin="0,10"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button x:Name="PaletteReset" Content="Reset" Click="ResetPalette_Click" Padding="10,6" Margin="0,0,8,0"/>
+                        <Button x:Name="PaletteCancel" Content="Cancel" Click="ClosePalette_Click" Padding="10,6" Margin="0,0,8,0"/>
+                        <Button x:Name="PaletteApply" Content="Apply" Click="ApplyPalette_Click" Padding="10,6"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
         </Grid>
         <Grid x:Name="AboutOverlay" Grid.RowSpan="3" Background="#B0000000" Visibility="Collapsed">
             <Border x:Name="AboutFrame" Width="550" MaxWidth="600" Padding="30" CornerRadius="20" BorderThickness="1" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="20">

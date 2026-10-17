@@ -28,6 +28,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "theme-runtime"))
 
 import hardware
+from palette import ThemePalette
 
 
 STYLES = ("signal", "ledger", "orbit", "terminal", "thermal", "blueprint",
@@ -56,7 +57,9 @@ def fixture_context(sensors, light=False, font_scale=1):
         base="#F3F5EF" if light else "#101820",
         fg="#20342A" if light else "#EDF4F1",
         muted="#5E6E66" if light else "#9AAEA7", accent="#78CEB1",
-        palette=("#78CEB1", "#79C8DE", "#D2C58D", "#A5ABBF"),
+        palette=ThemePalette(("#78CEB1", "#79C8DE", "#D2C58D", "#A5ABBF"),
+                             dict(textPrimary="#EDF4F1", textSecondary="#9AAEA7",
+                                  accent="#78CEB1", warning="#FFAA00", info="#79C8DE"), {}, {}, light),
         now=datetime.fromisoformat("2026-10-17T19:00:00+07:00"))
 
 

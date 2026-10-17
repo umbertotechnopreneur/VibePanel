@@ -37,7 +37,7 @@ public sealed record PreviewOptions(string ProfileId = "wide-1280x480", string S
     string? ThemeId = null, string FontFamily = "Cascadia Mono", double FontScale = 1, int RefreshIntervalMilliseconds = 1000,
     string JpegQuality = "high", double SaturationPercent = 100, double HueDegrees = 0, bool ShowSpectrum = true,
     double BrightnessPercent = 0, double ContrastPercent = 100, bool ColorFiltersEnabled = true,
-    IReadOnlyList<ScreenSelectionDto>? Screens = null);
+    IReadOnlyList<ScreenSelectionDto>? Screens = null, IReadOnlyDictionary<string, ThemePalette>? Palettes = null);
 public sealed record StartOptions(string DeviceId, string ProfileId = "auto", string? Scene = null, string? ThemeId = null);
 public sealed record DisplayStartResult(bool Accepted, string? ProfileId = null);
 public sealed record MediaOptions(string Action);

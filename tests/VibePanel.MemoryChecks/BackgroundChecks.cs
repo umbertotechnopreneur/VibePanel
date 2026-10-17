@@ -38,7 +38,7 @@ internal static class BackgroundChecks
                     try
                     {
                         await ExerciseAsync(page, client, preview, window!);
-                        Console.WriteLine("Background check passed: stalled preview, hidden tray-style host, taskbar minimize, rotation, Stop, and one in-flight engine/preview frame. Fake client only; no sensors, audio or USB.");
+                        Console.WriteLine("Background check passed: blocked UI dispatcher, palette editor, maximized window, stalled preview, hidden tray-style host, taskbar minimize, rotation, Stop, and one in-flight engine/preview frame. Fake client only; no sensors, audio or USB.");
                         exitCode = 0;
                     }
                     catch (Exception error) { Console.Error.WriteLine(error); }
@@ -72,6 +72,23 @@ internal static class BackgroundChecks
             Click("StartDisplayButton");
         });
         await WaitUntilAsync(() => client.PresentRequests >= 4 && preview.Calls == 1);
+        var blockedAt = client.PresentRequests;
+        await OnPageAsync(page, () => Thread.Sleep(1200));
+        Require(client.PresentRequests >= blockedAt + 4, "Blocking the presentation dispatcher stopped output.");
+        await OnPageAsync(page, () =>
+        {
+            Find<Slider>("BrightnessSlider").Value = 13;
+            Require(page.Session.Model.Preferences.BrightnessPercent == 13,
+                "A pending slider change remained in the UI instead of the model.");
+            Click("PaletteButton");
+            Find<TextBox>("PalettePrimary").Text = "#123456";
+            Click("PaletteApply");
+        });
+        await WaitUntilAsync(() => client.LastPresent?.Palettes?.Values.Any(p => p.TextPrimary == "#123456") == true);
+        window.Invoke(() => window.SetMaximized(true));
+        blockedAt = client.PresentRequests;
+        await Task.Delay(1100);
+        Require(client.PresentRequests >= blockedAt + 4, "Maximized output stopped.");
         var before = client.PresentRequests;
         window.Invoke(() => ShowWindow(window.WindowHandle, 0));
         await Task.Delay(1100);
@@ -82,8 +99,7 @@ internal static class BackgroundChecks
         await OnPageAsync(page, () =>
         {
             Find<CheckBox>("CycleBox").IsChecked = true;
-            typeof(MainPage).GetField("lastChange", BindingFlags.Instance | BindingFlags.NonPublic)!
-                .SetValue(page, Environment.TickCount64 - 20001);
+            page.Session.Model.Edit(p => p.LastChange = Environment.TickCount64 - 20001);
         });
         await WaitUntilAsync(() => client.LastPresent?.ThemeId != theme);
 

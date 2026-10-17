@@ -469,6 +469,8 @@ def _blocks(c, s, components):
     for index, (component, box) in enumerate(zip(components, _boxes(c, components, gap=12))):
         x, y, width, height = box
         background, foreground, muted = treatments[index % 3]
+        foreground = s.palette.overrides.get("textPrimary", foreground)
+        muted = s.palette.overrides.get("textSecondary", muted)
         c.rect(x, y, width, height, background)
         pad = 16 if c.compact else 24
         primary = component.primary("usagePercent")
