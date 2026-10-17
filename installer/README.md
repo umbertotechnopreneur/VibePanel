@@ -32,7 +32,7 @@ create its driver again on a later owner-requested sensor read.
 Publish with `scripts/Publish.ps1`, then pass its staging folder to:
 
 ```powershell
-./scripts/Build-Msi.ps1 -PayloadPath artifacts/staging/<published-folder> -Architecture x64 -Version 0.1.2
+./scripts/Build-Msi.ps1 -PayloadPath artifacts/staging/<published-folder> -Architecture x64 -Version 0.1.3
 ```
 
 The build uses existing Visual Studio C++ tools and restores WiX 4.0.6 and its

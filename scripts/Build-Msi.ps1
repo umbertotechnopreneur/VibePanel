@@ -7,7 +7,7 @@
 param(
     [Parameter(Mandatory)][string]$PayloadPath,
     [ValidateSet('x64', 'ARM64')][string]$Architecture = 'x64',
-    [string]$Version = '0.1.2'
+    [string]$Version = '0.1.3'
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
