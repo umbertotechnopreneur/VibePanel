@@ -21,4 +21,6 @@ that architecture; my local package check covered x64.
 
 Packaging downloads an isolated Python runtime and the pinned theme dependencies. It does not change the system Python installation. ZIP users do not need Python or .NET installed separately.
 
+The CLI output contains its own `themes`, `theme-runtime` and `plugins` folders, in local builds too. The engine never searches parent folders for bundled code. In a ZIP these folders live under `engine/`.
+
 Tests and hardware trials need the owner's approval before each run. Read [AGENTS.md](../AGENTS.md).

@@ -37,7 +37,10 @@ if (-not (Test-Path -LiteralPath (Join-Path $engine 'themes'))) {
 if (Test-Path -LiteralPath (Join-Path $destination 'themes')) {
     throw 'A stale root/themes folder duplicates engine/themes. Remove only that generated folder before repackaging.'
 }
-foreach ($folder in @('docs', 'plugins/vibepanel-codex')) {
+if (-not (Test-Path -LiteralPath (Join-Path $engine 'plugins/vibepanel-codex/install.py'))) {
+    throw 'CLI publish did not include engine/plugins/vibepanel-codex.'
+}
+foreach ($folder in @('docs')) {
     $target = Join-Path $destination $folder
     New-Item -ItemType Directory -Path $target -Force | Out-Null
     $source = Join-Path $repo ($folder + '/*')

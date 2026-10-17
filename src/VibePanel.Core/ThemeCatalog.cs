@@ -15,15 +15,14 @@ public static class ThemeCatalog
 {
     public static string UserThemesPath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VibePanel", "themes");
 
-    public static string? FindContentDirectory(string name)
+    public static string? FindContentDirectory(string name) => FindContentDirectory(name, AppContext.BaseDirectory);
+
+    internal static string? FindContentDirectory(string name, string baseDirectory)
     {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        for (var depth = 0; directory is not null && depth < 9; depth++, directory = directory.Parent)
-        {
-            var candidate = Path.Combine(directory.FullName, name);
-            if (Directory.Exists(candidate)) { return candidate; }
-        }
-        return null;
+        if (string.IsNullOrWhiteSpace(name) || name is "." or ".." || Path.GetFileName(name) != name || Path.IsPathRooted(name))
+        { throw new ArgumentException("Content must name one folder beside the engine.", nameof(name)); }
+        var candidate = Path.Combine(Path.GetFullPath(baseDirectory), name);
+        return Directory.Exists(candidate) && (File.GetAttributes(candidate) & FileAttributes.ReparsePoint) == 0 ? candidate : null;
     }
 
     public static ThemeCatalogSnapshot Read()
