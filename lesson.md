@@ -15,4 +15,5 @@
 - Preparing the Codex plugin does not install it or trust its hooks. That choice stays inside Codex.
 - A picture on my PC does not prove it works on the USB screen.
 - I ask before each test, hardware trial or new branch or workspace.
+- On Windows, a separate guard stops the app and its children above 1 GB of private memory. It shows an alert first and does not wait for a click.
 - I still need to check memory, speed and security. [My list](cave.md).

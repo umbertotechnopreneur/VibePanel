@@ -17,6 +17,8 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        if (OperatingSystem.IsWindows() && args.FirstOrDefault() == WindowsMemoryGuard.Argument)
+        { return WindowsMemoryGuard.Run(args); }
         if (args.Any(argument => argument is not "--start-minimized" and not "--restore-last-session"))
         { Console.Error.WriteLine("Usage: VibePanel.exe [--start-minimized] [--restore-last-session]"); return 2; }
         var restoreLastSession = args.Contains("--restore-last-session");
@@ -28,6 +30,8 @@ internal static class Program
             return 0;
         }
 
+        using var memoryGuard = StartMemoryGuard();
+        if (OperatingSystem.IsWindows() && memoryGuard is null) { return 1; }
         using var client = new StdioPanelClient();
         PhotinoWindow? window = null;
         WindowsTrayService? tray = null;
@@ -109,6 +113,14 @@ internal static class Program
             if (OperatingSystem.IsWindows()) { tray?.Dispose(); }
         }
         return 0;
+    }
+
+    private static System.Diagnostics.Process? StartMemoryGuard()
+    {
+        if (!OperatingSystem.IsWindows()) { return null; }
+        try { return WindowsMemoryGuard.Start(); }
+        catch (Exception error) when (error is System.ComponentModel.Win32Exception or IOException or InvalidOperationException or OperationCanceledException)
+        { WindowsMemoryGuard.ShowUnavailable(); return null; }
     }
 
     /// <summary>Reopen an existing studio centered without discarding its chosen size.</summary>

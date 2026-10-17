@@ -8,6 +8,8 @@
 
 Only one window opens. Opening the app again brings it back to the center.
 
+On Windows, a separate guard checks the app and its child processes every 500 ms. If their private committed memory goes above 1 GB (1,000,000,000 bytes), it shows an alert and forces them to stop after two seconds, or sooner if you dismiss it. The alert stays open until dismissed. The app refuses to open if the guard cannot start. This limits the damage; it does not fix the memory growth.
+
 **Close app** stops it. **Cancel** keeps it open. **Minimize to tray** keeps it running by the clock. Right-click its icon for Open, About, manifesto, website, GitHub and Exit.
 
 ## Install and start with Windows

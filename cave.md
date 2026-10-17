@@ -29,4 +29,6 @@ The color controls, monospace font list, theme fades and 25 ms/Poor settings als
 
 The new studio layout builds for Windows x64 with no errors or warnings. Its dropdowns, filter switch, color guides and shadow still need my visual check. CPU savings have not been measured. No tests, app or USB trial were run for this change.
 
+The Windows 1 GB guard builds in Release x64. On 17 October, reopening the app hit about 1.16 GB and triggered the popup and stop. A frozen UI and guard failures still need checking. The memory growth is not fixed.
+
 This is my hobby project. No warranty.
