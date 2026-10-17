@@ -78,3 +78,5 @@ Later on 18 October, Start opened an old studio from an uninstall backup. After 
 MSI 0.1.2 adds visible setup/progress and scoped process/driver cleanup before files change, including when upgrading an older MSI. Cleanup checks service removal and generated driver-file deletion; a busy or pending deletion is an error. Installer execution, elevation/cancellation, rollback and physical-device behavior for this new path have not been tested.
 
 Windows x64 restore, C# format verification, Release publishing and native setup-helper compilation passed for this change. I requested no test execution. No new installer or cleanup-helper execution, sensor read, USB trial or ARM64 build was performed.
+
+PR #2 CI later failed ARM64 publishing because the Visual Studio 2026 runner lacked the forced v143 toolset. Photino now uses the selected Visual Studio installation's default. The targeted native ARM64 build passed locally with v145. This is compilation evidence only; no application, sensor or USB trial ran for this fix.

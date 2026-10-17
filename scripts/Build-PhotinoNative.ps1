@@ -42,6 +42,12 @@ function Replace-Required([string]$Text, [string]$Old, [string]$New) {
     return $Text.Replace($Old, $New)
 }
 function Save-Source([string]$Path, [string]$Text) { [IO.File]::WriteAllText($Path, $Text, [Text.UTF8Encoding]::new($false)) }
+$projectPath = Join-Path $native 'Photino.Native.vcxproj'
+$project = Get-Content -LiteralPath $projectPath -Raw
+# Use the selected Visual Studio installation's default C++ toolset. Its ARM64
+# tools may not include the older v143 toolset pinned by the upstream project.
+$project = Replace-Required $project '<PlatformToolset>v143</PlatformToolset>' ''
+Save-Source $projectPath $project
 $headerPath = Join-Path $native 'Photino.h'
 $text = Get-Content -LiteralPath $headerPath -Raw
 $text = Replace-Required $text 'AutoString ToUTF16String(AutoString source);' 'std::wstring ToUTF16String(AutoString source);'
@@ -142,7 +148,7 @@ if (-not $msbuild) {
     }
 }
 if (-not $msbuild) { throw 'Existing Visual Studio C++ tools are required. This script does not install tools.' }
-& $msbuild (Join-Path $native 'Photino.Native.vcxproj') /nologo /m /v:minimal /p:Configuration=Release "/p:Platform=$Architecture" /p:PlatformToolset=v143 "/p:OutDir=$destination\" "/p:IntDir=$work\obj\$Architecture\"
+& $msbuild $projectPath /nologo /m /v:minimal /p:Configuration=Release "/p:Platform=$Architecture" "/p:OutDir=$destination\" "/p:IntDir=$work\obj\$Architecture\"
 if ($LASTEXITCODE -ne 0) { throw 'Patched Photino.Native build failed.' }
 $manifest = @{ sourceCommit = $commit; patchKey = $patchKey; libraryHash = (Get-FileHash -LiteralPath $library -Algorithm SHA256).Hash; architecture = $Architecture }
 [IO.File]::WriteAllText($manifestPath, ($manifest | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
