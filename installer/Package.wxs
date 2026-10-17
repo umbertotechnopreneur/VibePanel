@@ -14,7 +14,7 @@ VBWR E -->
     <Property Id="ARPPRODUCTICON" Value="ProductIcon" />
     <Property Id="ARPURLINFOABOUT" Value="https://github.com/umbertotechnopreneur/VibePanel" />
     <Property Id="ARPCOMMENTS" Value="Preview build $(var.SourceRevision)" />
-    <Property Id="ARPNOMODIFY" Value="1" />
+    <!-- WixUI_Minimal supplies ARPNOMODIFY. -->
     <!-- Preview assemblies can have the same FileVersion. Replace the complete
          owned payload during an in-place major upgrade or repair. Settings and
          user themes live outside this tree. -->
