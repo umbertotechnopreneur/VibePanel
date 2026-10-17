@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "id": "vibepanel.media",
+  "name": "Vibe Panel · Multimedia",
+  "version": "1.0.0",
+  "author": "Umberto Giacobbi",
+  "license": "MIT",
+  "description": "Ten themes for generic media sessions.",
+  "categories": [
+    "multimedia"
+  ],
+  "themes": [
+    "themes/aurora",
+    "themes/editorial",
+    "themes/cinematic",
+    "themes/signal",
+    "themes/orbit",
+    "themes/prism",
+    "themes/ribbon",
+    "themes/nocturne",
+    "themes/halo",
+    "themes/duotone"
+  ],
+  "branding": {
+    "begin": "VBWR B",
+    "end": "VBWR E"
+  }
+}

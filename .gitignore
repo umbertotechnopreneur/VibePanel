@@ -7,3 +7,7 @@ obj/
 *.cache
 *.log
 *.vpframe
+__pycache__/
+*.pyc
+/src/VibePanel.Photino/wwwroot/libs/
+/src/VibePanel.Photino/wwwroot/resources/

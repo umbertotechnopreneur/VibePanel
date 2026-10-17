@@ -1,0 +1,6 @@
+# VBWR B — Vibe Panel. Copyright (c) 2026 Umberto Giacobbi. MIT.
+# CPython 3.11–3.14; native wheels, no browser or GPU context required.
+skia-python==144.0.post2
+numpy==2.4.3
+pybind11==3.0.2
+# VBWR E

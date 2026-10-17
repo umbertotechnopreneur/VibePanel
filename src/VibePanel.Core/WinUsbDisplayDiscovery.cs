@@ -5,26 +5,23 @@
 
 using System.ComponentModel;
 using System.Runtime.InteropServices;
+using Microsoft.Win32;
 
 namespace VibePanel.Core;
 
 /// <summary>Finds present WinUSB interfaces for the supported panel without any hardware-monitoring service.</summary>
 public static class WinUsbDisplayDiscovery
 {
-    // The first GUID comes from winusb.inf; the second is published by the connected panel firmware.
-    private static readonly Guid[] WinUsbDeviceInterfaceClasses =
-    [
-        new Guid("F72FE0D4-CBCB-407D-8814-9ED673D0DD6B"),
-        new Guid("E5B3B5AC-9725-4F78-963F-03DFB1D828C7")
-    ];
-
     /// <summary>Returns present 0416:5302 WinUSB interfaces.</summary>
     public static IReadOnlyList<DisplayDevice> FindSupportedDevices()
     {
         var devices = new List<DisplayDevice>();
-        foreach (var interfaceClass in WinUsbDeviceInterfaceClasses)
+        // A registry child name is not evidence of a published device interface.
+        // Enumerate the classes Windows has actually registered and filter their real paths.
+        using var classes = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Control\DeviceClasses");
+        foreach (var name in classes?.GetSubKeyNames() ?? [])
         {
-            FindSupportedDevices(interfaceClass, devices);
+            if (Guid.TryParse(name, out var interfaceClass)) { FindSupportedDevices(interfaceClass, devices); }
         }
 
         return devices.DistinctBy(device => device.DevicePath, StringComparer.OrdinalIgnoreCase).ToList();
@@ -47,12 +44,13 @@ public static class WinUsbDisplayDiscovery
                 var deviceInfo = new Native.SpDevinfoData { cbSize = Marshal.SizeOf<Native.SpDevinfoData>() };
                 if (!Native.SetupDiEnumDeviceInfo(deviceSet, index, ref deviceInfo))
                 {
-                    if (Marshal.GetLastWin32Error() == Native.ErrorNoMoreItems)
+                    var error = Marshal.GetLastWin32Error();
+                    if (error == Native.ErrorNoMoreItems)
                     {
                         break;
                     }
 
-                    continue;
+                    throw new Win32Exception(error, "USB device enumeration failed.");
                 }
 
                 var instanceId = new System.Text.StringBuilder(512);

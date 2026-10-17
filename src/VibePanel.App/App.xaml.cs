@@ -3,23 +3,24 @@
 // Copyright (c) 2026 Umberto Giacobbi | SPDX-License-Identifier: MIT
 // VBWR E
 
-using Microsoft.UI.Xaml;
+using System.Windows;
+using VibePanel.Contracts;
 
 namespace VibePanel.App;
 
-/// <summary>Starts the VibePanel desktop application.</summary>
-public partial class App : Application
+public sealed partial class App : Application
 {
-    /// <summary>Initializes the application instance.</summary>
-    public App()
+    private readonly MainPage page;
+
+    public App(IPanelClient client, IStudioWindowActions? windowActions = null, bool restoreLastSession = false)
     {
         InitializeComponent();
+        page = new MainPage(client, windowActions, restoreLastSession);
+        RootVisual = page;
     }
 
-    /// <summary>Creates the main window when the application launches.</summary>
-    protected override void OnLaunched(LaunchActivatedEventArgs args)
-    {
-        var window = new MainWindow();
-        window.Activate();
-    }
+    /// <summary>Marshal a native title-bar close request onto the presentation dispatcher.</summary>
+    public void RequestClose() => page.Dispatcher.BeginInvoke(page.ShowCloseChoice);
+    public void RequestAbout() => page.Dispatcher.BeginInvoke(page.ShowAbout);
+    public void RequestExit() => page.Dispatcher.BeginInvoke(page.ExitApplication);
 }
