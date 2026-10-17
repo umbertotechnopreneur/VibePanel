@@ -1,8 +1,8 @@
 # Make a theme
 
-A theme is a small Python file that draws a screen. I include 10 music themes and 10 Codex themes. A music pack does not need Codex.
+A theme is a small Python file that draws a screen. I include 10 Music themes, 10 Codex themes and 10 System themes. Music and System packs do not need Codex.
 
-Start by copying a theme from `themes/media` or `themes/codex`. Give it a new ID and name in `theme.json`.
+Start by copying a theme from `themes/media`, `themes/codex` or `themes/system`. Give it a new ID and name in `theme.json`. Category IDs are `multimedia`, `codex` and `system`.
 
 Keep this folder shape:
 
@@ -43,6 +43,8 @@ Saturation and contrast: 0–200. Hue: -180–180. Brightness: -100–100. Fade:
 Use `s.show_spectrum` to respect the sound-bars checkbox. `c.spectrum(...)` already does this. Declare `settings.showSpectrum` as `{ "type": "boolean", "default": true }` in the manifest to enable the checkbox.
 
 ## CLI
+
+System themes receive CPU, GPU and physical RAM in `s.sensors`. Hide a missing or null field, but keep a measured zero. Hide an empty component and reuse its space. There is no swap field. The shared `hardware.py` helper implements these rules for the ten included System themes. [Snapshot format](../theme-runtime/README.md#system-snapshots).
 
 ```powershell
 vp fonts

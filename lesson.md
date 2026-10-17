@@ -1,7 +1,7 @@
 # My choices
 
 - I'm Umberto Giacobbi. I made Vibe Panel. VibeWare is my initiative.
-- Music and Codex come first. Other screens can wait.
+- I choose which Music, Codex and System screens may appear on the display.
 - I use the music details Windows already has. No Spotify login.
 - People can make their own themes.
 - I reuse pictures and backgrounds to save work.
@@ -11,6 +11,9 @@
 - I keep my name and About under the title, with VibeWare at the top right.
 - I open a larger, centered window. The preview fits the space; only the theme list scrolls.
 - If a detail is missing, I don't make it up.
+- System themes hide missing fields and empty CPU, GPU or RAM sections. Zero remains a real value. I leave swap out.
+- I use the original Open Hardware Monitor as my only Windows sensor source, at most once a second. I approved its own WinRing0 driver lifecycle on 17 October 2026.
+- Codex screens skip a closed Codex process. If no screen is eligible, I send a black frame within the active display session.
 - I use the PC's sound for the bars. I don't record it or use the microphone.
 - Preparing the Codex plugin does not install it or trust its hooks. That choice stays inside Codex.
 - A picture on my PC does not prove it works on the USB screen.
@@ -18,6 +21,7 @@
 - On Windows, a separate guard stops the app and its children above 1 GB of private memory. It shows an alert first and does not wait for a click.
 - I free native message strings after use and send preview JPEGs as data, outside the JavaScript eval bridge.
 - I wait for each preview to be drawn, then close its decoded bitmap. The UI keeps two canvases for theme fades.
+- I keep the web view's visibility in sync when the studio hides, minimizes or reopens.
 - Track and cover changes blend for 600 ms in the renderer. Preview and USB share each blended JPEG. I keep no queue of old tracks.
 - A drawn canvas can still have no visible height. I check its on-screen bounds and a captured image as well.
 - The Python worker uses one native NumPy thread. Tiny palette arrays do not need a large thread pool.

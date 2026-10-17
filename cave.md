@@ -47,4 +47,14 @@ At my request, Windows startup now starts the saved device and theme in the tray
 
 The Windows x64 Release build has no errors or warnings. All 85 approved offline checks passed, including oversized image headers, 32 artwork changes and bundled paths. No USB handles were opened. Repeated physical unplug/replug and long-term memory use remain unchecked.
 
+The ten new System themes and screen switches build in Release Windows x64. Missing values and sections are hidden; swap is excluded. Screens can be disabled independently of their preview. Closed Codex processes are skipped on the device; no eligible screen sends a black frame.
+
+On 17 October, all 96 approved offline C# checks and all 18 Python tests passed. The Python run encoded and decoded 180 JPEGs across the ten System themes, light/dark, wide/square/portrait and complete/partial/missing synthetic data. No live sensor or USB check ran. The ImageGen proposals use demo values and are design references, not captures of the renderer.
+
+The original Open Hardware Monitor 0.9.6 is the only Windows sensor source. It is a .NET Framework 4.5 library. Its known NuGet framework fallback is explicitly allowed, but a successful .NET 10 build does not prove runtime compatibility or sensor support. It supports no Windows ARM64 sensor backend here. Its GPU support covers detected NVIDIA/AMD devices, not every GPU.
+
+I approved the stock DLL's WinRing0 driver lifecycle on 17 October 2026. Reading a System screen may install/load the driver internally; closing the reader may remove it. I have not run it for this change. Linux and macOS sensor readers remain unimplemented.
+
+The white-window report was traced read-only to a running installed studio whose WebView child windows were hidden while the UI and engine kept working. The pinned Photino bridge now synchronizes WebView2 controller visibility on host show/hide, minimize/restore and controller creation. The approved isolated startup check passed all three restore paths. Native child-window visibility, DOM content and three captured WebView images showed the studio after hidden startup, hide/show and minimize/restore. This used a fake client and isolated settings, with no engine, sensor or USB backend. The running installed copy has not been stopped or replaced.
+
 This is my hobby project. No warranty.

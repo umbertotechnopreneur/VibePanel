@@ -2,7 +2,7 @@
 
 1. Unzip the file. Keep its files together.
 2. Open `VibePanel.exe`.
-3. Choose **Multimedia** for music or **OpenAI Codex** for Codex.
+3. Choose **Music**, **Codex** or **System**.
 4. Choose a theme. Look at the preview.
 5. Choose your USB screen. Press **Show on display**. Press **Stop** to stop.
 
@@ -35,6 +35,12 @@ To uninstall, first quit from the tray menu. Use Windows **Installed apps** or r
 From a command line, `VibePanel.exe --start-minimized` starts the preview in the tray. `VibePanel.exe --restore-last-session` starts in the tray and starts the saved screen and theme. Windows startup uses both flags.
 
 ## Make it yours
+
+**Screens on display** saves which screens may appear. Each keeps its own chosen theme. Auto-cycle switches between enabled screens every twenty seconds. With only one enabled screen, it cycles that screen's themes.
+
+You can preview a disabled screen. Codex is off by default on a fresh setup and is skipped on the display when its process is closed. If no enabled screen is available, the active display receives a black frame.
+
+**System** shows available CPU, GPU and physical RAM readings. Missing details hide themselves. There is no swap display. The Windows x64 reader uses the original Open Hardware Monitor DLL; it may manage its WinRing0 driver and some readings may require administrator rights. Windows ARM64 sensors are unavailable. These readers still need a live check.
 
 - **Font**: pick a style of letters. **Custom font** lets you type a name.
 - **Saturation**: more or less color.
