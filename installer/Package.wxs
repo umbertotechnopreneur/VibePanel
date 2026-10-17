@@ -43,8 +43,8 @@ VBWR E -->
               Condition="NOT UPGRADINGPRODUCTCODE" />
     </InstallExecuteSequence>
     <UI>
-      <ProgressText Action="CloseVibePanel">Closing Vibe Panel...</ProgressText>
-      <ProgressText Action="CleanupVibePanel">Closing Vibe Panel and releasing its hardware monitoring driver...</ProgressText>
+      <ProgressText Action="CloseVibePanel" Message="Closing Vibe Panel..." />
+      <ProgressText Action="CleanupVibePanel" Message="Closing Vibe Panel and releasing its hardware monitoring driver..." />
     </UI>
     <Property Id="LEGACY_MANAGED">
       <RegistrySearch Id="LegacyManagedSearch" Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\VibePanel" Name="VibePanelManaged" Type="raw" />
