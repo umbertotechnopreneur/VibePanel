@@ -77,6 +77,7 @@ VBWR E -->
         <RemoveFile Id="PreviousMemoryCheckShortcut" Name="Vibe Panel - offline memory checks.lnk" On="both" />
         <RemoveFile Id="PreviousStartupCheckShortcut" Name="Vibe Panel - offline startup checks.lnk" On="both" />
         <RemoveFile Id="PreviousVisibilityCheckShortcut" Name="Vibe Panel - offline visibility check.lnk" On="both" />
+        <RemoveFile Id="PreviousBackgroundCheckShortcut" Name="Vibe Panel - offline background check.lnk" On="both" />
         <Shortcut Id="StartMenuShortcut" Name="Vibe Panel" Target="[INSTALLFOLDER]VibePanel.exe" WorkingDirectory="INSTALLFOLDER" Icon="ProductIcon" Description="Vibe Panel theme studio" />
         <RegistryValue Root="HKCU" Key="Software\Umberto Giacobbi.biz\VibePanel\MSI" Name="StartShortcut" Type="integer" Value="1" KeyPath="yes" />
       </Component>
@@ -90,7 +91,9 @@ VBWR E -->
     </StandardDirectory>
     <DirectoryRef Id="INSTALLFOLDER">
       <Component Id="LegacyRegistration" Guid="FB889781-0A9B-484F-AD0E-02D67471EE76" Condition="LEGACY_MANAGED = &quot;#1&quot;">
-        <RemoveRegistryKey Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\VibePanel" Action="removeOnInstall" />
+        <!-- Resolve the owner explicitly: deferred MSI registry removal must not
+             depend on the installer service's current-user mapping. -->
+        <RemoveRegistryKey Root="HKU" Key="[UserSID]\Software\Microsoft\Windows\CurrentVersion\Uninstall\VibePanel" Action="removeOnInstall" />
         <RegistryValue Root="HKCU" Key="Software\Umberto Giacobbi.biz\VibePanel\MSI" Name="MigratedLegacy" Type="integer" Value="1" KeyPath="yes" />
       </Component>
     </DirectoryRef>
