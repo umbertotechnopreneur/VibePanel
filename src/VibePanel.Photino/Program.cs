@@ -78,7 +78,9 @@ internal static class Program
 
         var page = Path.Combine(AppContext.BaseDirectory, "wwwroot", "index.html");
         window = new PhotinoWindow()
-            .SetTitle("Vibe Panel — theme studio")
+            .SetTitle("Vibe Panel")
+            // The installer owns the Start entry; Photino toasts create another one.
+            .SetNotificationsEnabled(false)
             .SetUseOsDefaultSize(false)
             .SetUseOsDefaultLocation(false)
             .SetSize(1400, 940)

@@ -93,4 +93,6 @@ Thermal Atlas and Airflow replace two System layouts while keeping their theme I
 
 Both thermal layouts now use cached, blurred CPU, graphics-card and motherboard photos. These are decorative assets, not pictures of the installed hardware. Dark, light and compact preview JPEGs rendered with synthetic readings; no live sensor, USB or installer check was run for this visual update.
 
+Photino's default toast registration created a second Start shortcut named after the window title. Toast registration is now disabled and the title is simply Vibe Panel. Windows x64 restore, format verification and Release build passed. No runtime or hardware tests were run for this naming change.
+
 The next change adds transactional preferences/screens/palettes, versioned settings with backup recovery, typed ViewModel commands, and the portable `VibePanel.Data` provider boundary. Windows x64 restore, format verification and Release build passed. With owner approval, 35 offline model/persistence/provider checks, 14 hidden-window startup checks and the blocked-dispatcher/minimized/hidden-window fixture passed. No hardware provider ran. Linux CI now runs the same portable checks; local Windows results do not prove Linux or macOS runtime support. The engine host and physical providers remain Windows-only. No MSI was rebuilt or installed for this change.

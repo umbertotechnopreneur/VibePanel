@@ -78,7 +78,7 @@ VBWR E -->
         <RemoveFile Id="PreviousStartupCheckShortcut" Name="Vibe Panel - offline startup checks.lnk" On="both" />
         <RemoveFile Id="PreviousVisibilityCheckShortcut" Name="Vibe Panel - offline visibility check.lnk" On="both" />
         <RemoveFile Id="PreviousBackgroundCheckShortcut" Name="Vibe Panel - offline background check.lnk" On="both" />
-        <Shortcut Id="StartMenuShortcut" Name="Vibe Panel" Target="[INSTALLFOLDER]VibePanel.exe" WorkingDirectory="INSTALLFOLDER" Icon="ProductIcon" Description="Vibe Panel theme studio" />
+        <Shortcut Id="StartMenuShortcut" Name="Vibe Panel" Target="[INSTALLFOLDER]VibePanel.exe" WorkingDirectory="INSTALLFOLDER" Icon="ProductIcon" Description="Vibe Panel" />
         <RegistryValue Root="HKCU" Key="Software\Umberto Giacobbi.biz\VibePanel\MSI" Name="StartShortcut" Type="integer" Value="1" KeyPath="yes" />
       </Component>
     </StandardDirectory>

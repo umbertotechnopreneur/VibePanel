@@ -46,3 +46,4 @@
 - I commit preferences, screens and palettes together. Each rendered frame reads one detached state. A stale rotation cannot replace a newer user edit.
 - I keep settings storage separate from the model, with a version, an atomic replacement and a last-good backup. Unknown formats stay untouched.
 - I keep data records and provider interfaces in plain .NET. The Windows host supplies its implementations; offline checks supply fakes. [Architecture](docs/studio-architecture.md).
+- The installer owns the single Start entry. I disable unused Photino toast registration, which otherwise creates a second shortcut from the window title.
