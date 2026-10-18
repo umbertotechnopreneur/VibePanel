@@ -381,9 +381,15 @@ def _cooling_ram(c, s, ram, y):
     x = 24 if c.compact else 40
     width = c.width - 2 * x
     c.line(x, y - 20, x + width, y - 20, s.fg, opacity=.15)
-    _caption(c, "RAM USED", x, y, 120, s.palette[2])
+    _text(c, "RAM USED", x, y, 18, 120, s.palette[2])
     value = f"{used:.1f} GiB" + (f" / {total:.1f} GiB" if total is not None else "")
-    _text(c, value, x + width, y + 1, 24 if not c.compact else 20, width - 130, s.fg, True, "right")
+    _text(c, value, x + 130, y, 18, width - 130, s.fg)
+
+
+def _cooling_photo(c, s, label, box, opacity=.65):
+    left, top, span, tall = box
+    asset = "cpu" if label == "CPU" else "board" if label == "BOARD" else "gpu"
+    c.hardware_photo(asset, left, top, span, tall, s.base, opacity)
 
 
 def _cooling_compact(c, s, parts, ram):
@@ -396,6 +402,7 @@ def _cooling_compact(c, s, parts, ram):
     for index, (label, name, metrics, fans) in enumerate(parts):
         left, top, span, tall = rows[index]
         tint = s.palette[index % 3]
+        _cooling_photo(c, s, label, (left, top, span, tall - 3), .83 if s.light else .73)
         c.rect(left, top, 4, max(0, tall - 3), tint)
         _caption(c, label, left + 15, top + 20, span * .42, tint)
         primary = next((item for item in metrics if item.key == "temperatureC"),
@@ -411,9 +418,9 @@ def _cooling_compact(c, s, parts, ram):
     if ram is not None:
         left, top, span, _ = rows[-1]
         used, total = ram
-        _caption(c, "RAM USED", left + 15, top + 20, span * .42, s.palette[2])
+        _text(c, "RAM USED", left + 15, top + 27, 18, 120, s.palette[2])
         value = f"{used:.1f} GiB" + (f" / {total:.1f} GiB" if total is not None else "")
-        _text(c, value, left + span, top + 29, 24, span * .58, s.palette[2], True, "right")
+        _text(c, value, left + 145, top + 27, 18, span - 160, s.fg)
 
 
 def _thermal_atlas(c, s, parts, ram):
@@ -422,13 +429,13 @@ def _thermal_atlas(c, s, parts, ram):
         return
     x, y, width, _ = _area(c)
     fans = [(label, fan) for label, _, _, group in parts for fan in group]
-    hero_parts = [part for part in parts if part[2]]
+    hero_parts = parts
     hero_height = 197 if fans else 255
     hero_boxes = _columns((x, y, width, hero_height), len(hero_parts), 18) if hero_parts else []
     for index, ((label, name, metrics, _), box) in enumerate(zip(hero_parts, hero_boxes)):
         left, top, span, tall = box
         tint = s.palette[index % 3]
-        c.rect(left, top, span, tall, tint, 4, .10)
+        _cooling_photo(c, s, label, box, .69 if s.light else .59)
         c.line(left, top, left + span, top, tint, 3)
         _caption(c, label, left + 18, top + 30, span - 36, tint)
         primary = next((item for item in metrics if item.key == "temperatureC"), metrics[0] if metrics else None)
@@ -457,30 +464,31 @@ def _airflow(c, s, parts, ram):
         return
     x, y, width, _ = _area(c)
     fans = [(label, fan) for label, _, _, group in parts for fan in group]
-    thermal_parts = [part for part in parts if any(item.key == "temperatureC" for item in part[2])]
-    thermal_boxes = _columns((x, y, width, 137), len(thermal_parts), 23) if thermal_parts else []
-    for index, ((label, _, metrics, _), box) in enumerate(zip(thermal_parts, thermal_boxes)):
-        left, top, span, _ = box
+    photo_parts = parts
+    photo_boxes = _columns((x, y, width, 198), len(photo_parts), 23) if photo_parts else []
+    for index, ((label, name, metrics, _), box) in enumerate(zip(photo_parts, photo_boxes)):
+        left, top, span, tall = box
         tint = s.palette[index % 3]
-        primary = next(item for item in metrics if item.key == "temperatureC")
-        _caption(c, label + " THERMAL", left, top + 20, span, tint)
+        _cooling_photo(c, s, label, box, .75 if s.light else .66)
+        c.line(left, top, left, top + tall, tint, 3)
+        primary = next((item for item in metrics if item.key == "temperatureC"), None)
+        _caption(c, label + (" THERMAL" if primary else " COOLING"),
+                 left + 16, top + 24, span - 32, tint)
+        if name:
+            _caption(c, name, left + 16, top + 48, span - 32)
         if primary:
-            _text(c, primary.text, left, top + 88, min(66, span * .18), span, tint, True)
-        c.line(left, top + 117, left + span, top + 117, tint, 2)
-    fan_y = 243 if thermal_parts else 100
-    fan_boxes = _columns((x, fan_y, width, 105), min(len(fans), 6), 12) if fans else []
+            _text(c, primary.text, left + 16, top + 133, min(66, span * .18), span - 32, tint, True)
+        extras = [item.text for item in metrics if item.key != "temperatureC"]
+        if extras:
+            _caption(c, "  /  ".join(extras), left + 16, top + 178, span - 32)
+    fan_y = 294 if photo_parts else 100
+    fan_boxes = _columns((x, fan_y, width, 87), min(len(fans), 6), 12) if fans else []
     for index, ((label, fan), box) in enumerate(zip(fans[:6], fan_boxes)):
         left, top, span, _ = box
         tint = s.palette[index % 3]
-        c.rect(left, top, span, 89, tint, 3, .12)
-        _caption(c, label + " / " + fan.label, left + 12, top + 22, span - 24, tint)
-        _text(c, fan.text, left + 12, top + 68, min(30, span * .16), span - 24, tint, True)
-    metrics_y = 375 if thermal_parts and fans else 290
-    for index, (label, _, metrics, _) in enumerate(parts):
-        extras = [item.text for item in metrics if item.key != "temperatureC"]
-        if extras:
-            span = width / len(parts)
-            _caption(c, label + "  " + "  /  ".join(extras), x + index * span, metrics_y, span - 8)
+        c.rect(left, top, span, 78, tint, 3, .10)
+        _caption(c, label + " / " + fan.label, left + 12, top + 24, span - 24, tint)
+        _text(c, fan.text, left + 12, top + 62, min(29, span * .16), span - 24, tint, True)
     _cooling_ram(c, s, ram, 423)
 
 

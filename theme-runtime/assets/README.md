@@ -1,0 +1,1 @@
+These generated photos are decorative backgrounds for Thermal Atlas and Airflow. They do not depict or identify the user's installed hardware. The graphics-card image is inspired by the shape of a GeForce GTX 590; it has no brand markings.

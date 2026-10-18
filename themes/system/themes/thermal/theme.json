@@ -3,9 +3,9 @@
   "id": "system.thermal",
   "category": "system",
   "name": "Thermal Atlas",
-  "description": "Large CPU, GPU and board temperatures, measured fan speeds, clocks, load and used RAM.",
+  "description": "Warm CPU, GPU and board photo panels with measured temperatures, fan speeds, clocks, load and small used RAM.",
   "entry": "render.py",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "author": "Umberto Giacobbi",
   "license": "MIT",
   "canvas": {

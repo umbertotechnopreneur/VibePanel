@@ -3,9 +3,9 @@
   "id": "system.orbit",
   "category": "system",
   "name": "Airflow",
-  "description": "A cool thermal instrument with live CPU, GPU and board temperatures and named fan speeds.",
+  "description": "Cool hardware photo panels with measured CPU, GPU and board temperatures, named fans, clocks, load and small used RAM.",
   "entry": "render.py",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "author": "Umberto Giacobbi",
   "license": "MIT",
   "canvas": {

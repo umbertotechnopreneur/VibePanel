@@ -8,6 +8,7 @@ import math
 import time
 from collections import OrderedDict
 from datetime import datetime
+from pathlib import Path
 
 import numpy as np
 import skia
@@ -428,6 +429,38 @@ class Canvas:
             self.native.drawRoundRect(rect, radius, radius, paint)
         else:
             self.native.drawRect(rect, paint)
+
+    def hardware_photo(self, asset, x, y, width, height, shade, opacity=.65):
+        """Draw a cached, softly blurred hardware photo beneath live readings."""
+        if asset not in ("cpu", "gpu", "board") or width <= 0 or height <= 0:
+            return
+        target_width, target_height = max(1, round(width)), max(1, round(height))
+
+        def prepare():
+            path = Path(__file__).resolve().parent / "assets" / f"{asset}.png"
+            if not path.is_file():
+                return None
+            source = skia.Image.MakeFromEncoded(skia.Data.MakeWithCopy(path.read_bytes()))
+            if source is None:
+                return None
+            surface = skia.Surface.MakeRasterN32Premul(target_width, target_height)
+            if surface is None:
+                return None
+            scale = max(target_width / source.width(), target_height / source.height())
+            source_width, source_height = target_width / scale, target_height / scale
+            source_rect = skia.Rect.MakeXYWH((source.width() - source_width) / 2,
+                                             (source.height() - source_height) / 2,
+                                             source_width, source_height)
+            paint = skia.Paint(AntiAlias=True)
+            paint.setImageFilter(skia.ImageFilters.Blur(6, 6))
+            surface.getCanvas().drawImageRect(source, source_rect,
+                                              skia.Rect.MakeWH(target_width, target_height), SAMPLING, paint)
+            return surface.makeImageSnapshot()
+
+        image = cached(("hardware-photo", asset, target_width, target_height), prepare)
+        if image is not None:
+            self.native.drawImageRect(image, skia.Rect.MakeXYWH(x, y, width, height), SAMPLING)
+        self.rect(x, y, width, height, shade, opacity=opacity)
 
     def line(self, x1, y1, x2, y2, tint, width=1, opacity=1):
         self.native.drawLine(x1, y1, x2, y2, self.paint(tint, opacity, width))
