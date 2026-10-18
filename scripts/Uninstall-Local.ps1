@@ -99,7 +99,7 @@ if (-not ([System.IO.Path]::GetFullPath($backupRoot).StartsWith($localAppData.Tr
     throw 'The uninstall backup is outside the current user LocalAppData folder.'
 }
 $releases = @()
-$launcherFiles = @($launcherPath, $launcherIcon) | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf }
+$launcherFiles = @(@($launcherPath, $launcherIcon) | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf })
 if (Test-Path -LiteralPath $installRoot) {
     $releases = @(Get-ChildItem -LiteralPath $installRoot -Directory -Force |
         Where-Object { $_.Name -match '^VibePanel-[0-9a-f]{12}$' } |

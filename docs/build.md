@@ -8,9 +8,26 @@ Windows builds also need PowerShell 7, Visual Studio's C++ v143 tools for the ta
 
 From the repository folder:
 
+For a local reinstall, use this command. It uninstalls registered Vibe Panel
+packages, clears `artifacts`, `bin`, `obj` and generated web files, increments
+`installer/Version.txt`, builds a fresh MSI and opens its normal installer UI.
+After installation it compares every installed payload file with the new build
+and removes build output, keeping only the final MSI. Settings and personal
+themes stay in their user folders. Cancellation or any failed step stops it.
+
 ```powershell
-dotnet restore .\VibePanel.slnx
-dotnet build .\VibePanel.slnx --configuration Release --no-restore
+pwsh -NoProfile -File ./scripts/Reinstall.ps1 -Architecture x64
+```
+
+The packaging scripts stage external packages and scan their archives and
+extracted files with Microsoft Defender before use. Scan records are written
+under `artifacts/security` during the build; final cleanup removes those logs.
+A detection or unavailable scanner stops packaging. This is not a full security
+review. No tests or USB commands run during reinstall.
+
+For build-only work (no installation):
+
+```powershell
 ./scripts/Publish.ps1 -Architecture x64
 ```
 

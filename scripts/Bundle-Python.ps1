@@ -184,10 +184,12 @@ if (Test-Path -LiteralPath $bundleMarker) {
 }
 
 $pythonStage = Join-Path $engine "python.$([guid]::NewGuid().ToString('N')).stage"
+& "$PSScriptRoot/Assert-DefenderClean.ps1" -Path $cache -Source "https://www.python.org/ftp/python/$version/ and https://pypi.org/; pinned requirements and SHA-256 manifest"
 Expand-Archive -LiteralPath $pythonArchive -DestinationPath $pythonStage
 $sitePackages = Join-Path $pythonStage 'Lib/site-packages'
 New-Item -ItemType Directory -Path $sitePackages -Force | Out-Null
 foreach ($wheel in $wheelEntries) { Expand-Wheel (Join-Path $wheelCache $wheel.filename) $pythonStage }
+& "$PSScriptRoot/Assert-DefenderClean.ps1" -Path $pythonStage -Source "Extracted Python $version and pinned PyPI wheels"
 $pth = Join-Path $pythonStage "python$pythonTag._pth"
 @("python$pythonTag.zip", '.', 'Lib/site-packages', '../theme-runtime', 'import site') |
     Set-Content -LiteralPath $pth -Encoding ascii

@@ -1,5 +1,25 @@
 # Still to do
 
+On 19 October, the old MSI and stale script registration were removed before a
+clean Windows x64 Release build and visible installation of MSI 0.1.8. Installer
+exit status was 0. All 1,624 installed payload files matched the new staging
+files by SHA-256. One MSI registration remained, with no legacy script entry.
+The installed sensor library is LibreHardwareMonitorLib 0.9.6.0; the old Open
+Hardware Monitor DLL is absent. [Dependency scan evidence](docs/dependency-scan-2026-10-19.md).
+
+The new reinstall command increments the MSI version, removes the old package
+and generated output, builds and installs the new package, verifies its files,
+then keeps only the final MSI. Initial final cleanup hit an OpenSilver DLL held
+by an MSBuild server. Stopping that server allowed cleanup to finish; publishing
+now disables build-server/node reuse. Only the final MSI remains in artifacts.
+
+MSI upgrade ordering and the legacy cleanup helper were updated and compiled.
+The package table places old-product removal before new file installation.
+The clean installation above does not prove upgrade, repair, rollback, cancellation
+or duplicate-registration regression scenarios. No tests, sensor diagnostic run,
+driver installation or USB output was performed. Thermal RPM plumbing was inspected
+in source; actual RPM availability on this hardware remains unverified.
+
 I made this in a few days. It isn't as good as I want it yet.
 
 My list:

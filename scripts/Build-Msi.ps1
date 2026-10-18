@@ -7,7 +7,7 @@
 param(
     [Parameter(Mandatory)][string]$PayloadPath,
     [ValidateSet('x64', 'ARM64')][string]$Architecture = 'x64',
-    [string]$Version = '0.1.4'
+    [string]$Version = (Get-Content "$PSScriptRoot/../installer/Version.txt" -Raw).Trim()
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -23,6 +23,17 @@ if (-not (Test-Path -LiteralPath $wix)) {
     dotnet tool install wix --version 4.0.6 --tool-path $toolRoot --allow-roll-forward
     if ($LASTEXITCODE -ne 0) { throw 'Could not restore the pinned MSI build tool.' }
 }
+& "$PSScriptRoot/Assert-DefenderClean.ps1" -Path $toolRoot -Source 'https://api.nuget.org/v3/index.json; wix 4.0.6'
+# Download and scan the extension before WiX loads its DLL.
+$extensionArchive = Join-Path $toolRoot 'wixtoolset.ui.wixext.4.0.6.nupkg'
+$extensionUrl = 'https://api.nuget.org/v3-flatcontainer/wixtoolset.ui.wixext/4.0.6/wixtoolset.ui.wixext.4.0.6.nupkg'
+Invoke-WebRequest -Uri $extensionUrl -OutFile $extensionArchive
+& "$PSScriptRoot/Assert-DefenderClean.ps1" -Path $extensionArchive -Source $extensionUrl
+$extensionRoot = Join-Path $toolRoot '.wix/extensions/WixToolset.UI.wixext/4.0.6'
+if (-not (Test-Path -LiteralPath $extensionRoot)) {
+    [IO.Compression.ZipFile]::ExtractToDirectory($extensionArchive, $extensionRoot)
+}
+& "$PSScriptRoot/Assert-DefenderClean.ps1" -Path $extensionRoot -Source $extensionUrl
 $generated = Join-Path $repo ('artifacts/msi/' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $generated -Force | Out-Null
 [IO.File]::WriteAllText((Join-Path $generated 'VibePanel.cmd'), "@echo off`r`nstart `"`" `"%~dp0MSI\VibePanel.exe`" %*`r`n", [Text.Encoding]::ASCII)
@@ -70,8 +81,6 @@ $output = Join-Path $repo "artifacts/packages/VibePanel-win-$($Architecture.ToLo
 # Keep the extension cache with the generated tools, not in the user profile or source tree.
 Push-Location $toolRoot
 try {
-    & $wix extension add WixToolset.UI.wixext/4.0.6
-    if ($LASTEXITCODE -ne 0) { throw 'Could not restore the pinned Windows Installer UI extension.' }
     # Build only. Do not invoke MSI validation, tests or the cleanup helper.
     & $wix build (Join-Path $repo 'installer/Package.wxs') $source -arch $Architecture.ToLowerInvariant() -ext WixToolset.UI.wixext -culture en-US -d "PayloadRoot=$payload" -d "GeneratedRoot=$generated" -d "InstallerRoot=$(Join-Path $repo 'installer')" -d "SetupHelper=$setupHelper" -d "SetupGate=$(Join-Path (Split-Path $setupHelper) 'VibePanel.SetupGate.dll')" -d "ProductVersion=$Version" -d "SourceRevision=$revision" -intermediatefolder (Join-Path $generated 'intermediate') -pdbtype none -out $output
     if ($LASTEXITCODE -ne 0) { throw 'MSI compilation failed.' }

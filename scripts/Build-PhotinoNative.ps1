@@ -30,8 +30,10 @@ if (-not (Test-Path -LiteralPath $archive)) {
     Invoke-WebRequest -Uri "https://api.github.com/repos/tryphotino/photino.Native/zipball/$commit" -Headers @{ 'User-Agent' = 'VibePanel-build' } -OutFile $archive
 }
 if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ne $archiveHash) { throw 'Photino source archive checksum mismatch.' }
+& "$PSScriptRoot/Assert-DefenderClean.ps1" -Path $archive -Source "https://github.com/tryphotino/photino.Native/commit/$commit"
 $work = Join-Path $root ('source-' + [Guid]::NewGuid().ToString('N'))
 [IO.Compression.ZipFile]::ExtractToDirectory($archive, $work)
+& "$PSScriptRoot/Assert-DefenderClean.ps1" -Path $work -Source "Photino.Native source $commit"
 $sourceRoots = @(Get-ChildItem -LiteralPath $work -Directory)
 if ($sourceRoots.Count -ne 1) { throw 'Unexpected Photino source layout.' }
 $source = $sourceRoots[0].FullName
@@ -139,8 +141,10 @@ foreach ($package in @(
     if (-not (Test-Path -LiteralPath $packageArchive)) { Invoke-WebRequest -Uri "https://api.nuget.org/v3-flatcontainer/$id/$version/$id.$version.nupkg" -OutFile $packageArchive }
     $actual = [Convert]::ToBase64String([Convert]::FromHexString((Get-FileHash -LiteralPath $packageArchive -Algorithm SHA512).Hash))
     if ($actual -ne $package.Sha512) { throw "Native SDK checksum mismatch: $id" }
+    & "$PSScriptRoot/Assert-DefenderClean.ps1" -Path $packageArchive -Source "https://api.nuget.org/v3-flatcontainer/$id/$version/$id.$version.nupkg"
     [IO.Compression.ZipFile]::ExtractToDirectory($packageArchive, (Join-Path $packages ($package.Id + '.' + $version)))
 }
+& "$PSScriptRoot/Assert-DefenderClean.ps1" -Path $packages -Source 'Official NuGet: Microsoft.Web.WebView2 1.0.1462.37; Microsoft.Windows.ImplementationLibrary 1.0.220914.1'
 $msbuild = $null
 $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
 if (Test-Path -LiteralPath $vswhere) {

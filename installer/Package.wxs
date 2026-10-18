@@ -7,7 +7,7 @@ VBWR E -->
   <Package Name="Vibe Panel" Manufacturer="Umberto Giacobbi" Version="$(var.ProductVersion)"
            UpgradeCode="D3F87B46-457B-41D3-98B7-249E21D83B63" Scope="perUser" InstallerVersion="500">
     <!-- The new package must release the old app/driver before the old MSI removes files. -->
-    <MajorUpgrade Schedule="afterInstallExecute" AllowSameVersionUpgrades="yes"
+    <MajorUpgrade Schedule="afterInstallInitialize" AllowSameVersionUpgrades="yes"
                   DowngradeErrorMessage="A newer Vibe Panel version is already installed." />
     <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
     <Icon Id="ProductIcon" SourceFile="$(var.PayloadRoot)\Assets\vibepanel.ico" />
@@ -40,22 +40,30 @@ VBWR E -->
     <CustomAction Id="CleanupVibePanel" BinaryRef="SetupActions"
                   ExeCommand="--cleanup --ui-level [UILevel]"
                   Execute="deferred" Impersonate="yes" Return="check" />
+    <CustomAction Id="CleanupFreshVibePanel" BinaryRef="SetupActions"
+                  ExeCommand="--clean-install --ui-level [UILevel]"
+                  Execute="deferred" Impersonate="yes" Return="check" />
+    <CustomAction Id="CleanupBeforeUpgrade" BinaryRef="SetupActions"
+                  ExeCommand="--cleanup --ui-level [UILevel]"
+                  Execute="immediate" Return="check" />
     <InstallExecuteSequence>
       <Custom Action="RollbackSetupGate" After="InstallInitialize" Condition="NOT UPGRADINGPRODUCTCODE" />
       <Custom Action="BeginSetupGate" After="RollbackSetupGate" Condition="NOT UPGRADINGPRODUCTCODE" />
       <Custom Action="CommitSetupGate" After="BeginSetupGate" Condition="NOT UPGRADINGPRODUCTCODE" />
       <Custom Action="CloseVibePanel" Before="InstallValidate"
               Condition="NOT UPGRADINGPRODUCTCODE" />
+      <Custom Action="CleanupBeforeUpgrade" Before="RemoveExistingProducts"
+              Condition="WIX_UPGRADE_DETECTED AND NOT Installed" />
       <Custom Action="CleanupVibePanel" Before="RemoveFiles"
-              Condition="NOT UPGRADINGPRODUCTCODE" />
+              Condition="Installed AND NOT UPGRADINGPRODUCTCODE" />
+      <Custom Action="CleanupFreshVibePanel" Before="CleanupVibePanel"
+              Condition="NOT Installed AND NOT UPGRADINGPRODUCTCODE" />
     </InstallExecuteSequence>
     <UI>
       <ProgressText Action="CloseVibePanel" Message="Closing Vibe Panel..." />
       <ProgressText Action="CleanupVibePanel" Message="Closing Vibe Panel and releasing its hardware monitoring driver..." />
+      <ProgressText Action="CleanupFreshVibePanel" Message="Removing previous Vibe Panel files and registration..." />
     </UI>
-    <Property Id="LEGACY_MANAGED">
-      <RegistrySearch Id="LegacyManagedSearch" Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\VibePanel" Name="VibePanelManaged" Type="raw" />
-    </Property>
     <StandardDirectory Id="LocalAppDataFolder">
       <Directory Id="PublisherFolder" Name="Umberto Giacobbi.biz">
         <Directory Id="AppsFolder" Name="Apps">
@@ -89,20 +97,11 @@ VBWR E -->
         <RegistryValue Root="HKCU" Key="Software\Umberto Giacobbi.biz\VibePanel\MSI" Name="StartupShortcut" Type="integer" Value="1" KeyPath="yes" />
       </Component>
     </StandardDirectory>
-    <DirectoryRef Id="INSTALLFOLDER">
-      <Component Id="LegacyRegistration" Guid="FB889781-0A9B-484F-AD0E-02D67471EE76" Condition="LEGACY_MANAGED = &quot;#1&quot;">
-        <!-- Resolve the owner explicitly: deferred MSI registry removal must not
-             depend on the installer service's current-user mapping. -->
-        <RemoveRegistryKey Root="HKU" Key="[UserSID]\Software\Microsoft\Windows\CurrentVersion\Uninstall\VibePanel" Action="removeOnInstall" />
-        <RegistryValue Root="HKCU" Key="Software\Umberto Giacobbi.biz\VibePanel\MSI" Name="MigratedLegacy" Type="integer" Value="1" KeyPath="yes" />
-      </Component>
-    </DirectoryRef>
     <Feature Id="Complete" Title="Vibe Panel" Level="1">
       <ComponentGroupRef Id="Payload" />
       <ComponentRef Id="StableLauncher" />
       <ComponentRef Id="StartShortcut" />
       <ComponentRef Id="StartupShortcut" />
-      <ComponentRef Id="LegacyRegistration" />
     </Feature>
   </Package>
 </Wix>

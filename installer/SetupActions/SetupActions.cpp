@@ -721,7 +721,88 @@ void VerifyCleanup(const Scope& scope, const Log& log) {
     }
 }
 
-void Cleanup(const Scope& scope, const Log& log, bool closeOnly) {
+void RemoveReleaseTree(const std::wstring& path, bool remove) {
+    CheckNoReparse(path);
+    WIN32_FIND_DATAW data{};
+    const HANDLE search = FindFirstFileW(Join(path, L"*").c_str(), &data);
+    if (search == INVALID_HANDLE_VALUE) {
+        if (IsMissing(GetLastError())) { return; }
+        Fail(L"Cannot inspect old release: " + path);
+    }
+    std::vector<std::pair<std::wstring, DWORD>> entries;
+    do {
+        if (wcscmp(data.cFileName, L".") && wcscmp(data.cFileName, L"..")) {
+            entries.emplace_back(Join(path, data.cFileName), data.dwFileAttributes);
+        }
+    } while (FindNextFileW(search, &data));
+    const DWORD error = GetLastError();
+    FindClose(search);
+    if (error != ERROR_NO_MORE_FILES) { Fail(L"Cannot enumerate old release: " + path, error); }
+    for (const auto& [child, attributes] : entries) {
+        CheckNoReparse(child);
+        if (attributes & FILE_ATTRIBUTE_DIRECTORY) { RemoveReleaseTree(child, remove); }
+        else if (remove && !DeleteFileW(child.c_str())) { Fail(L"Cannot remove old application file: " + child); }
+    }
+    if (remove && !RemoveDirectoryW(path.c_str())) { Fail(L"Cannot remove old release folder: " + path); }
+}
+
+// The old script wrote a per-user key. Read that user's hive explicitly in
+// both registry views; never rely on the MSI service's HKCU mapping.
+void RemoveLegacyRegistration(const Scope& scope, const Log& log) {
+    LPWSTR sidText = nullptr;
+    if (!ConvertSidToStringSidW(reinterpret_cast<const TOKEN_USER*>(scope.user.data())->User.Sid, &sidText)) {
+        Fail(L"Cannot resolve the legacy registration owner");
+    }
+    const std::wstring keyPath = std::wstring(sidText) + L"\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\VibePanel";
+    LocalFree(sidText);
+    for (const REGSAM view : { KEY_WOW64_64KEY, KEY_WOW64_32KEY }) {
+        HKEY key = nullptr;
+        LSTATUS result = RegOpenKeyExW(HKEY_USERS, keyPath.c_str(), 0, KEY_QUERY_VALUE | view, &key);
+        if (result == ERROR_FILE_NOT_FOUND) { continue; }
+        if (result != ERROR_SUCCESS) { Fail(L"Cannot read legacy Vibe Panel registration", result); }
+        DWORD managed = 0, bytes = sizeof(managed);
+        const auto markerResult = RegGetValueW(key, nullptr, L"VibePanelManaged", RRF_RT_REG_DWORD, nullptr, &managed, &bytes);
+        wchar_t location[32768]{};
+        bytes = sizeof(location);
+        const auto pathResult = RegGetValueW(key, nullptr, L"InstallLocation", RRF_RT_REG_SZ, nullptr, location, &bytes);
+        RegCloseKey(key);
+        if (markerResult != ERROR_SUCCESS || managed != 1 || pathResult != ERROR_SUCCESS) {
+            Fail(L"The legacy Vibe Panel entry is not a recognized managed installation", ERROR_INVALID_DATA);
+        }
+        const auto path = FullPath(location);
+        const auto root = ReleaseRoot(scope, path);
+        if (!root || !Equal(path, *root) || !StartsWithPath(path, scope.apps)
+            || !IsReleaseName(path.substr(scope.apps.size() + 1))) {
+            Fail(L"The legacy registration points outside managed Vibe Panel releases", ERROR_INVALID_DATA);
+        }
+        // This key has no subkeys. Refuse unexpected children rather than
+        // recursively deleting a registration with unknown contents.
+        result = RegDeleteKeyExW(HKEY_USERS, keyPath.c_str(), view, 0);
+        if (result != ERROR_SUCCESS && result != ERROR_FILE_NOT_FOUND) { Fail(L"Cannot remove legacy registration", result); }
+        result = RegOpenKeyExW(HKEY_USERS, keyPath.c_str(), 0, KEY_QUERY_VALUE | view, &key);
+        if (result == ERROR_SUCCESS) { RegCloseKey(key); Fail(L"Legacy registration remains after cleanup", ERROR_BUSY); }
+        if (result != ERROR_FILE_NOT_FOUND) { Fail(L"Cannot verify legacy registration removal", result); }
+        log.Write(L"Removed and verified legacy Vibe Panel registration.");
+    }
+}
+
+void RemovePreviousReleases(const Scope& scope, const Log& log, bool cleanInstall) {
+    OriginalUser user(scope.token.get());
+    const auto releases = ReleaseFolders(scope);
+    // Preflight the entire selected tree before deleting any file.
+    for (const auto& release : releases) {
+        if (cleanInstall || !Equal(release, Join(scope.apps, L"MSI"))) { RemoveReleaseTree(release, false); }
+    }
+    for (const auto& release : releases) {
+        if (cleanInstall || !Equal(release, Join(scope.apps, L"MSI"))) {
+            RemoveReleaseTree(release, true);
+            log.Write(L"Removed previous application folder: " + release);
+        }
+    }
+    RemoveLegacyRegistration(scope, log);
+}
+
+void Cleanup(const Scope& scope, const Log& log, bool closeOnly, bool cleanInstall) {
     log.Write(L"Starting scoped cleanup; administrator=" + std::to_wstring(IsAdministrator() ? 1 : 0));
     StopProcesses(scope, log);
     if (closeOnly) { log.Write(L"Verified Vibe Panel processes are closed."); return; }
@@ -733,6 +814,8 @@ void Cleanup(const Scope& scope, const Log& log, bool closeOnly) {
         throw Failure{ error.code, error.message, false };
     }
     VerifyCleanup(scope, log);
+    try { RemovePreviousReleases(scope, log, cleanInstall); }
+    catch (const Failure& error) { throw Failure{ error.code, error.message, false }; }
     log.Write(L"Cleanup completed: verified app processes stopped; owned driver registration and files removed.");
 }
 
@@ -747,9 +830,9 @@ uint64_t ParseNumber(const wchar_t* value) {
     return number;
 }
 
-DWORD Elevate(int uiLevel, const Log& log, bool closeOnly) {
+DWORD Elevate(int uiLevel, const Log& log, bool closeOnly, bool cleanInstall) {
     const auto executable = ProcessPath(GetCurrentProcess());
-    const auto parameters = std::wstring(closeOnly ? L"--close-apps" : L"--cleanup") + L" --ui-level " + std::to_wstring(uiLevel) + L" --parent "
+    const auto parameters = std::wstring(closeOnly ? L"--close-apps" : cleanInstall ? L"--clean-install" : L"--cleanup") + L" --ui-level " + std::to_wstring(uiLevel) + L" --parent "
         + std::to_wstring(GetCurrentProcessId()) + L" --parent-start " + std::to_wstring(ProcessStart(GetCurrentProcess()));
     SHELLEXECUTEINFOW launch{};
     launch.cbSize = sizeof(launch);
@@ -797,16 +880,18 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     auto arguments = CommandLineToArgvW(GetCommandLineW(), &argumentCount);
     int uiLevel = 2;
     bool closeOnly = false;
+    bool cleanInstall = false;
     DWORD parentId = 0;
     uint64_t parentStart = 0;
     std::optional<Log> log;
     try {
         if (!arguments || (argumentCount != 4 && argumentCount != 8)
-            || (wcscmp(arguments[1], L"--cleanup") != 0 && wcscmp(arguments[1], L"--close-apps") != 0)
+            || (wcscmp(arguments[1], L"--cleanup") != 0 && wcscmp(arguments[1], L"--close-apps") != 0 && wcscmp(arguments[1], L"--clean-install") != 0)
             || wcscmp(arguments[2], L"--ui-level") != 0) {
             Fail(L"Usage: VibePanel.SetupActions.exe <--cleanup|--close-apps> --ui-level <2..5>", ERROR_INVALID_PARAMETER);
         }
         closeOnly = wcscmp(arguments[1], L"--close-apps") == 0;
+        cleanInstall = wcscmp(arguments[1], L"--clean-install") == 0;
         const auto level = ParseNumber(arguments[3]);
         if (level < 2 || level > 5) { Fail(L"Invalid installer UI level", ERROR_INVALID_PARAMETER); }
         uiLevel = static_cast<int>(level);
@@ -825,7 +910,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
         arguments = nullptr;
         auto scope = MakeScope(parentId, parentStart);
         log.emplace(scope);
-        try { Cleanup(scope, *log, closeOnly); }
+        try { Cleanup(scope, *log, closeOnly, cleanInstall); }
         catch (const Failure& error) {
             if (error.code != ERROR_ACCESS_DENIED || !error.canElevate || parentId || IsAdministrator()) { throw; }
             log->Write(L"Permission needed: " + error.message);
@@ -833,7 +918,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
                 Fail(L"Silent cleanup requires administrator permission. Run setup elevated or close the elevated app and release its driver first.",
                     ERROR_ACCESS_DENIED);
             }
-            return static_cast<int>(Elevate(uiLevel, *log, closeOnly));
+            return static_cast<int>(Elevate(uiLevel, *log, closeOnly, cleanInstall));
         }
         return 0;
     }
