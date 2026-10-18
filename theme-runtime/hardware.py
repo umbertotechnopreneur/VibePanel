@@ -402,7 +402,7 @@ def _cooling_compact(c, s, parts, ram):
     for index, (label, name, metrics, fans) in enumerate(parts):
         left, top, span, tall = rows[index]
         tint = s.palette[index % 3]
-        _cooling_photo(c, s, label, (left, top, span, tall - 3), .83 if s.light else .73)
+        _cooling_photo(c, s, label, (left, top, span, tall - 3), .73 if s.light else .57)
         c.rect(left, top, 4, max(0, tall - 3), tint)
         _caption(c, label, left + 15, top + 20, span * .42, tint)
         primary = next((item for item in metrics if item.key == "temperatureC"),
@@ -435,7 +435,7 @@ def _thermal_atlas(c, s, parts, ram):
     for index, ((label, name, metrics, _), box) in enumerate(zip(hero_parts, hero_boxes)):
         left, top, span, tall = box
         tint = s.palette[index % 3]
-        _cooling_photo(c, s, label, box, .69 if s.light else .59)
+        _cooling_photo(c, s, label, box, .59 if s.light else .43)
         c.line(left, top, left + span, top, tint, 3)
         _caption(c, label, left + 18, top + 30, span - 36, tint)
         primary = next((item for item in metrics if item.key == "temperatureC"), metrics[0] if metrics else None)
@@ -469,7 +469,7 @@ def _airflow(c, s, parts, ram):
     for index, ((label, name, metrics, _), box) in enumerate(zip(photo_parts, photo_boxes)):
         left, top, span, tall = box
         tint = s.palette[index % 3]
-        _cooling_photo(c, s, label, box, .75 if s.light else .66)
+        _cooling_photo(c, s, label, box, .64 if s.light else .50)
         c.line(left, top, left, top + tall, tint, 3)
         primary = next((item for item in metrics if item.key == "temperatureC"), None)
         _caption(c, label + (" THERMAL" if primary else " COOLING"),

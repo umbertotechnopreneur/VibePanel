@@ -452,7 +452,7 @@ class Canvas:
                                              (source.height() - source_height) / 2,
                                              source_width, source_height)
             paint = skia.Paint(AntiAlias=True)
-            paint.setImageFilter(skia.ImageFilters.Blur(6, 6))
+            paint.setImageFilter(skia.ImageFilters.Blur(2, 2))
             surface.getCanvas().drawImageRect(source, source_rect,
                                               skia.Rect.MakeWH(target_width, target_height), SAMPLING, paint)
             return surface.makeImageSnapshot()
