@@ -39,7 +39,7 @@ CODEX_IDENTITIES = {
 SYSTEM_IDENTITIES = {
     "signal": ("#0D161C", "#F1F6F2", ("#7BE5C0", "#76D5E9", "#B6CF94", "#92A5B7")),
     "ledger": ("#25221D", "#F6F2E8", ("#DA986D", "#98B699", "#B4A290", "#D2B98B")),
-    "orbit": ("#111827", "#FAF5E9", ("#E8B96C", "#B6C998", "#D59074", "#9DAFC4")),
+    "orbit": ("#091D26", "#EEF7F4", ("#73DCE0", "#A7E0B5", "#D8B88B", "#93B8C2")),
     "terminal": ("#07150D", "#F0F6E9", ("#91DD8B", "#B4DCA0", "#69BDA0", "#94B584")),
     "thermal": ("#25150F", "#FFF0E6", ("#FF9F67", "#F7C16E", "#CB9680", "#C6C399")),
     "blueprint": ("#092849", "#EDF5FB", ("#8EDAF2", "#A8C9F9", "#90D8C4", "#A8BBD1")),

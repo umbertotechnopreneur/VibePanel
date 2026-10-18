@@ -129,7 +129,8 @@ def _caption(c, value, x, y, width, tint=None, align="left"):
 
 def _heading(c, s, style):
     x = 24 if c.compact else 40
-    _caption(c, "SYSTEM / " + style.upper(), x, 34, c.width - x * 2 - 110, s.accent)
+    title = {"thermal": "THERMAL ATLAS", "orbit": "AIRFLOW"}.get(style, style.upper())
+    _caption(c, "SYSTEM / " + title, x, 34, c.width - x * 2 - 110, s.accent)
     _text(c, s.now.strftime("%H:%M"), c.width - x, 35, 24, 100, align="right")
     c.line(x, 54, c.width - x, 54, s.fg, opacity=.13)
 
@@ -138,7 +139,8 @@ def _footer(c, s, components):
     x = 24 if c.compact else 40
     _caption(c, "VIBE PANEL", x, 468, 180)
     # These are live readings even when the studio is in preview mode.
-    _caption(c, "LOCAL SENSORS" if components else "SENSORS UNAVAILABLE",
+    sample = clean(s.sensors.get("notice")).startswith("PREVIEW:")
+    _caption(c, "SAMPLE DATA" if sample else "LOCAL SENSORS" if components else "SENSORS UNAVAILABLE",
              c.width - x, 468, c.width - x * 2 - 190, align="right")
 
 
@@ -316,42 +318,6 @@ def _ledger(c, s, components):
         _details(c, component, primary, left, top + 288, span, 37)
 
 
-def _orbit(c, s, components):
-    boxes = _boxes(c, components, gap=30)
-    for index, (component, box) in enumerate(zip(components, boxes)):
-        x, y, width, height = box
-        tint = s.palette[index % 3]
-        primary = component.primary("usagePercent")
-        if height < 200:
-            if height < 94 or primary.ratio is None:
-                _dense(c, s, component, box, tint)
-                c.line(x, y + height, x + width, y + height, tint, opacity=.15)
-                continue
-            radius = min(height * .39, 48)
-            cx, cy = x + radius + 3, y + height / 2
-            if primary.ratio is not None:
-                c.ring(cx, cy, radius, primary.ratio, tint, 4)
-            _text(c, primary.text, cx, cy + 7, min(23, radius * .53), radius * 1.7,
-                  tint, True, "center")
-            _caption(c, component.label, x + radius * 2 + 24, y + 23, width - radius * 2 - 24, tint)
-            extras = [item for item in component.metrics if item.key != primary.key]
-            for row, item in enumerate(extras):
-                _caption(c, item.text + " " + item.label.lower(), x + radius * 2 + 24,
-                         y + 49 + row * 25, width - radius * 2 - 24)
-            continue
-        _caption(c, component.label, x + width / 2, y + 19, width, tint, "center")
-        radius = min(99, width * .32)
-        cx, cy = x + width / 2, y + 158
-        if primary.ratio is not None:
-            c.ring(cx, cy, radius, primary.ratio, tint, 7)
-        value_width = radius * 1.85 if primary.ratio is not None else width
-        _text(c, primary.text, cx, cy + 12, min(58, width * .18), value_width, tint, True, "center")
-        _caption(c, primary.label, cx, cy + 43, radius * 1.75, align="center")
-        _caption(c, component.name, cx, y + 286, width, align="center")
-        extras = [item for item in component.metrics if item.key != primary.key]
-        _caption(c, " · ".join(_inline(item) for item in extras), cx, y + 323, width, align="center")
-
-
 def _terminal(c, s, components):
     x, y, width, height = _area(c)
     boxes = _rows((x, y + 22, width, height - 22), len(components), 8 if len(components) > 4 else 14)
@@ -373,43 +339,149 @@ def _terminal(c, s, components):
         c.line(left, top + tall, left + span, top + tall, tint, opacity=.18)
 
 
-def _thermal(c, s, components):
-    memory = next((item for item in components if item.key == "memory"), None)
-    processors = [item for item in components if item.key != "memory"]
-    x, y, width, height = _area(c)
-    if c.compact:
-        boxes = _rows((x, y, width, height), len(components), 8 if len(components) > 4 else 16)
-        for index, (component, box) in enumerate(zip(components, boxes)):
-            _dense(c, s, component, box, s.palette[index % 3], prefer="temperatureC")
+def _cooling_parts(raw):
+    """Normalize measured temperatures, clocks, load, fans and used physical RAM."""
+    if not isinstance(raw, dict):
+        return [], None
+    parts = []
+    sources = [("CPU", raw.get("cpu"))]
+    gpus = raw.get("gpus") if isinstance(raw.get("gpus"), list) else []
+    sources.extend(("GPU" if len(gpus) == 1 else f"GPU {index + 1}", gpu)
+                   for index, gpu in enumerate(gpus))
+    sources.append(("BOARD", raw.get("motherboard")))
+    for label, source in sources:
+        if not isinstance(source, dict):
+            continue
+        metrics = [item for item in (
+            _metric(source, "temperatureC", source.get("temperatureLabel") or "Temperature", "°C", 1),
+            _metric(source, "usagePercent", "Load", "%", ratio=True),
+            _metric(source, "clockMHz", "Clock", " MHz"),
+        ) if item is not None]
+        fans = []
+        raw_fans = source.get("fans") if isinstance(source.get("fans"), list) else []
+        for fan in raw_fans[:16]:
+            if not isinstance(fan, dict):
+                continue
+            rpm = optional_number(fan.get("rpm"))
+            if rpm is not None and 0 <= rpm <= 20000:
+                fans.append(Metric("fanRpm", clean(fan.get("name"), "Fan"), rpm, f"{rpm:.0f} RPM"))
+        if metrics or fans:
+            parts.append((label, clean(source.get("name")), metrics, fans))
+    memory = raw.get("memory")
+    used = optional_number(memory.get("usedGiB")) if isinstance(memory, dict) else None
+    total = optional_number(memory.get("totalGiB")) if isinstance(memory, dict) else None
+    ram = (used, total if total is not None and total >= used else None) if used is not None and used >= 0 else None
+    return parts, ram
+
+
+def _cooling_ram(c, s, ram, y):
+    if ram is None:
         return
-    top_height = height - 104 if memory and processors else height
-    boxes = _columns((x, y, width, top_height), len(processors), 32) if processors else []
-    for index, (component, box) in enumerate(zip(processors, boxes)):
+    used, total = ram
+    x = 24 if c.compact else 40
+    width = c.width - 2 * x
+    c.line(x, y - 20, x + width, y - 20, s.fg, opacity=.15)
+    _caption(c, "RAM USED", x, y, 120, s.palette[2])
+    value = f"{used:.1f} GiB" + (f" / {total:.1f} GiB" if total is not None else "")
+    _text(c, value, x + width, y + 1, 24 if not c.compact else 20, width - 130, s.fg, True, "right")
+
+
+def _cooling_compact(c, s, parts, ram):
+    # Square and portrait layouts share the available height among live rows.
+    x, y, width, height = _area(c)
+    count = len(parts) + int(ram is not None)
+    if count == 0:
+        return
+    rows = _rows((x, y, width, height), count, 8)
+    for index, (label, name, metrics, fans) in enumerate(parts):
+        left, top, span, tall = rows[index]
+        tint = s.palette[index % 3]
+        c.rect(left, top, 4, max(0, tall - 3), tint)
+        _caption(c, label, left + 15, top + 20, span * .42, tint)
+        primary = next((item for item in metrics if item.key == "temperatureC"),
+                       metrics[0] if metrics else fans[0])
+        _text(c, primary.text, left + span, top + 29, 27 if tall >= 65 else 21,
+              span * .58, tint, True, "right")
+        extras = [item.text for item in metrics if item is not primary]
+        extras.extend(f"{item.label} {item.text}" for item in fans if item is not primary)
+        if extras:
+            _caption(c, " · ".join(extras), left + 15, top + tall - 10, span - 15)
+        if tall >= 94 and name:
+            _caption(c, name, left + 15, top + 46, span * .65)
+    if ram is not None:
+        left, top, span, _ = rows[-1]
+        used, total = ram
+        _caption(c, "RAM USED", left + 15, top + 20, span * .42, s.palette[2])
+        value = f"{used:.1f} GiB" + (f" / {total:.1f} GiB" if total is not None else "")
+        _text(c, value, left + span, top + 29, 24, span * .58, s.palette[2], True, "right")
+
+
+def _thermal_atlas(c, s, parts, ram):
+    if c.compact or len(parts) > 4:
+        _cooling_compact(c, s, parts, ram)
+        return
+    x, y, width, _ = _area(c)
+    fans = [(label, fan) for label, _, _, group in parts for fan in group]
+    hero_parts = [part for part in parts if part[2]]
+    hero_height = 197 if fans else 255
+    hero_boxes = _columns((x, y, width, hero_height), len(hero_parts), 18) if hero_parts else []
+    for index, ((label, name, metrics, _), box) in enumerate(zip(hero_parts, hero_boxes)):
         left, top, span, tall = box
-        tint = s.palette[index % 2]
-        primary = component.primary("temperatureC")
-        _caption(c, component.label, left, top + 21, span, tint)
-        _caption(c, component.name, left, top + 53, span)
-        _text(c, primary.text, left, top + 154, min(98, span * .20), span, tint, True)
-        _caption(c, primary.label.upper(), left, top + 190, span)
-        extras = [item for item in component.metrics if item.key != primary.key]
-        _caption(c, " · ".join(item.label + " " + item.text for item in extras), left, top + 231, span)
-        if index < len(processors) - 1:
-            c.line(left + span + 16, top, left + span + 16, top + tall, s.fg, opacity=.13)
-    if memory:
-        top = y + top_height + 25 if processors else y
-        band_height = height - top_height - 25 if processors else height
-        c.rect(x, top, width, band_height, s.palette[2], 3, .12)
-        if band_height > 120:
-            _quiet(c, s, [memory])
-        else:
-            primary = memory.primary("usagePercent")
-            _caption(c, "RAM", x + 20, top + 31, 100, s.palette[2])
-            _text(c, primary.text, x + 132, top + 39, 30, 220, s.palette[2], True)
-            extras = [item for item in memory.metrics if item.key != primary.key]
-            _caption(c, " · ".join(_inline(item) for item in extras),
-                     x + 366, top + 35, width - 386)
-            _bar(c, x + 20, top + band_height - 10, width - 40, 3, primary, s.palette[2])
+        tint = s.palette[index % 3]
+        c.rect(left, top, span, tall, tint, 4, .10)
+        c.line(left, top, left + span, top, tint, 3)
+        _caption(c, label, left + 18, top + 30, span - 36, tint)
+        primary = next((item for item in metrics if item.key == "temperatureC"), metrics[0] if metrics else None)
+        if primary:
+            _text(c, primary.text, left + 18, top + 116, min(77, span * .18), span - 36, tint, True)
+            _caption(c, primary.label.upper(), left + 18, top + 143, span - 36)
+        details = [item.text for item in metrics if item is not primary]
+        if details:
+            _caption(c, "  /  ".join(details), left + 18, top + tall - 22, span - 36)
+        if name and span >= 260:
+            _caption(c, name, left + 18, top + 55, span - 36)
+    if fans:
+        start = y + hero_height + 23 if hero_parts else y + 30
+        shown = fans[:6]
+        for index, ((label, fan), box) in enumerate(zip(shown, _columns((x, start, width, 76), len(shown), 12))):
+            left, top, span, _ = box
+            tint = s.palette[index % 3]
+            _caption(c, label + " / " + fan.label, left, top + 16, span, tint)
+            _text(c, fan.text, left, top + 53, min(29, span * .16), span, tint, True)
+    _cooling_ram(c, s, ram, 413)
+
+
+def _airflow(c, s, parts, ram):
+    if c.compact or len(parts) > 4:
+        _cooling_compact(c, s, parts, ram)
+        return
+    x, y, width, _ = _area(c)
+    fans = [(label, fan) for label, _, _, group in parts for fan in group]
+    thermal_parts = [part for part in parts if any(item.key == "temperatureC" for item in part[2])]
+    thermal_boxes = _columns((x, y, width, 137), len(thermal_parts), 23) if thermal_parts else []
+    for index, ((label, _, metrics, _), box) in enumerate(zip(thermal_parts, thermal_boxes)):
+        left, top, span, _ = box
+        tint = s.palette[index % 3]
+        primary = next(item for item in metrics if item.key == "temperatureC")
+        _caption(c, label + " THERMAL", left, top + 20, span, tint)
+        if primary:
+            _text(c, primary.text, left, top + 88, min(66, span * .18), span, tint, True)
+        c.line(left, top + 117, left + span, top + 117, tint, 2)
+    fan_y = 243 if thermal_parts else 100
+    fan_boxes = _columns((x, fan_y, width, 105), min(len(fans), 6), 12) if fans else []
+    for index, ((label, fan), box) in enumerate(zip(fans[:6], fan_boxes)):
+        left, top, span, _ = box
+        tint = s.palette[index % 3]
+        c.rect(left, top, span, 89, tint, 3, .12)
+        _caption(c, label + " / " + fan.label, left + 12, top + 22, span - 24, tint)
+        _text(c, fan.text, left + 12, top + 68, min(30, span * .16), span - 24, tint, True)
+    metrics_y = 375 if thermal_parts and fans else 290
+    for index, (label, _, metrics, _) in enumerate(parts):
+        extras = [item.text for item in metrics if item.key != "temperatureC"]
+        if extras:
+            span = width / len(parts)
+            _caption(c, label + "  " + "  /  ".join(extras), x + index * span, metrics_y, span - 8)
+    _cooling_ram(c, s, ram, 423)
 
 
 def _blueprint(c, s, components):
@@ -555,9 +627,9 @@ def _pulse(c, s, components):
 _RENDERERS = {
     "signal": _signal,
     "ledger": _ledger,
-    "orbit": _orbit,
+    "orbit": _airflow,
     "terminal": _terminal,
-    "thermal": _thermal,
+    "thermal": _thermal_atlas,
     "blueprint": _blueprint,
     "horizon": _horizon,
     "blocks": _blocks,
@@ -570,6 +642,14 @@ def render(c, s, style):
     components = _components(s.sensors)
     _record(components, clean(s.sensors.get("updatedAtUtc")))
     _heading(c, s, style)
+    if style in ("thermal", "orbit"):
+        parts, ram = _cooling_parts(s.sensors)
+        if parts or ram is not None:
+            _RENDERERS[style](c, s, parts, ram)
+        else:
+            _empty(c, s)
+        _footer(c, s, parts if parts else ([ram] if ram is not None else []))
+        return
     if components:
         _RENDERERS[style](c, s, components)
     else:

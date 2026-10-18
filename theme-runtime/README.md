@@ -8,10 +8,10 @@ The three independent packs in `themes/media`, `themes/codex` and `themes/system
 
 ### System snapshots
 
-The engine sends `state.sensors` only when collecting System data. A single Open Hardware Monitor reader supplies Windows x64 CPU, NVIDIA/AMD GPU and physical RAM measurements. It caches one snapshot for a second independently of frame refresh. Linux, macOS and Windows ARM64 sensor readers are not implemented.
+The engine sends `state.sensors` only when collecting System data. A single Open Hardware Monitor reader supplies Windows x64 CPU, NVIDIA/AMD GPU, motherboard Super I/O and physical RAM measurements when hardware exposes them. It caches one snapshot for a second independently of frame refresh. Linux, macOS and Windows ARM64 sensor readers are not implemented.
 
 ```json
-{"cpu":{"name":"CPU","usagePercent":38,"clockMHz":4250,"temperatureC":62,"clockLabel":"Average clock","temperatureLabel":"CPU package"},"gpus":[{"name":"GPU","usagePercent":67,"clockMHz":1850,"temperatureC":58,"clockLabel":"Core clock","temperatureLabel":"GPU core"}],"memory":{"totalGiB":32,"usedGiB":12.4,"usagePercent":38.75},"updatedAtUtc":"2026-10-17T07:32:00Z","notice":null}
+{"cpu":{"name":"CPU","usagePercent":38,"clockMHz":4250,"temperatureC":62,"clockLabel":"Average clock","temperatureLabel":"CPU package","fans":[{"name":"CPU Fan","rpm":1250}]},"gpus":[{"name":"GPU","usagePercent":67,"clockMHz":1850,"temperatureC":58,"clockLabel":"Core clock","temperatureLabel":"GPU core","fans":[{"name":"GPU","rpm":1450}]}],"motherboard":{"name":"Board","temperatureC":37,"temperatureLabel":"System","fans":[{"name":"Chassis Fan #1","rpm":880}]},"memory":{"totalGiB":32,"usedGiB":12.4,"usagePercent":38.75},"updatedAtUtc":"2026-10-17T07:32:00Z","notice":null}
 ```
 
 These example numbers are illustrative. Unknown fields are null. System themes hide missing fields and sections, reflow remaining content, and preserve measured zeroes. RAM uses GiB (2^30 bytes). Swap is excluded. History keeps at most 60 real samples per metric, deduplicated by snapshot timestamp, with a maximum of 64 series. A missing measurement clears its trace. No synthetic graph appears while history is empty.

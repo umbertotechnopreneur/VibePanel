@@ -2,10 +2,10 @@
   "schema": 1,
   "id": "system.orbit",
   "category": "system",
-  "name": "Orbit",
-  "description": "Amber utilization rings with available clocks and temperatures.",
+  "name": "Airflow",
+  "description": "A cool thermal instrument with live CPU, GPU and board temperatures and named fan speeds.",
   "entry": "render.py",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "Umberto Giacobbi",
   "license": "MIT",
   "canvas": {

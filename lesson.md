@@ -40,6 +40,8 @@
 - I keep preferences, startup and the display loop in a UI-independent studio model. Views send commands and read the latest snapshot; hiding or blocking a view does not own the output lifetime.
 - I hold the single-instance lock until the engine has finished closing. Setup blocks new launches until commit or rollback. A maximized window stays maximized when restored from the tray.
 - Themes share five named palette colors. Personal overrides belong to the theme and its light/dark appearance, outside the installed files.
+- I read named motherboard and fan sensors from the same Open Hardware Monitor instance. I attach a board fan to CPU only when its sensor name says CPU. I never infer fan speed from load.
+- Thermal themes put measured temperatures first and show used physical RAM over total. They hide unavailable values, including a board temperature with no named sensor.
 
 - I commit preferences, screens and palettes together. Each rendered frame reads one detached state. A stale rotation cannot replace a newer user edit.
 - I keep settings storage separate from the model, with a version, an atomic replacement and a last-good backup. Unknown formats stay untouched.

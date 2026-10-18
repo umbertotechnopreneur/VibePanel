@@ -258,7 +258,9 @@ class ThemeDrawingContractChecks(unittest.TestCase):
                     canvas = RecordingCanvas(context, compact=True)
                     hardware.render(canvas, context, style)
                     text = " ".join(canvas.texts())
-                    for value in expected:
+                    visible = [value for value in expected
+                               if style not in ("thermal", "orbit") or value != "39%"]
+                    for value in visible:
                         self.assertIn(value, text)
                     for kind, arguments in canvas.calls:
                         if kind == "text":
@@ -285,6 +287,26 @@ class ThemeDrawingContractChecks(unittest.TestCase):
                 hardware.render(canvas, context, "orbit")
                 self.assertFalse(any(kind == "ring" for kind, _ in canvas.calls))
                 self.assertIn("4200 MHz", " ".join(canvas.texts()))
+
+    def test_thermal_themes_show_only_named_measured_fans_and_used_ram(self):
+        raw = fixture_sensors()
+        raw["cpu"]["fans"] = [{"name": "CPU Fan", "rpm": 0}]
+        raw["gpus"][0]["fans"] = [{"name": "GPU Fan", "rpm": 1560}]
+        raw["motherboard"] = {"name": "Board", "temperatureC": 39.5,
+                              "temperatureLabel": "System",
+                              "fans": [{"name": "Chassis Fan", "rpm": 870},
+                                       {"name": "Missing Fan", "rpm": None}]}
+        for style in ("thermal", "orbit"):
+            with self.subTest(style=style):
+                context = fixture_context(raw)
+                canvas = RecordingCanvas(context)
+                hardware.render(canvas, context, style)
+                text = " ".join(canvas.texts())
+                for value in ("61.2°C", "49.1°C", "39.5°C", "0 RPM", "1560 RPM",
+                              "870 RPM", "12.5 GiB", "32.0 GiB"):
+                    self.assertIn(value, text)
+                self.assertNotIn("Missing Fan", text)
+                self.assertNotIn("39%", text)  # RAM load is deliberately omitted.
 
 
 class SystemPackChecks(unittest.TestCase):

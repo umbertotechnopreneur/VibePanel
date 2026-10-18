@@ -19,6 +19,7 @@ public sealed class WindowsMetricsService(bool allowDriverLifecycle = false) : I
     private const int MaximumDepth = 8;
     private const int MaximumSensorsPerDevice = 1024;
     private const int MaximumGpus = 8;
+    private const int MaximumFans = 16;
     private readonly object sync = new();
     private Ohm.Computer? computer;
     private HardwareSensorSnapshot snapshot = HardwareSensorSnapshot.Empty;
@@ -46,6 +47,9 @@ public sealed class WindowsMetricsService(bool allowDriverLifecycle = false) : I
             {
                 HardwareDeviceSensors? cpu = null;
                 HardwareMemorySensors? memory = null;
+                var motherboardName = "Motherboard";
+                var boardTemperatures = new List<(string Name, double Value)>();
+                var boardFans = new List<HardwareFanSensors>();
                 var gpus = new List<HardwareDeviceSensors>();
                 var failed = false;
                 foreach (var hardware in EnumerateHardware(computer!.Hardware))
@@ -65,12 +69,35 @@ public sealed class WindowsMetricsService(bool allowDriverLifecycle = false) : I
                             case Ohm.HardwareType.RAM when memory is null:
                                 memory = ReadMemory(sensors);
                                 break;
+                            case Ohm.HardwareType.Mainboard:
+                                motherboardName = hardware.Name;
+                                break;
+                            case Ohm.HardwareType.SuperIO:
+                                // Only the board's own chip supplies these readings.
+                                foreach (var sensor in sensors.Where(item => item.SensorType == Ohm.SensorType.Temperature))
+                                {
+                                    var value = Value(sensor);
+                                    if (value is not null && boardTemperatures.Count < 16 && IsBoardTemperature(sensor.Name))
+                                    { boardTemperatures.Add((sensor.Name, value.Value)); }
+                                }
+                                boardFans.AddRange(ReadFans(sensors).Take(MaximumFans - boardFans.Count));
+                                break;
                         }
                     }
                     catch (Exception error) when (IsSensorFailure(error)) { failed = true; }
                 }
+                var cpuFans = boardFans.Where(fan => fan.Name.Contains("CPU", StringComparison.OrdinalIgnoreCase)).ToArray();
+                if (cpu is not null && cpuFans.Length > 0)
+                { cpu = cpu with { Fans = (cpu.Fans ?? []).Concat(cpuFans).Take(MaximumFans).ToArray() }; }
+                var boardSample = boardTemperatures.OrderBy(item =>
+                    item.Name.Contains("board", StringComparison.OrdinalIgnoreCase) ? 0 : 1).FirstOrDefault();
+                var otherFans = boardFans.Where(fan => cpu is null || !fan.Name.Contains("CPU", StringComparison.OrdinalIgnoreCase)).ToArray();
+                var board = boardTemperatures.Count > 0 || otherFans.Length > 0
+                    ? new HardwareMotherboardSensors(motherboardName,
+                        boardTemperatures.Count > 0 ? boardSample.Value : null,
+                        boardTemperatures.Count > 0 ? boardSample.Name : null, otherFans) : null;
                 snapshot = new(cpu, gpus.ToArray(), memory, DateTimeOffset.UtcNow,
-                    failed ? "Some Open Hardware Monitor measurements are unavailable." : null);
+                    failed ? "Some Open Hardware Monitor measurements are unavailable." : null, board);
             }
             catch (Exception error) when (IsSensorFailure(error))
             {
@@ -123,7 +150,7 @@ public sealed class WindowsMetricsService(bool allowDriverLifecycle = false) : I
         Ohm.Computer? candidate = null;
         try
         {
-            candidate = new Ohm.Computer { CPUEnabled = true, GPUEnabled = true, RAMEnabled = true };
+            candidate = new Ohm.Computer { CPUEnabled = true, GPUEnabled = true, RAMEnabled = true, MainboardEnabled = true };
             // This library may install/load WinRing0 internally. Only the explicit constructor opt-in permits this call.
             candidate.Open();
             computer = candidate;
@@ -160,13 +187,26 @@ public sealed class WindowsMetricsService(bool allowDriverLifecycle = false) : I
             temperatureLabel = "Hottest CPU sensor";
         }
         return new(name, usage, clocks.Length == 0 ? null : clocks.Average(), temperature,
-            clocks.Length == 0 ? null : "Average clock", temperatureLabel);
+            clocks.Length == 0 ? null : "Average clock", temperatureLabel, ReadFans(sensors));
     }
 
     private static HardwareDeviceSensors ReadGpu(string name, Ohm.ISensor[] sensors) => new(name,
         FindValue(sensors, Ohm.SensorType.Load, "GPU Core", percentage: true),
         FindValue(sensors, Ohm.SensorType.Clock, "GPU Core", nonnegative: true),
-        FindValue(sensors, Ohm.SensorType.Temperature, "GPU Core"), "Core clock", "GPU core");
+        FindValue(sensors, Ohm.SensorType.Temperature, "GPU Core"), "Core clock", "GPU core", ReadFans(sensors));
+
+    private static bool IsBoardTemperature(string name) => name.Contains("Mainboard", StringComparison.OrdinalIgnoreCase)
+        || name.Contains("Motherboard", StringComparison.OrdinalIgnoreCase)
+        || name.Equals("System", StringComparison.OrdinalIgnoreCase)
+        || name.Equals("SYSTIN", StringComparison.OrdinalIgnoreCase);
+
+    private static HardwareFanSensors[] ReadFans(Ohm.ISensor[] sensors) => sensors
+        .Where(sensor => sensor.SensorType == Ohm.SensorType.Fan)
+        .Select(sensor => (sensor.Name, Rpm: Value(sensor, nonnegative: true)))
+        .Where(item => item.Rpm is >= 0 and <= 20000)
+        .Take(MaximumFans)
+        .Select(item => new HardwareFanSensors(item.Name, item.Rpm!.Value))
+        .ToArray();
 
     private static HardwareMemorySensors? ReadMemory(Ohm.ISensor[] sensors)
     {
