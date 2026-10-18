@@ -9,7 +9,7 @@ using Windows.Storage.Streams;
 namespace VibePanel.Core;
 
 /// <summary>Uses the current generic Windows media session without a service-specific account.</summary>
-public sealed class WindowsMediaService
+public sealed class WindowsMediaService : IMediaProvider
 {
     private GlobalSystemMediaTransportControlsSessionManager? manager;
     private string? artworkKey;

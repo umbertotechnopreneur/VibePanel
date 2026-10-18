@@ -19,7 +19,6 @@ namespace VibePanel.App;
 /// <summary>A manifest-driven theme library and preview. The engine owns data and rendering.</summary>
 public sealed partial class MainPage : Page
 {
-    private readonly IPanelClient client;
     private readonly IStudioWindowActions? windowActions;
     private readonly IStudioPreview? preview;
     private readonly StudioSession session;
@@ -29,8 +28,8 @@ public sealed partial class MainPage : Page
     private readonly DispatcherTimer colorChanges = new() { Interval = TimeSpan.FromMilliseconds(150) };
     private readonly List<CatalogRow> categoryRows = [];
     private readonly List<CatalogRow> themeRows = [];
-    private System.Collections.Concurrent.ConcurrentDictionary<string, string> screenThemes => session.Model.ScreenThemes;
-    private System.Collections.Concurrent.ConcurrentDictionary<string, bool> screenEnabled => session.Model.ScreenEnabled;
+    private StudioViewModel viewModel => session.ViewModel;
+    private IReadOnlyDictionary<string, bool> screenEnabled => viewModel.Read().ScreenEnabled;
     private static readonly int[] RefreshIntervals = [1000, 500, 250, 100, 50, 25];
     private ThemeCatalogDto? catalog;
     private bool unloaded, ready, updatingChoices, catalogLoading;
@@ -50,31 +49,30 @@ public sealed partial class MainPage : Page
     private int previewGeneration;
     private bool? appliedLight;
     private PanelChoice[]? appliedDevices;
-    private int refreshMilliseconds { get => session.Model.Preferences.RefreshMilliseconds; set => session.Model.Edit(p => p.RefreshMilliseconds = value); }
-    private string jpegQuality { get => session.Model.Preferences.JpegQuality; set => session.Model.Edit(p => p.JpegQuality = value); }
-    private string profileSelection { get => session.Model.Preferences.ProfileSelection; set => session.Model.Edit(p => p.ProfileSelection = value); }
-    private long lastChange { get => session.Model.Preferences.LastChange; set => session.Model.Edit(p => p.LastChange = value); }
-    private string selectedCategory { get => session.Model.Preferences.SelectedCategory; set => session.Model.Edit(p => p.SelectedCategory = value); }
-    private string selectedTheme { get => session.Model.Preferences.SelectedTheme; set => session.Model.Edit(p => p.SelectedTheme = value); }
-    private string selectedProfile { get => session.Model.Preferences.SelectedProfile; set => session.Model.Edit(p => p.SelectedProfile = value); }
-    private string fontFamily { get => session.Model.Preferences.FontFamily; set => session.Model.Edit(p => p.FontFamily = value); }
-    private int appearance { get => session.Model.Preferences.Appearance; set => session.Model.Edit(p => p.Appearance = value); }
-    private double fontScale { get => session.Model.Preferences.FontScale; set => session.Model.Edit(p => p.FontScale = value); }
-    private double saturationPercent { get => session.Model.Preferences.SaturationPercent; set => session.Model.Edit(p => p.SaturationPercent = value); }
-    private double hueDegrees { get => session.Model.Preferences.HueDegrees; set => session.Model.Edit(p => p.HueDegrees = value); }
-    private double brightnessPercent { get => session.Model.Preferences.BrightnessPercent; set => session.Model.Edit(p => p.BrightnessPercent = value); }
-    private double contrastPercent { get => session.Model.Preferences.ContrastPercent; set => session.Model.Edit(p => p.ContrastPercent = value); }
-    private bool colorFiltersEnabled { get => session.Model.Preferences.ColorFiltersEnabled; set => session.Model.Edit(p => p.ColorFiltersEnabled = value); }
-    private bool cycleThemes { get => session.Model.Preferences.CycleThemes; set => session.Model.Edit(p => p.CycleThemes = value); }
-    private string? selectedDeviceId { get => session.Model.Preferences.SelectedDeviceId; set => session.Model.Edit(p => p.SelectedDeviceId = value); }
-    private bool showSpectrum { get => session.Model.Preferences.ShowSpectrum; set => session.Model.Edit(p => p.ShowSpectrum = value); }
+    private int refreshMilliseconds { get => viewModel.Preferences.RefreshMilliseconds; set => viewModel.Edit(p => p.RefreshMilliseconds = value); }
+    private string jpegQuality { get => viewModel.Preferences.JpegQuality; set => viewModel.Edit(p => p.JpegQuality = value); }
+    private string profileSelection { get => viewModel.Preferences.ProfileSelection; set => viewModel.Edit(p => p.ProfileSelection = value); }
+    private long lastChange { get => viewModel.Preferences.LastChange; set => viewModel.Edit(p => p.LastChange = value); }
+    private string selectedCategory => viewModel.Preferences.SelectedCategory;
+    private string selectedTheme => viewModel.Preferences.SelectedTheme;
+    private string selectedProfile { get => viewModel.Preferences.SelectedProfile; set => viewModel.Edit(p => p.SelectedProfile = value); }
+    private string fontFamily { get => viewModel.Preferences.FontFamily; set => viewModel.Edit(p => p.FontFamily = value); }
+    private int appearance { get => viewModel.Preferences.Appearance; set => viewModel.Edit(p => p.Appearance = value); }
+    private double fontScale { get => viewModel.Preferences.FontScale; set => viewModel.Edit(p => p.FontScale = value); }
+    private double saturationPercent { get => viewModel.Preferences.SaturationPercent; set => viewModel.Edit(p => p.SaturationPercent = value); }
+    private double hueDegrees { get => viewModel.Preferences.HueDegrees; set => viewModel.Edit(p => p.HueDegrees = value); }
+    private double brightnessPercent { get => viewModel.Preferences.BrightnessPercent; set => viewModel.Edit(p => p.BrightnessPercent = value); }
+    private double contrastPercent { get => viewModel.Preferences.ContrastPercent; set => viewModel.Edit(p => p.ContrastPercent = value); }
+    private bool colorFiltersEnabled { get => viewModel.Preferences.ColorFiltersEnabled; set => viewModel.Edit(p => p.ColorFiltersEnabled = value); }
+    private bool cycleThemes { get => viewModel.Preferences.CycleThemes; set => viewModel.Edit(p => p.CycleThemes = value); }
+    private string? selectedDeviceId { get => viewModel.Preferences.SelectedDeviceId; set => viewModel.Edit(p => p.SelectedDeviceId = value); }
+    private bool showSpectrum { get => viewModel.Preferences.ShowSpectrum; set => viewModel.Edit(p => p.ShowSpectrum = value); }
 
     public MainPage(IPanelClient client, IStudioWindowActions? windowActions = null, string? presentationSettingsPath = null, IStudioPreview? preview = null, bool restoreLastSession = false, StudioSession? session = null)
     {
         this.windowActions = windowActions;
         this.preview = preview;
         this.session = session ?? new StudioSession(client, presentationSettingsPath ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VibePanel", "presentation.json"), restoreLastSession);
-        this.client = this.session;
         ownsSession = session is null;
         InitializeComponent();
         InitializePreviewAppearance();
@@ -207,16 +205,6 @@ public sealed partial class MainPage : Page
             foreach (var category in catalog.Categories) { categoryRows.Add(new(category.Id, category.Name)); }
             CategoriesBox.ItemsSource = categoryRows.ToArray();
             CategoriesBox.SelectedItem = categoryRows.FirstOrDefault(row => row.Id == selectedCategory) ?? categoryRows.FirstOrDefault();
-            selectedCategory = (CategoriesBox.SelectedItem as CatalogRow)?.Id ?? "multimedia";
-            foreach (var category in catalog.Categories)
-            {
-                var remembered = screenThemes.GetValueOrDefault(category.Id);
-                if (!catalog.Themes.Any(theme => theme.Category == category.Id && theme.Id == remembered))
-                {
-                    screenThemes[category.Id] = catalog.Themes.FirstOrDefault(theme => theme.Category == category.Id)?.Id ?? "";
-                }
-            }
-            selectedTheme = screenThemes.GetValueOrDefault(selectedCategory, selectedTheme);
             PopulateThemes();
             CatalogText.Text = $"{catalog.Themes.Count} themes · local folders";
             if (catalog.Notices.Count > 0) { StatusText.Text = string.Join(" · ", catalog.Notices); }
@@ -238,8 +226,6 @@ public sealed partial class MainPage : Page
         { themeRows.Add(new(theme.Id, theme.Name, theme.Description, (themeRows.Count + 1).ToString("00"))); }
         ThemesBox.ItemsSource = themeRows.ToArray();
         ThemesBox.SelectedItem = themeRows.FirstOrDefault(row => row.Id == selectedTheme) ?? themeRows.FirstOrDefault();
-        selectedTheme = (ThemesBox.SelectedItem as CatalogRow)?.Id ?? "";
-        RememberScreenTheme();
         UpdateSelection();
         updatingChoices = wasUpdating;
     }
@@ -253,7 +239,7 @@ public sealed partial class MainPage : Page
         ApplyAppearance();
         if (selectedCategory == "codex") { _ = RefreshCodexStatusAsync(); }
         ApplyDevices(current.Devices);
-        var p = session.Model.Preferences;
+        var p = viewModel.Preferences;
         if ((CategoriesBox.SelectedItem as CatalogRow)?.Id != p.SelectedCategory || (ThemesBox.SelectedItem as CatalogRow)?.Id != p.SelectedTheme)
         {
             updatingChoices = true;
@@ -262,7 +248,7 @@ public sealed partial class MainPage : Page
             updatingChoices = false;
         }
         UpdateDisplayControls();
-        StatusText.Text = current.Status;
+        StatusText.Text = viewModel.PersistenceNotice ?? current.Status;
         if (current.Frame is not { } state || current.FrameRevision == appliedFrameRevision && lastFrame is not null) { return Task.CompletedTask; }
         appliedFrameRevision = current.FrameRevision;
         UpdateProfiles(state.Profiles);
@@ -271,7 +257,7 @@ public sealed partial class MainPage : Page
         UpdateFrameHeading(renderedTheme, state.FrameSuppressed);
         SourceText.Text = state.FrameSuppressed ? "No enabled screen is available." : category == "codex" ? "OpenAI Codex · local activity"
             : category == "system" ? "Local hardware sensors" : state.Source;
-        if (state.Notices.Count > 0) { StatusText.Text = string.Join(" · ", state.Notices); }
+        if (state.Notices.Count > 0) { StatusText.Text = string.Join(" · ", new[] { viewModel.PersistenceNotice }.Where(n => n is not null).Concat(state.Notices)); }
         ScreensHelpText.Text = screenEnabled["codex"] && !codexProcessRunning
             ? "Codex is closed, so its screen is skipped on the display. You can still preview it."
             : "Codex hides when its process is closed. You can preview every theme.";
@@ -357,7 +343,7 @@ public sealed partial class MainPage : Page
         return dimensions.Any(char.IsDigit) ? dimensions.Replace("x", " × ") : name;
     }
 
-    private bool IsLight => appearance == 2 || (appearance == 0 && DateTime.Now.Hour is >= 7 and < 19);
+    private bool IsLight => viewModel.Preferences.Light;
 
     private void ApplyAppearance()
     {
@@ -468,23 +454,10 @@ public sealed partial class MainPage : Page
         if (ThemesBox.Items.Count > 0) { ThemesBox.SelectedIndex = (ThemesBox.SelectedIndex + direction + ThemesBox.Items.Count) % ThemesBox.Items.Count; ThemesBox.ScrollIntoView(ThemesBox.SelectedItem); }
     }
 
-    /// <summary>Keep one chosen theme per category, independent of screen eligibility.</summary>
-    private void RememberScreenTheme()
-    {
-        if (string.IsNullOrEmpty(selectedTheme) || screenThemes.GetValueOrDefault(selectedCategory) == selectedTheme) { return; }
-        screenThemes[selectedCategory] = selectedTheme;
-    }
-
-    private ScreenSelectionDto[] ScreenSelections() => screenEnabled.Select(pair =>
-        new ScreenSelectionDto(pair.Key, screenThemes.GetValueOrDefault(pair.Key, ""), pair.Value)).ToArray();
-
     private void Screen_Changed(object sender, RoutedEventArgs args)
     {
         if (!ready || updatingChoices) { return; }
-        screenEnabled["multimedia"] = MusicScreenBox.IsChecked == true;
-        screenEnabled["codex"] = CodexScreenBox.IsChecked == true;
-        screenEnabled["system"] = SystemScreenBox.IsChecked == true;
-        lastChange = Environment.TickCount64;
+        viewModel.SetScreens(MusicScreenBox.IsChecked == true, CodexScreenBox.IsChecked == true, SystemScreenBox.IsChecked == true);
         SaveChoices();
         _ = RefreshAsync();
     }
@@ -549,7 +522,7 @@ public sealed partial class MainPage : Page
         CodexRefreshButton.IsEnabled = false;
         try
         {
-            var status = await client.RequestAsync<CodexSetupStatus>("codex.status");
+            var status = await viewModel.ReadCodexAsync();
             if (unloaded) { return; }
             ShowCodexStatus(status);
             codexStatusAt = Environment.TickCount64;
@@ -580,7 +553,7 @@ public sealed partial class MainPage : Page
         CodexStatusText.Text = "Preparing the local plugin…";
         try
         {
-            var status = await client.RequestAsync<CodexSetupStatus>("codex.prepare");
+            var status = await viewModel.ReadCodexAsync(prepare: true);
             if (!unloaded) { ShowCodexStatus(status); codexStatusAt = Environment.TickCount64; }
         }
         catch (Exception error) { preparationError = error.Message; }
@@ -600,7 +573,7 @@ public sealed partial class MainPage : Page
         diagnosticsChanging = true;
         try
         {
-            var status = await client.RequestAsync<DiagnosticsStatus>("diagnostics.status");
+            var status = await viewModel.ReadDiagnosticsAsync();
             diagnosticsEnabled = status.Enabled;
             LogErrorsBox.IsChecked = status.Enabled;
             OpenLogButton.IsEnabled = status.Enabled;
@@ -617,7 +590,7 @@ public sealed partial class MainPage : Page
         LogErrorsBox.IsEnabled = false;
         try
         {
-            var status = await client.RequestAsync<DiagnosticsStatus>("diagnostics.set", new SetDiagnosticsOptions(LogErrorsBox.IsChecked == true));
+            var status = await viewModel.ReadDiagnosticsAsync(LogErrorsBox.IsChecked == true);
             diagnosticsEnabled = status.Enabled;
             LogErrorsBox.IsChecked = status.Enabled;
             OpenLogButton.IsEnabled = status.Enabled;
@@ -631,7 +604,7 @@ public sealed partial class MainPage : Page
     {
         try
         {
-            var result = await client.RequestAsync<JsonElement>("diagnostics.open");
+            var result = await viewModel.OpenDiagnosticsAsync();
             if (!result.TryGetProperty("accepted", out var accepted) || accepted.ValueKind != JsonValueKind.True)
             { StatusText.Text = "No log file yet. Leave Log errors on, then try again."; }
         }
@@ -735,8 +708,8 @@ public sealed partial class MainPage : Page
     private void Category_Changed(object sender, SelectionChangedEventArgs args)
     {
         if (!ready || updatingChoices) { return; }
-        selectedCategory = (CategoriesBox.SelectedItem as CatalogRow)?.Id ?? "multimedia";
-        selectedTheme = screenThemes.GetValueOrDefault(selectedCategory, "");
+        if (catalog is null) { return; }
+        viewModel.SelectCategory((CategoriesBox.SelectedItem as CatalogRow)?.Id ?? "multimedia", catalog);
         PopulateThemes();
         lastChange = Environment.TickCount64;
         SaveChoices();
@@ -745,8 +718,8 @@ public sealed partial class MainPage : Page
     private void Theme_Changed(object sender, SelectionChangedEventArgs args)
     {
         if (!ready || updatingChoices) { return; }
-        selectedTheme = (ThemesBox.SelectedItem as CatalogRow)?.Id ?? "";
-        RememberScreenTheme();
+        if (catalog is null) { return; }
+        viewModel.SelectTheme((ThemesBox.SelectedItem as CatalogRow)?.Id ?? "", catalog);
         lastChange = Environment.TickCount64;
         UpdateSelection();
         SaveChoices();
@@ -755,8 +728,8 @@ public sealed partial class MainPage : Page
     private void Profile_Changed(object sender, SelectionChangedEventArgs args)
     {
         if (!ready || updatingChoices) { return; }
-        profileSelection = (ProfilesBox.SelectedItem as PanelChoice)?.Id ?? "auto";
-        if (profileSelection != "auto") { selectedProfile = profileSelection; }
+        var profile = (ProfilesBox.SelectedItem as PanelChoice)?.Id ?? "auto";
+        viewModel.Edit(p => { p.ProfileSelection = profile; if (profile != "auto") { p.SelectedProfile = profile; } });
         SaveChoices();
         _ = RefreshAsync();
     }
@@ -786,7 +759,7 @@ public sealed partial class MainPage : Page
     {
         try
         {
-            var fonts = await client.RequestAsync<FontCatalogDto>("fonts");
+            var fonts = await viewModel.ReadFontsAsync();
             if (unloaded) { return; }
             fontChoices = fonts.Families.Select(name => new PanelChoice(name, name)).Append(new PanelChoice("", "Custom font…")).ToArray();
             updatingFonts = true;
@@ -879,7 +852,7 @@ public sealed partial class MainPage : Page
 
     private void CommitColorControls()
     {
-        session.Model.Edit(p =>
+        viewModel.Edit(p =>
         {
             p.SaturationPercent = Math.Round(SaturationSlider.Value);
             p.HueDegrees = Math.Round(HueSlider.Value);

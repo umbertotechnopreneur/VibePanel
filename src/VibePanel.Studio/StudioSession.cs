@@ -23,6 +23,7 @@ public sealed class StudioSession : IPanelClient, IAsyncDisposable, IDisposable
     private long devicesAt;
     private Task? shutdown;
     public StudioModel Model { get; }
+    public StudioViewModel ViewModel { get; }
     public StudioSnapshot Snapshot => Volatile.Read(ref snapshot);
     public bool PreviewVisible { set { Interlocked.Exchange(ref previewVisible, value ? 1 : 0); } }
 
@@ -30,6 +31,8 @@ public sealed class StudioSession : IPanelClient, IAsyncDisposable, IDisposable
     {
         this.client = client;
         Model = new(settingsPath);
+        ViewModel = new(Model, this);
+        if (Model.PersistenceNotice is { } notice) { snapshot = snapshot with { Status = notice }; }
         var p = Model.Preferences;
         if (restoreLastSession && !string.IsNullOrEmpty(p.SelectedDeviceId) && !string.IsNullOrEmpty(p.SelectedTheme))
         {
@@ -80,18 +83,7 @@ public sealed class StudioSession : IPanelClient, IAsyncDisposable, IDisposable
     private async Task LoadCatalogAsync()
     {
         var catalog = await client.RequestAsync<ThemeCatalogDto>("themes", cancellationToken: lifetime.Token).ConfigureAwait(false);
-        foreach (var category in catalog.Categories)
-        {
-            var remembered = Model.ScreenThemes.GetValueOrDefault(category.Id);
-            if (!catalog.Themes.Any(t => t.Category == category.Id && t.Id == remembered))
-            { Model.ScreenThemes[category.Id] = catalog.Themes.FirstOrDefault(t => t.Category == category.Id)?.Id ?? ""; }
-        }
-        Model.Edit(p =>
-        {
-            if (!catalog.Categories.Any(c => c.Id == p.SelectedCategory)) { p.SelectedCategory = catalog.Categories.FirstOrDefault()?.Id ?? "multimedia"; }
-            if (!catalog.Themes.Any(t => t.Id == p.SelectedTheme && t.Category == p.SelectedCategory))
-            { p.SelectedTheme = Model.ScreenThemes.GetValueOrDefault(p.SelectedCategory, ""); }
-        });
+        ViewModel.NormalizeCatalog(catalog);
         Publish(s => s with { Catalog = catalog });
     }
 
@@ -150,14 +142,16 @@ public sealed class StudioSession : IPanelClient, IAsyncDisposable, IDisposable
         // Consume startup before waiting for an in-flight request. Stop is never lost.
         Interlocked.Increment(ref stopRequests);
         Publish(s => s with { StartupPending = false, Busy = true });
-        await operation.WaitAsync(lifetime.Token).ConfigureAwait(false);
+        var acquired = false;
         try
         {
+            await operation.WaitAsync(lifetime.Token).ConfigureAwait(false);
+            acquired = true;
             await client.RequestAsync<object>("stop", cancellationToken: lifetime.Token).ConfigureAwait(false);
             Publish(s => s with { DisplayActive = false, Status = "Display stopped." });
         }
         catch (Exception error) { Publish(s => s with { DisplayActive = false, Status = error.Message }); }
-        finally { Interlocked.Decrement(ref stopRequests); Publish(s => s with { Busy = false }); operation.Release(); Wake(); }
+        finally { Interlocked.Decrement(ref stopRequests); Publish(s => s with { Busy = false }); if (acquired) { operation.Release(); } Wake(); }
     }
 
     public void Save()
@@ -169,9 +163,10 @@ public sealed class StudioSession : IPanelClient, IAsyncDisposable, IDisposable
 
     private void Rotate()
     {
-        var p = Model.Preferences;
+        var state = Model.Read();
+        var p = state.Preferences;
         if (!p.CycleThemes || Environment.TickCount64 - p.LastChange < 20000 || Snapshot.Catalog is not { } catalog) { return; }
-        var screens = Model.Screens().Where(s => s.Enabled && !string.IsNullOrEmpty(s.ThemeId)
+        var screens = state.Screens().Where(s => s.Enabled && !string.IsNullOrEmpty(s.ThemeId)
             && (!Snapshot.DisplayActive || s.Category != "codex" || Snapshot.Frame?.CodexProcessRunning == true)).ToArray();
         if (screens.Length == 0) { return; }
         var index = Array.FindIndex(screens, s => s.Category == p.SelectedCategory);
@@ -183,10 +178,14 @@ public sealed class StudioSession : IPanelClient, IAsyncDisposable, IDisposable
             {
                 var current = Array.FindIndex(themes, t => t.Id == p.SelectedTheme);
                 next = next with { ThemeId = themes[(current + 1) % themes.Length].Id };
-                Model.ScreenThemes[next.Category] = next.ThemeId;
             }
         }
-        Model.Edit(value => { value.SelectedCategory = next.Category; value.SelectedTheme = next.ThemeId; value.LastChange = Environment.TickCount64; });
+        Model.Update(latest =>
+        {
+            // A user edit made during rotation wins over this stale observation.
+            if (latest.Revision != state.Revision) { return; }
+            StudioViewModel.Select(latest, next.Category, next.ThemeId);
+        });
         Save();
     }
 
@@ -216,16 +215,18 @@ public sealed class StudioSession : IPanelClient, IAsyncDisposable, IDisposable
                     }
                     if (Volatile.Read(ref stopRequests) != 0 || Snapshot.Busy || !Snapshot.DisplayActive && Volatile.Read(ref previewVisible) == 0) { goto WaitForNext; }
                     Rotate();
-                    var p = Model.Preferences;
-                    var screens = Model.Screens();
+                    var state = Model.Read();
+                    var p = state.Preferences;
+                    var screens = state.Screens();
                     var theme = string.IsNullOrEmpty(p.SelectedTheme) ? screens.FirstOrDefault(s => s.Enabled && s.ThemeId.Length > 0)?.ThemeId ?? Snapshot.Catalog?.Themes.FirstOrDefault()?.Id : p.SelectedTheme;
                     if (string.IsNullOrEmpty(theme)) { goto WaitForNext; }
-                    var options = new PreviewOptions(ProfileId: p.SelectedProfile, Light: p.Light, ThemeId: theme,
+                    var light = p.Light;
+                    var options = new PreviewOptions(ProfileId: p.SelectedProfile, Light: light, ThemeId: theme,
                         FontFamily: p.FontFamily, FontScale: p.FontScale, RefreshIntervalMilliseconds: p.RefreshMilliseconds,
                         JpegQuality: p.JpegQuality, SaturationPercent: p.SaturationPercent, HueDegrees: p.HueDegrees,
                         ShowSpectrum: p.ShowSpectrum, BrightnessPercent: p.BrightnessPercent, ContrastPercent: p.ContrastPercent,
-                        ColorFiltersEnabled: p.ColorFiltersEnabled, Screens: screens, Palettes: Model.Palettes.Where(pair => new[] { theme }.Concat(screens.Select(screen => screen.ThemeId))
-                            .Any(id => pair.Key == id || pair.Key == id + (p.Light ? "@light" : "@dark"))).ToDictionary());
+                        ColorFiltersEnabled: p.ColorFiltersEnabled, Screens: screens, Palettes: state.Palettes.Where(pair => new[] { theme }.Concat(screens.Select(screen => screen.ThemeId))
+                            .Any(id => pair.Key == id || pair.Key == id + (light ? "@light" : "@dark"))).ToDictionary());
                     var active = Snapshot.DisplayActive;
                     var frame = await client.RequestAsync<PanelState>(active ? "present" : "state", options, lifetime.Token).ConfigureAwait(false);
                     delay = frame.NextFrameMilliseconds is >= 25 and <= 1000 ? Math.Min(delay, frame.NextFrameMilliseconds.Value) : delay;

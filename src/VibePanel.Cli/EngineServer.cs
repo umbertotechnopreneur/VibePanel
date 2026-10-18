@@ -13,7 +13,7 @@ using VibePanel.Core;
 /// <summary>Small allow-listed local protocol. USB writes require an explicit start request.</summary>
 internal sealed class EngineServer : IDisposable
 {
-    private readonly DashboardService dashboard = new();
+    private readonly DashboardService dashboard = new(WindowsDashboardProviders.Create());
     private readonly DashboardRenderer renderer = new();
     private readonly PythonThemeRenderer themeRenderer = new();
     private readonly CodexProcessMonitor codexProcess = new();

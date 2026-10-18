@@ -13,7 +13,7 @@ namespace VibePanel.Core;
 /// Reads CPU, GPU and physical RAM through the original Open Hardware Monitor library only.
 /// Construction does not open hardware. The library's driver lifecycle requires explicit consent.
 /// </summary>
-public sealed class WindowsMetricsService(bool allowDriverLifecycle = false) : IDisposable
+public sealed class WindowsMetricsService(bool allowDriverLifecycle = false) : IMetricsProvider
 {
     private const int MaximumHardware = 64;
     private const int MaximumDepth = 8;

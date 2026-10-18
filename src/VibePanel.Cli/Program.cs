@@ -76,7 +76,7 @@ internal static class VibePanelCli
                     sceneOption is null ? null : DashboardScenes.Parse(sceneOption)).GetAwaiter().GetResult();
                 return 0;
             }
-            using var service = new DashboardService();
+            using var service = new DashboardService(WindowsDashboardProviders.Create());
             var renderer = new DashboardRenderer();
             var export = GetOption(args, "--export");
             do
@@ -290,7 +290,7 @@ internal static class VibePanelCli
         var profile = DisplayProfileCatalog.GetRequired(GetOption(args, "--profile") ?? "wide-1280x480") with { Encoding = PanelPixelEncoding.Jpeg, WireRotation = 0 };
         var path = Path.GetFullPath(export!);
         if (File.Exists(path)) { throw new IOException("The export file already exists. Choose a new path."); }
-        using var service = new DashboardService();
+        using var service = new DashboardService(WindowsDashboardProviders.Create());
         using var renderer = new PythonThemeRenderer();
         var snapshot = service.ReadAsync(includeSystem: false, includeMedia: theme.Category == "multimedia",
             includeSensors: theme.Category == "system").GetAwaiter().GetResult();

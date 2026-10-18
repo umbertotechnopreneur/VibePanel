@@ -38,7 +38,7 @@ public sealed partial class MainPage
             var palette = new ThemePalette(PaletteColor(PalettePrimary.Text), PaletteColor(PaletteSecondary.Text),
                 PaletteColor(PaletteAccent.Text), PaletteColor(PaletteWarning.Text), PaletteColor(PaletteInfo.Text));
             palette.Validate();
-            session.Model.Palettes[editingPaletteKey] = palette;
+            viewModel.SetPalette(editingPaletteKey, palette);
             SaveChoices(); session.Wake();
             PaletteOverlay.Visibility = Visibility.Collapsed;
             editingPaletteKey = null;
@@ -49,7 +49,7 @@ public sealed partial class MainPage
     private void ResetPalette_Click(object sender, RoutedEventArgs args)
     {
         if (editingPaletteKey is null) { return; }
-        session.Model.Palettes.TryRemove(editingPaletteKey, out _);
+        viewModel.SetPalette(editingPaletteKey, null);
         SaveChoices(); session.Wake(); UpdatePaletteEditor();
     }
 

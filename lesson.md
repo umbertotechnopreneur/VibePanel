@@ -40,3 +40,7 @@
 - I keep preferences, startup and the display loop in a UI-independent studio model. Views send commands and read the latest snapshot; hiding or blocking a view does not own the output lifetime.
 - I hold the single-instance lock until the engine has finished closing. Setup blocks new launches until commit or rollback. A maximized window stays maximized when restored from the tray.
 - Themes share five named palette colors. Personal overrides belong to the theme and its light/dark appearance, outside the installed files.
+
+- I commit preferences, screens and palettes together. Each rendered frame reads one detached state. A stale rotation cannot replace a newer user edit.
+- I keep settings storage separate from the model, with a version, an atomic replacement and a last-good backup. Unknown formats stay untouched.
+- I keep data records and provider interfaces in plain .NET. The Windows host supplies its implementations; offline checks supply fakes. [Architecture](docs/studio-architecture.md).

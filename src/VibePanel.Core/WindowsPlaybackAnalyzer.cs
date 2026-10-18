@@ -14,7 +14,7 @@ namespace VibePanel.Core;
 /// Opt-in, in-memory analysis of the default Windows render endpoint. It never opens an input
 /// endpoint, writes audio to disk, or sends audio over a network. Constructing it opens nothing.
 /// </summary>
-public sealed class WindowsPlaybackAnalyzer : IDisposable
+public sealed class WindowsPlaybackAnalyzer : IPlaybackProvider
 {
     private const int TransformSize = 4096;
     private const int BandCount = 32;

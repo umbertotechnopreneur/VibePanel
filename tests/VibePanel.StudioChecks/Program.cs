@@ -19,10 +19,10 @@ await using (var session = new StudioSession(client, path))
 {
     await Until(() => session.Snapshot.Devices is not null);
     Check(client.Starts == 0 && client.Presents == 0, "Manual startup never sends output.");
-    session.Model.Edit(p => { p.SelectedTheme = "system.a"; p.SelectedCategory = "system"; p.RefreshMilliseconds = 25; });
-    session.Model.ScreenThemes["system"] = "system.a";
-    session.Model.ScreenEnabled["multimedia"] = false;
-    session.Model.Palettes["system.a@dark"] = new(TextPrimary: "#123456", Warning: "#FEDCBA");
+    session.Model.Edit(p => { p.SelectedTheme = "system.a"; p.SelectedCategory = "system"; p.RefreshMilliseconds = 25; p.Appearance = 1; });
+    session.Model.Update(s => s.ScreenThemes["system"] = "system.a");
+    session.Model.Update(s => s.ScreenEnabled["multimedia"] = false);
+    session.ViewModel.SetPalette("system.a@dark", new(TextPrimary: "#123456", Warning: "#FEDCBA"));
     await session.StartAsync("fixture");
     // There is no UI, dispatcher, native window, preview acknowledgement or provider.
     await Until(() => client.Presents >= 4);
@@ -88,6 +88,7 @@ await using (var session = new StudioSession(restored, path, restoreLastSession:
 
 try { new ThemePalette(Accent: "red").Validate(); throw new InvalidOperationException("Invalid color accepted."); }
 catch (ArgumentException) { checks++; }
+await ArchitectureChecks.RunAsync(output, Check);
 Console.WriteLine($"{checks} studio checks passed. Fake client only; no UI, USB, audio, sensors or installer actions.");
 
 sealed class FakeClient : IPanelClient

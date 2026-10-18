@@ -11,7 +11,7 @@ using System.Runtime.InteropServices;
 namespace VibePanel.Core;
 
 /// <summary>Read-only playback-session volumes and peak meters. No capture clients or volume setters.</summary>
-public sealed class WindowsVolumeService : IDisposable
+public sealed class WindowsVolumeService : IVolumeProvider
 {
     private readonly object gate = new();
     private readonly List<MMDevice> endpoints = [];

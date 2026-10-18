@@ -8,10 +8,10 @@ using System.Net.NetworkInformation;
 
 namespace VibePanel.Core;
 
-public sealed record NetworkTraffic(double? DownloadBytesPerSecond, double? UploadBytesPerSecond, long DownloadBytes, long UploadBytes);
+
 
 /// <summary>Reads OS counters, not packets. Totals start with this service and may overlap on VPN/bridge adapters.</summary>
-public sealed class NetworkTrafficService
+public sealed class NetworkTrafficService : INetworkProvider
 {
     private readonly Dictionary<string, (long Received, long Sent)> previous = [];
     private long lastRead, receivedTotal, sentTotal;

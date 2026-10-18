@@ -28,6 +28,9 @@ jobs:
       - run: dotnet restore VibePanel.slnx -p:Platform=${{ matrix.arch }}
       - run: dotnet format VibePanel.slnx --verify-no-changes --no-restore
       - run: dotnet build VibePanel.slnx --configuration Release --no-restore --warnaserror -p:Platform=${{ matrix.arch }}
+      - name: Offline state and provider checks
+        if: matrix.arch == 'x64'
+        run: dotnet run --project tests/VibePanel.StudioChecks -c Release
       - name: Publish portable folders (no tests)
         shell: pwsh
         run: ./scripts/Publish.ps1 -Architecture ${{ matrix.arch }}
@@ -37,7 +40,7 @@ jobs:
           path: artifacts/packages/*.zip
           if-no-files-found: error
   linux-ui:
-    name: Linux UI build only
+    name: Linux UI and offline model checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -46,6 +49,8 @@ jobs:
           global-json-file: global.json
       - run: dotnet restore src/VibePanel.Photino/VibePanel.Photino.csproj
       - run: dotnet build src/VibePanel.Photino/VibePanel.Photino.csproj --configuration Release --no-restore --warnaserror
+      - name: Offline state and provider checks (no hardware)
+        run: dotnet run --project tests/VibePanel.StudioChecks -c Release
   required:
     name: Build
     if: always()

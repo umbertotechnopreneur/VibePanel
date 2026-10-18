@@ -24,7 +24,7 @@ public static class ThemePlayback
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         if (duration is { } limit) { stop.CancelAfter(limit); }
         var token = stop.Token;
-        using var service = new DashboardService();
+        using var service = new DashboardService(WindowsDashboardProviders.Create());
         using var renderer = new PythonThemeRenderer();
         var codexProcess = new CodexProcessMonitor();
         byte[]? inactiveFrame = null;

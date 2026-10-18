@@ -9,6 +9,7 @@
     <Platform Solution="*|x64" Project="x64" />
     <Platform Solution="*|ARM64" Project="ARM64" />
   </Project>
+  <Project Path="src/VibePanel.Data/VibePanel.Data.csproj" />
   <Project Path="src/VibePanel.Studio/VibePanel.Studio.csproj" />
   <Project Path="src/VibePanel.Contracts/VibePanel.Contracts.csproj" />
   <Project Path="src/VibePanel.Photino/VibePanel.Photino.csproj" />
