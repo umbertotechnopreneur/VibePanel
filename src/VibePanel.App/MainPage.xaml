@@ -106,6 +106,13 @@ VBWR E -->
                             <TextBlock x:Name="CodexHelpText" Text="Prepare here. Then install the plugin and review its hooks inside Codex." FontSize="9" TextWrapping="Wrap" Margin="0,8,0,0"/>
                         </StackPanel>
                     </Grid>
+                    <StackPanel x:Name="SensorSetupFrame" Grid.Row="5" Margin="14,16,8,0" Visibility="Collapsed">
+                        <TextBlock x:Name="SensorSetupHeading" Text="SYSTEM SENSOR ACCESS" FontSize="9"/>
+                        <TextBlock x:Name="SensorDriverText" Text="CPU and motherboard temperatures and fan RPM need the PawnIO driver. Checking its installation…" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                        <TextBox x:Name="SensorDriverPath" IsReadOnly="True" TextWrapping="Wrap" FontSize="9" Margin="0,8,0,0" MaxHeight="62" BorderThickness="0" Background="Transparent" Visibility="Collapsed"/>
+                        <Button x:Name="SensorDriverFolderButton" Content="Open driver folder" Click="SensorDriverFolder_Click" Height="30" FontSize="11" Margin="0,10,0,0" IsEnabled="False" ToolTipService.ToolTip="Select the driver in File Explorer. This does not install or allow it."/>
+                        <TextBlock x:Name="SensorDriverHelp" Text="LibreHardwareMonitor reads the sensors. Install PawnIO separately, then restart this app. This app does not install drivers or change Windows security." FontSize="9" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                    </StackPanel>
                 </Grid>
             </Grid>
             <Grid Grid.Column="2">
@@ -214,7 +221,7 @@ VBWR E -->
                     </Border>
                     <Grid x:Name="AdministratorPanel" Grid.Row="2" Visibility="Collapsed" Margin="0,10,0,0">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                        <TextBlock x:Name="AdministratorHelp" Text="CPU clock and temperature may need administrator rights." FontSize="11" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <TextBlock x:Name="AdministratorHelp" Text="Some sensors also need administrator rights. Elevation does not install PawnIO or bypass a Windows security block." FontSize="11" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,12,0"/>
                         <Button x:Name="AdministratorButton" Grid.Column="1" Content="Reopen as administrator" Click="Administrator_Click" Height="30" Padding="10,0" FontSize="11" ToolTipService.ToolTip="Save your choices, stop output and reopen in preview. Themes will also run as administrator."/>
                     </Grid>
                 </Grid>

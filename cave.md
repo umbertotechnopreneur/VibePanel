@@ -71,6 +71,14 @@ After separate approval, I updated the installed package and opened it in previe
 
 This is my hobby project. No warranty.
 
+On 19 October, Windows Defender recorded `VulnerableDriver:WinNT/Winring0` and quarantined the old installed `OpenHardwareMonitorLib.sys`. The source now uses the official precompiled LibreHardwareMonitorLib 0.9.6 package. The old source project, preparation script and payload source archive are removed. Current builds contain the library and required runtime dependencies, without a monitoring GUI or driver installer. Installer cleanup still recognizes old Vibe Panel driver names solely for removal during upgrades/uninstall.
+
+The Windows adapter reads named motherboard channels without assigning generic readings to CPU. Physical RAM uses `GlobalMemoryStatusEx`; LibreHardwareMonitor's memory/SPD group remains disabled to avoid its driver-loading path. PawnIO registration and its service path are read without installing or opening a driver. The System sidebar displays this status and can open the existing driver folder. Registration alone does not verify access. The two thermal layouts separate names, temperatures, load and RPM, with explicit unavailable labels and readable notices.
+
+Windows x64 restore from official NuGet, format verification and Release compilation passed. With explicit approval, 110 offline checks, 35 fake-client studio checks and 24 Python theme checks passed. Theme checks included 180 synthetic JPEG combinations; 24 additional Thermal Atlas/Airflow fixtures were inspected at font scale 1.6 across wide, square, portrait, light/dark and complete/missing sensor inputs. This does not verify physical sensors, the installed app, USB output or a new installer. No driver, monitoring app or MSI was installed, and Defender settings were not changed.
+
+After verification, 5,800 generated build/staging/package files (about 1.60 GB) and nine generated web files were deleted, including the old sensor build and MSI/ZIP payloads. Automatic approval rejected directory deletion, including the empty-directory cleanup; generated directory shells remain. Installed app files and settings were preserved.
+
 On 18 October, I requested a real Windows x64 MSI. The first MSI installation returned Windows Installer status 0. I then requested a clean rebuild and removal of generated output, keeping only the final MSI. No tests or MSI validation were run for this packaging change. Upgrade, repair and uninstall behavior have not been tested.
 
 Later on 18 October, Start opened an old studio from an uninstall backup. After the app closed, its WinRing0 driver was still running from the old install path. Normal process and read-access checks missed the loaded driver. A separate administrator stop and service deletion succeeded, and the service query then reported that it no longer existed.

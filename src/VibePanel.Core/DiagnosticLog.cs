@@ -114,7 +114,7 @@ public static class DiagnosticLog
     }
 
     private static readonly HashSet<string> KnownMethods = ["hello", "themes", "state", "present", "devices", "levels", "start", "stop", "media",
-        "codex.status", "codex.prepare", "diagnostics.status", "diagnostics.set", "diagnostics.open"];
+        "codex.status", "codex.prepare", "diagnostics.status", "diagnostics.set", "diagnostics.open", "sensors.driver.status", "sensors.driver.open"];
     private static readonly HashSet<string> KnownErrorTypes = ["ArgumentException", "InvalidOperationException", "IOException", "TimeoutException",
         "UnauthorizedAccessException", "FileNotFoundException", "JsonException", "OperationCanceledException", "Win32Exception"];
 }

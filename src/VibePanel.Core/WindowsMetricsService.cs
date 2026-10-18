@@ -5,29 +5,69 @@
 
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using Ohm = OpenHardwareMonitor.Hardware;
+using Microsoft.Win32;
+using Lhm = LibreHardwareMonitor.Hardware;
 
 namespace VibePanel.Core;
 
 /// <summary>
-/// Reads CPU, GPU and physical RAM through the original Open Hardware Monitor library only.
-/// Construction does not open hardware. The library's driver lifecycle requires explicit consent.
+/// Reads CPU/GPU/board sensors through Libre Hardware Monitor and physical RAM through Windows.
+/// Construction opens no hardware. This adapter never installs, extracts or removes a sensor driver.
 /// </summary>
-public sealed class WindowsMetricsService(bool allowDriverLifecycle = false) : IMetricsProvider
+public sealed class WindowsMetricsService(bool allowHardwareAccess = false) : IMetricsProvider
 {
     private const int MaximumHardware = 64;
     private const int MaximumDepth = 8;
     private const int MaximumSensorsPerDevice = 1024;
     private const int MaximumGpus = 8;
     private const int MaximumFans = 16;
+    private const string DriverUnavailableNotice = "PawnIO is not installed. CPU temperature/clock and motherboard/fan readings need it; GPU and RAM may still be available.";
     private readonly object sync = new();
-    private Ohm.Computer? computer;
+    private Lhm.Computer? computer;
     private HardwareSensorSnapshot snapshot = HardwareSensorSnapshot.Empty;
+    private HardwareDriverStatus driverStatus = new(false, null,
+        "The sensor driver has not been checked yet. Open a System theme to check it.");
     private bool initializationAttempted, disposed;
     private long lastRead;
 
     /// <summary>Local failure details, printed only by the explicitly requested CLI diagnostic command.</summary>
     public string? InitializationFailureDetails { get; private set; }
+
+    /// <summary>The registered PawnIO service file, when present. No driver is created or opened.</summary>
+    public static string? ExpectedDriverPath => ReadDriverInstallationStatus().Path;
+
+    /// <summary>Returns the last driver status without starting or sampling the sensor library.</summary>
+    public HardwareDriverStatus DriverStatus { get { lock (sync) { return driverStatus; } } }
+
+    /// <summary>Checks existing registration only. A found installation does not prove usable sensor access.</summary>
+    public static HardwareDriverStatus ReadDriverInstallationStatus()
+    {
+        if (!System.OperatingSystem.IsWindows())
+        { return new(false, null, "PawnIO sensor access is only implemented on Windows."); }
+        try
+        {
+            var installed = LibreHardwareMonitor.PawnIo.PawnIo.IsInstalled;
+            using var service = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Services\PawnIO", writable: false);
+            var path = NormalizeDriverPath(service?.GetValue("ImagePath") as string);
+            return new(installed, path, installed
+                ? "PawnIO installation found. Sensor access has not been verified; Vibe Panel does not install or change this driver."
+                : DriverUnavailableNotice);
+        }
+        catch (Exception error) when (IsSensorFailure(error))
+        { return new(false, null, "PawnIO installation could not be checked. No driver was installed or changed."); }
+    }
+
+    private static string? NormalizeDriverPath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) { return null; }
+        path = Environment.ExpandEnvironmentVariables(path.Trim().Trim('"'));
+        if (path.StartsWith(@"\??\", StringComparison.Ordinal)) { path = path[4..]; }
+        if (path.StartsWith(@"\SystemRoot\", StringComparison.OrdinalIgnoreCase))
+        { path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), path[12..]); }
+        if (path.StartsWith(@"System32\", StringComparison.OrdinalIgnoreCase))
+        { path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), path); }
+        return Path.IsPathFullyQualified(path) ? Path.GetFullPath(path) : null;
+    }
 
     /// <summary>Returns the last sample for one second, using monotonic time and no background worker.</summary>
     public HardwareSensorSnapshot ReadSensors()
@@ -46,9 +86,9 @@ public sealed class WindowsMetricsService(bool allowDriverLifecycle = false) : I
             try
             {
                 HardwareDeviceSensors? cpu = null;
-                HardwareMemorySensors? memory = null;
-                var motherboardName = "Motherboard";
-                var boardTemperatures = new List<(string Name, double Value)>();
+                var memory = ReadPhysicalMemory();
+                string? motherboardName = null;
+                var boardTemperatures = new List<HardwareTemperatureSensors>();
                 var boardFans = new List<HardwareFanSensors>();
                 var gpus = new List<HardwareDeviceSensors>();
                 var failed = false;
@@ -60,25 +100,22 @@ public sealed class WindowsMetricsService(bool allowDriverLifecycle = false) : I
                         var sensors = hardware.Sensors.Take(MaximumSensorsPerDevice).ToArray();
                         switch (hardware.HardwareType)
                         {
-                            case Ohm.HardwareType.CPU when cpu is null:
+                            case Lhm.HardwareType.Cpu when cpu is null:
                                 cpu = ReadCpu(hardware.Name, sensors);
                                 break;
-                            case Ohm.HardwareType.GpuNvidia or Ohm.HardwareType.GpuAti when gpus.Count < MaximumGpus:
+                            case Lhm.HardwareType.GpuNvidia or Lhm.HardwareType.GpuAmd or Lhm.HardwareType.GpuIntel when gpus.Count < MaximumGpus:
                                 gpus.Add(ReadGpu(hardware.Name, sensors));
                                 break;
-                            case Ohm.HardwareType.RAM when memory is null:
-                                memory = ReadMemory(sensors);
-                                break;
-                            case Ohm.HardwareType.Mainboard:
+                            case Lhm.HardwareType.Motherboard:
                                 motherboardName = hardware.Name;
                                 break;
-                            case Ohm.HardwareType.SuperIO:
+                            case Lhm.HardwareType.SuperIO or Lhm.HardwareType.EmbeddedController when driverStatus.Available:
                                 // Only the board's own chip supplies these readings.
-                                foreach (var sensor in sensors.Where(item => item.SensorType == Ohm.SensorType.Temperature))
+                                foreach (var sensor in sensors.Where(item => item.SensorType == Lhm.SensorType.Temperature))
                                 {
                                     var value = Value(sensor);
-                                    if (value is not null && boardTemperatures.Count < 16 && IsBoardTemperature(sensor.Name))
-                                    { boardTemperatures.Add((sensor.Name, value.Value)); }
+                                    if (value is not null && boardTemperatures.Count < 16)
+                                    { boardTemperatures.Add(new(sensor.Name, value.Value)); }
                                 }
                                 boardFans.AddRange(ReadFans(sensors).Take(MaximumFans - boardFans.Count));
                                 break;
@@ -86,23 +123,21 @@ public sealed class WindowsMetricsService(bool allowDriverLifecycle = false) : I
                     }
                     catch (Exception error) when (IsSensorFailure(error)) { failed = true; }
                 }
+                if (cpu is not null && !driverStatus.Available)
+                { cpu = cpu with { ClockMHz = null, TemperatureC = null, TemperatureLabel = null, Fans = [] }; }
                 var cpuFans = boardFans.Where(fan => fan.Name.Contains("CPU", StringComparison.OrdinalIgnoreCase)).ToArray();
                 if (cpu is not null && cpuFans.Length > 0)
                 { cpu = cpu with { Fans = (cpu.Fans ?? []).Concat(cpuFans).Take(MaximumFans).ToArray() }; }
-                var boardSample = boardTemperatures.OrderBy(item =>
-                    item.Name.Contains("board", StringComparison.OrdinalIgnoreCase) ? 0 : 1).FirstOrDefault();
                 var otherFans = boardFans.Where(fan => cpu is null || !fan.Name.Contains("CPU", StringComparison.OrdinalIgnoreCase)).ToArray();
-                var board = boardTemperatures.Count > 0 || otherFans.Length > 0
-                    ? new HardwareMotherboardSensors(motherboardName,
-                        boardTemperatures.Count > 0 ? boardSample.Value : null,
-                        boardTemperatures.Count > 0 ? boardSample.Name : null, otherFans) : null;
+                var board = CreateMotherboard(motherboardName, boardTemperatures, otherFans);
                 snapshot = new(cpu, gpus.ToArray(), memory, DateTimeOffset.UtcNow,
-                    failed ? "Some Open Hardware Monitor measurements are unavailable." : null, board);
+                    AvailabilityNotice(driverStatus, cpu, board, failed), board, driverStatus);
             }
             catch (Exception error) when (IsSensorFailure(error))
             {
                 // Clear a failed sample rather than presenting our previous sample as current.
-                snapshot = HardwareSensorSnapshot.Empty with { Notice = "Open Hardware Monitor readings are unavailable." };
+                snapshot = HardwareSensorSnapshot.Empty with
+                { Notice = "Libre Hardware Monitor could not read this sample. Sensor values are unavailable.", Driver = driverStatus };
             }
             lastRead = Stopwatch.GetTimestamp();
             return snapshot;
@@ -116,8 +151,8 @@ public sealed class WindowsMetricsService(bool allowDriverLifecycle = false) : I
         var gpu = sensors.Gpus.FirstOrDefault();
         return new(sensors.Cpu?.UsagePercent, sensors.Cpu?.TemperatureC, gpu?.UsagePercent, gpu?.TemperatureC,
             gpu?.Name ?? "GPU",
-            sensors.Cpu?.TemperatureC is null ? "Unavailable" : $"Open Hardware Monitor: {sensors.Cpu.TemperatureLabel}",
-            gpu is null ? "Unavailable" : "Open Hardware Monitor (first detected GPU)");
+            sensors.Cpu?.TemperatureC is null ? "Unavailable" : $"Libre Hardware Monitor: {sensors.Cpu.TemperatureLabel}",
+            gpu is null ? "Unavailable" : "Libre Hardware Monitor (first detected GPU)");
     }
 
     private bool EnsureComputer()
@@ -127,60 +162,77 @@ public sealed class WindowsMetricsService(bool allowDriverLifecycle = false) : I
         initializationAttempted = true;
         if (!System.OperatingSystem.IsWindows())
         {
-            snapshot = HardwareSensorSnapshot.Empty with { Notice = "Hardware sensors are not implemented for this system." };
+            snapshot = HardwareSensorSnapshot.Empty with
+            { Notice = "Hardware sensors are not implemented for this system.", Driver = driverStatus };
             return false;
         }
         if (RuntimeInformation.OSArchitecture is not (Architecture.X64 or Architecture.X86)
             || RuntimeInformation.ProcessArchitecture is not (Architecture.X64 or Architecture.X86))
         {
-            snapshot = HardwareSensorSnapshot.Empty with { Notice = "Open Hardware Monitor 0.9.6 does not support Windows ARM64." };
+            snapshot = HardwareSensorSnapshot.Empty with
+            { Notice = "CPU and motherboard sensors have not been enabled for Windows ARM64.", Driver = driverStatus };
             return false;
         }
-        if (!allowDriverLifecycle)
+        if (!allowHardwareAccess)
         {
-            // Stock OHM has no public option to prevent WinRing0 installation or service removal.
-            // Holding a preflight device handle also blocks its exclusive open and can trigger installation.
             snapshot = HardwareSensorSnapshot.Empty with
             {
-                Notice = "Hardware sensors are disabled: Open Hardware Monitor's driver lifecycle has not been authorized."
+                Notice = "Hardware sensors are disabled: local hardware access has not been authorized.",
+                Driver = driverStatus
             };
             return false;
         }
 
-        Ohm.Computer? candidate = null;
+        Lhm.Computer? candidate = null;
         try
         {
-            candidate = new Ohm.Computer { CPUEnabled = true, GPUEnabled = true, RAMEnabled = true, MainboardEnabled = true };
-            // This library may install/load WinRing0 internally. Only the explicit constructor opt-in permits this call.
+            driverStatus = ReadDriverInstallationStatus();
+            candidate = new Lhm.Computer
+            {
+                IsCpuEnabled = true,
+                IsGpuEnabled = true,
+                IsMotherboardEnabled = true,
+                // LHM 0.9.6's memory group attempts to load its SPD driver. Read physical RAM through Windows instead.
+                IsMemoryEnabled = false
+            };
             candidate.Open();
             computer = candidate;
+            if (!driverStatus.Available)
+            {
+                InitializationFailureDetails = driverStatus.Notice;
+            }
             return true;
         }
         catch (Exception error) when (IsSensorFailure(error))
         {
             InitializationFailureDetails = error.ToString();
+            driverStatus = new(false, driverStatus.Path,
+                "Libre Hardware Monitor could not start its sensor reader. Run 'vp sensors --diagnose' for details.");
             try { candidate?.Close(); }
             catch (Exception closeError) when (IsSensorFailure(closeError)) { }
             snapshot = HardwareSensorSnapshot.Empty with
             {
-                Notice = $"Open Hardware Monitor could not start ({error.GetBaseException().GetType().Name}). Run 'vp sensors --diagnose' for details."
+                Notice = $"Libre Hardware Monitor could not start ({error.GetBaseException().GetType().Name}). Run 'vp sensors --diagnose' for details.",
+                Driver = driverStatus
             };
             return false;
         }
     }
 
-    private static HardwareDeviceSensors ReadCpu(string name, Ohm.ISensor[] sensors)
+    private static HardwareDeviceSensors ReadCpu(string name, Lhm.ISensor[] sensors)
     {
-        var usage = FindValue(sensors, Ohm.SensorType.Load, "CPU Total", percentage: true);
-        var clocks = sensors.Where(sensor => sensor.SensorType == Ohm.SensorType.Clock
+        var usage = FindValue(sensors, Lhm.SensorType.Load, "CPU Total", percentage: true);
+        var clocks = sensors.Where(sensor => sensor.SensorType == Lhm.SensorType.Clock
             && sensor.Name.Contains("Core", StringComparison.OrdinalIgnoreCase)
             && !sensor.Name.Contains("Bus", StringComparison.OrdinalIgnoreCase))
             .Select(sensor => Value(sensor, nonnegative: true)).OfType<double>().ToArray();
-        var temperatures = sensors.Where(sensor => sensor.SensorType == Ohm.SensorType.Temperature)
+        var temperatures = sensors.Where(sensor => sensor.SensorType == Lhm.SensorType.Temperature)
             .Select(sensor => (Sensor: sensor, Value: Value(sensor))).Where(item => item.Value is not null).ToArray();
-        var package = temperatures.FirstOrDefault(item => item.Sensor.Name.Equals("CPU Package", StringComparison.OrdinalIgnoreCase));
+        var preferredLabels = new[] { "CPU Package", "Core (Tdie)", "Core (Tctl/Tdie)", "Package" };
+        var package = preferredLabels.Select(label => temperatures.FirstOrDefault(item => item.Sensor.Name.Equals(label, StringComparison.OrdinalIgnoreCase)))
+            .FirstOrDefault(item => item.Value is not null);
         var temperature = package.Value;
-        var temperatureLabel = temperature is not null ? "CPU package" : null;
+        var temperatureLabel = temperature is not null ? package.Sensor.Name : null;
         if (temperature is null && temperatures.Length > 0)
         {
             temperature = temperatures.Max(item => item.Value);
@@ -190,51 +242,89 @@ public sealed class WindowsMetricsService(bool allowDriverLifecycle = false) : I
             clocks.Length == 0 ? null : "Average clock", temperatureLabel, ReadFans(sensors));
     }
 
-    private static HardwareDeviceSensors ReadGpu(string name, Ohm.ISensor[] sensors) => new(name,
-        FindValue(sensors, Ohm.SensorType.Load, "GPU Core", percentage: true),
-        FindValue(sensors, Ohm.SensorType.Clock, "GPU Core", nonnegative: true),
-        FindValue(sensors, Ohm.SensorType.Temperature, "GPU Core"), "Core clock", "GPU core", ReadFans(sensors));
+    private static HardwareDeviceSensors ReadGpu(string name, Lhm.ISensor[] sensors) => new(name,
+        FindValue(sensors, Lhm.SensorType.Load, "GPU Core", percentage: true),
+        FindValue(sensors, Lhm.SensorType.Clock, "GPU Core", nonnegative: true),
+        FindValue(sensors, Lhm.SensorType.Temperature, "GPU Core"), "Core clock", "GPU core", ReadFans(sensors));
+
+    internal static HardwareMotherboardSensors? CreateMotherboard(string? name,
+        IReadOnlyList<HardwareTemperatureSensors> temperatures, IReadOnlyList<HardwareFanSensors> fans)
+    {
+        if (name is null && temperatures.Count == 0 && fans.Count == 0) { return null; }
+        // Keep every named reading, but never present an unidentified sensor as the board's main temperature.
+        var primary = temperatures.Where(item => IsBoardTemperature(item.Name))
+            .OrderBy(item => item.Name.Contains("board", StringComparison.OrdinalIgnoreCase) ? 0 : 1).FirstOrDefault();
+        return new(name ?? "Motherboard", primary?.TemperatureC, primary?.Name, fans, temperatures);
+    }
+
+    internal static string? AvailabilityNotice(HardwareDriverStatus driver, HardwareDeviceSensors? cpu,
+        HardwareMotherboardSensors? board, bool readFailed)
+    {
+        if (!driver.Available) { return driver.Notice ?? DriverUnavailableNotice; }
+        var missing = new List<string>();
+        if (cpu?.TemperatureC is null) { missing.Add("CPU temperature"); }
+        if (board?.Temperatures is not { Count: > 0 }) { missing.Add("motherboard temperatures"); }
+        if ((cpu?.Fans?.Count ?? 0) + (board?.Fans.Count ?? 0) == 0) { missing.Add("board/CPU fan RPM"); }
+        if (missing.Count > 0)
+        {
+            return $"Libre Hardware Monitor did not provide {string.Join(", ", missing)}. Available readings are shown; unidentified sensor names are kept as reported.";
+        }
+        return readFailed ? "Some Libre Hardware Monitor measurements could not be read. Other available readings are shown." : null;
+    }
 
     private static bool IsBoardTemperature(string name) => name.Contains("Mainboard", StringComparison.OrdinalIgnoreCase)
         || name.Contains("Motherboard", StringComparison.OrdinalIgnoreCase)
         || name.Equals("System", StringComparison.OrdinalIgnoreCase)
+        || name.Equals("SYS", StringComparison.OrdinalIgnoreCase)
         || name.Equals("SYSTIN", StringComparison.OrdinalIgnoreCase);
 
-    private static HardwareFanSensors[] ReadFans(Ohm.ISensor[] sensors) => sensors
-        .Where(sensor => sensor.SensorType == Ohm.SensorType.Fan)
+    private static HardwareFanSensors[] ReadFans(Lhm.ISensor[] sensors) => sensors
+        .Where(sensor => sensor.SensorType == Lhm.SensorType.Fan)
         .Select(sensor => (sensor.Name, Rpm: Value(sensor, nonnegative: true)))
         .Where(item => item.Rpm is >= 0 and <= 20000)
         .Take(MaximumFans)
         .Select(item => new HardwareFanSensors(item.Name, item.Rpm!.Value))
         .ToArray();
 
-    private static HardwareMemorySensors? ReadMemory(Ohm.ISensor[] sensors)
+    private static HardwareMemorySensors? ReadPhysicalMemory()
     {
-        // Original OHM's Data values are GiB, despite its GB display label.
-        var used = FindValue(sensors, Ohm.SensorType.Data, "Used Memory", nonnegative: true);
-        var available = FindValue(sensors, Ohm.SensorType.Data, "Available Memory", nonnegative: true);
-        var usage = FindValue(sensors, Ohm.SensorType.Load, "Memory", percentage: true);
-        double? total = used is not null && available is not null ? used + available : null;
-        return total is null && used is null && usage is null ? null : new(total, used, usage);
+        var status = new MemoryStatus { Length = (uint)Marshal.SizeOf<MemoryStatus>() };
+        if (!GlobalMemoryStatusEx(ref status) || status.TotalPhysical == 0 || status.AvailablePhysical > status.TotalPhysical)
+        { return null; }
+        const double gibibyte = 1024d * 1024 * 1024;
+        return new(status.TotalPhysical / gibibyte,
+            (status.TotalPhysical - status.AvailablePhysical) / gibibyte, status.MemoryLoad);
     }
 
-    private static double? FindValue(IEnumerable<Ohm.ISensor> sensors, Ohm.SensorType type, string name,
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MemoryStatus
+    {
+        public uint Length, MemoryLoad;
+        public ulong TotalPhysical, AvailablePhysical, TotalPageFile, AvailablePageFile,
+            TotalVirtual, AvailableVirtual, AvailableExtendedVirtual;
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GlobalMemoryStatusEx(ref MemoryStatus status);
+
+    private static double? FindValue(IEnumerable<Lhm.ISensor> sensors, Lhm.SensorType type, string name,
         bool percentage = false, bool nonnegative = false) => sensors
         .Where(sensor => sensor.SensorType == type && sensor.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
         .Select(sensor => Value(sensor, percentage, nonnegative)).FirstOrDefault(value => value is not null);
 
-    private static double? Value(Ohm.ISensor sensor, bool percentage = false, bool nonnegative = false)
+    private static double? Value(Lhm.ISensor sensor, bool percentage = false, bool nonnegative = false)
     {
         if (sensor.Value is not float value || !float.IsFinite(value)) { return null; }
         if (percentage && value is < 0 or > 100 || nonnegative && value < 0) { return null; }
         return value;
     }
 
-    private static IEnumerable<Ohm.IHardware> EnumerateHardware(IEnumerable<Ohm.IHardware> roots)
+    private static IEnumerable<Lhm.IHardware> EnumerateHardware(IEnumerable<Lhm.IHardware> roots)
     {
-        var pending = new Queue<(Ohm.IHardware Hardware, int Depth)>();
+        var pending = new Queue<(Lhm.IHardware Hardware, int Depth)>();
         foreach (var root in roots.Take(MaximumHardware)) { pending.Enqueue((root, 0)); }
-        var visited = new HashSet<Ohm.IHardware>(ReferenceEqualityComparer.Instance);
+        var visited = new HashSet<Lhm.IHardware>(ReferenceEqualityComparer.Instance);
         while (pending.Count > 0 && visited.Count < MaximumHardware)
         {
             var (hardware, depth) = pending.Dequeue();

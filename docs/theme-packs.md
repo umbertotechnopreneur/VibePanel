@@ -44,7 +44,7 @@ Use `s.show_spectrum` to respect the sound-bars checkbox. `c.spectrum(...)` alre
 
 ## CLI
 
-System themes receive CPU, GPU, motherboard and physical RAM in `s.sensors`. CPU and GPU objects may include named `fans` with measured `rpm`; motherboard readings come from its Super I/O chips. A CPU fan named by the board can appear under CPU. Hide a missing or null field, but keep a measured zero. Hide an empty component and reuse its space. There is no swap field. Thermal Atlas and Airflow show used RAM and the physical total only. Their blurred hardware photos are illustrative backgrounds; the GPU image evokes a GTX 590 and does not identify the installed card. The shared `hardware.py` helper implements these rules for the ten included System themes. [Snapshot format](../theme-runtime/README.md#system-snapshots).
+System themes receive CPU, GPU, motherboard and physical RAM in `s.sensors`. CPU and GPU objects may include named `fans` with measured `rpm`; motherboard readings include the original sensor names and optional `temperatures`. A CPU fan named by the board can appear under CPU; generic channels retain their names. Keep measured zeroes. Show unavailable temperatures/fans explicitly and display the provider notice when present. There is no swap field. Thermal Atlas and Airflow separate device names, temperatures, load and fan readings into distinct bands. Long groups of readings page as complete lines. Their blurred hardware photos are illustrative backgrounds, not pictures of installed hardware. The shared `hardware.py` helper applies this to all ten System themes. [Snapshot format](../theme-runtime/README.md#system-snapshots).
 
 ```powershell
 vp fonts

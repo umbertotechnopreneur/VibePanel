@@ -45,7 +45,9 @@ public sealed record CodexSetupStatus(bool Prepared, bool Listed, bool ActivityS
 public sealed record DiagnosticsStatus(bool Enabled, string LogPath);
 public sealed record SetDiagnosticsOptions(bool Enabled);
 public sealed record AudioLevelDto(string Id, string Name, double VolumePercent, bool Muted, double? Peak);
-public sealed record SystemDto(double? CpuUsage, double? CpuTemperature, double? GpuUsage, double? GpuTemperature, string GpuName, string CpuTemperatureSource);
+public sealed record SensorDriverDto(bool Available, string? Path, string? Notice, bool FileExists);
+public sealed record SystemDto(double? CpuUsage, double? CpuTemperature, double? GpuUsage, double? GpuTemperature, string GpuName, string CpuTemperatureSource,
+    SensorDriverDto? Driver = null);
 public sealed record NetworkDto(double? DownloadBytesPerSecond, double? UploadBytesPerSecond, long DownloadBytes, long UploadBytes, string Scope);
 public sealed record PanelState(string Title, string Artist, string Album, bool Playing, string Source,
     IReadOnlyList<AudioLevelDto> Audio, SystemDto System, NetworkDto? Network,

@@ -25,6 +25,8 @@ public sealed class StudioViewModel(StudioModel model, IPanelClient? client = nu
         Publish(s => s with { Diagnostics = value }); return value;
     }
     public Task<System.Text.Json.JsonElement> OpenDiagnosticsAsync() => RequestAsync<System.Text.Json.JsonElement>("diagnostics.open");
+    public Task<SensorDriverDto> ReadSensorDriverAsync() => RequestAsync<SensorDriverDto>("sensors.driver.status");
+    public Task<System.Text.Json.JsonElement> OpenSensorDriverFolderAsync() => RequestAsync<System.Text.Json.JsonElement>("sensors.driver.open");
     public async Task<FontCatalogDto> ReadFontsAsync()
     {
         var value = await RequestAsync<FontCatalogDto>("fonts").ConfigureAwait(false);

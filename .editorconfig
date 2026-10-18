@@ -3,6 +3,3 @@
 # Copyright (c) 2026 Umberto Giacobbi | SPDX-License-Identifier: MIT
 # VBWR E
 
-# Preserve the pinned dependency's own formatting. First-party code is still checked.
-[artifacts/native/openhardwaremonitor/source/**/*.cs]
-generated_code = true

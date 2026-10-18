@@ -257,6 +257,7 @@ public sealed partial class MainPage : Page
         UpdateFrameHeading(renderedTheme, state.FrameSuppressed);
         SourceText.Text = state.FrameSuppressed ? "No enabled screen is available." : category == "codex" ? "OpenAI Codex · local activity"
             : category == "system" ? "Local hardware sensors" : state.Source;
+        if (state.System.Driver is { } driver) { ApplySensorDriverStatus(driver); }
         if (state.Notices.Count > 0) { StatusText.Text = string.Join(" · ", new[] { viewModel.PersistenceNotice }.Where(n => n is not null).Concat(state.Notices)); }
         ScreensHelpText.Text = screenEnabled["codex"] && !codexProcessRunning
             ? "Codex is closed, so its screen is skipped on the display. You can still preview it."
@@ -361,6 +362,14 @@ public sealed partial class MainPage : Page
         var accent = Brush(light ? "#7854B5" : "#C9AEF3");
         // Sections share the page, without cards. Only the modal needs its own surface.
         foreach (var section in new[] { LibraryFrame, AppearanceFrame, OptionsFrame, DisplayFrame, ScreensFrame, CodexSetupFrame, PreviewBadge, PreviewFrame }) { section.Background = transparent; }
+        SensorSetupFrame.Background = transparent;
+        SensorSetupHeading.Foreground = accent;
+        SensorDriverText.Foreground = ink;
+        SensorDriverPath.Foreground = muted;
+        SensorDriverHelp.Foreground = muted;
+        SensorDriverFolderButton.Background = surface;
+        SensorDriverFolderButton.Foreground = ink;
+        SensorDriverFolderButton.BorderBrush = line;
         PaletteFrame.Background = surface; PaletteFrame.BorderBrush = line;
         foreach (var text in new[] { PaletteHeading, PalettePrimaryLabel, PaletteSecondaryLabel, PaletteAccentLabel, PaletteWarningLabel, PaletteInfoLabel }) { text.Foreground = ink; }
         PaletteHelp.Foreground = muted; PaletteError.Foreground = Brush(light ? "#A12D35" : "#FFADB3");
@@ -436,6 +445,8 @@ public sealed partial class MainPage : Page
     {
         SpectrumBox.IsEnabled = catalog?.Themes.FirstOrDefault(theme => theme.Id == selectedTheme)?.SupportsSpectrum == true;
         CodexSetupFrame.Visibility = selectedCategory == "codex" ? Visibility.Visible : Visibility.Collapsed;
+        SensorSetupFrame.Visibility = selectedCategory == "system" ? Visibility.Visible : Visibility.Collapsed;
+        if (selectedCategory == "system") { _ = RefreshSensorDriverStatusAsync(); }
         AdministratorPanel.Visibility = selectedCategory == "system" && windowActions?.CanRestartAsAdministrator == true
             ? Visibility.Visible : Visibility.Collapsed;
         CategoryText.Text = (categoryRows.FirstOrDefault(row => row.Id == selectedCategory)?.Name ?? selectedCategory).ToUpperInvariant();

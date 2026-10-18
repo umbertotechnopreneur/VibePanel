@@ -229,9 +229,10 @@ internal static class VibePanelCli
     {
         if (args.Count > 2 || args.Count == 2 && args[1] != "--diagnose")
         { return Fail("Usage: vp sensors [--diagnose]"); }
-        using var sensors = new WindowsMetricsService(allowDriverLifecycle: true);
+        using var sensors = new WindowsMetricsService(allowHardwareAccess: true);
         var snapshot = sensors.ReadSensors();
         Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(snapshot, VibePanel.Contracts.PanelContract.Json));
+        if (snapshot.Notice is { } notice) { Console.Error.WriteLine(notice); }
         if (args.Contains("--diagnose") && sensors.InitializationFailureDetails is { } details)
         { Console.Error.WriteLine(details); }
         return sensors.InitializationFailureDetails is null ? 0 : 1;

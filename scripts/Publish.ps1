@@ -26,17 +26,6 @@ foreach ($document in @('README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'TRADE
     Copy-Item -LiteralPath (Join-Path $repo $document) -Destination $destination -Force
 }
 Copy-Item -LiteralPath (Join-Path $repo 'licenses') -Destination $destination -Recurse -Force
-# Ship the exact modified MPL library sources with the binary, plus a standalone build project.
-$ohmSourceBundle = Join-Path $stagingRoot ('ohm-source-' + [Guid]::NewGuid().ToString('N'))
-New-Item -ItemType Directory -Path $ohmSourceBundle -Force | Out-Null
-Copy-Item -LiteralPath (Join-Path $repo 'artifacts/native/openhardwaremonitor/source') -Destination $ohmSourceBundle -Recurse
-[xml]$ohmProject = Get-Content -LiteralPath (Join-Path $repo 'native/OpenHardwareMonitor/OpenHardwareMonitor.csproj') -Raw
-$ohmProject.Project.PropertyGroup.OhmSource = '$(MSBuildThisFileDirectory)source'
-$ohmProject.Project.Target.RemoveChild($ohmProject.Project.Target.Exec) | Out-Null
-$ohmProject.Save((Join-Path $ohmSourceBundle 'OpenHardwareMonitor.csproj'))
-Copy-Item -LiteralPath (Join-Path $repo 'native/OpenHardwareMonitor/README.md') -Destination $ohmSourceBundle
-Copy-Item -LiteralPath (Join-Path $repo 'artifacts/native/openhardwaremonitor/prepared.json') -Destination $ohmSourceBundle
-Compress-Archive -Path (Join-Path $ohmSourceBundle '*') -DestinationPath (Join-Path $destination 'licenses/OpenHardwareMonitor-source.zip')
 $pythonLicense = Join-Path $engine 'python/LICENSE.txt'
 if (-not (Test-Path -LiteralPath $pythonLicense)) { throw 'Bundled Python license is missing.' }
 Copy-Item -LiteralPath $pythonLicense -Destination (Join-Path $destination 'licenses/Python-PSF-2.0.txt') -Force

@@ -17,9 +17,9 @@ VBWR E -->
     <ProjectReference Include="../VibePanel.Contracts/VibePanel.Contracts.csproj" />
     <PackageReference Include="System.Drawing.Common" Version="10.0.10" />
     <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
-    <!-- Original OHM 0.9.6 sources, rebuilt with the modern .NET ACL APIs. -->
-    <ProjectReference Include="../../native/OpenHardwareMonitor/OpenHardwareMonitor.csproj" />
-    <!-- OHM uses this internally for SMBIOS; Vibe Panel does not query a WMI provider. -->
+    <!-- Official precompiled library only; no monitoring app or driver installer is bundled. -->
+    <PackageReference Include="LibreHardwareMonitorLib" Version="[0.9.6]" />
+    <!-- The sensor library uses this internally for SMBIOS. -->
     <PackageReference Include="System.Management" Version="10.0.10" />
   </ItemGroup>
 </Project>

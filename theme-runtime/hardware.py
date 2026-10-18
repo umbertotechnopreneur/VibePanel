@@ -1,5 +1,5 @@
 # VBWR B — Vibe Panel. Copyright (c) 2026 Umberto Giacobbi. MIT.
-"""System-theme compositions. Draw only measured, currently available values."""
+"""System-theme compositions. Keep measured values and unavailable sensors distinct."""
 from __future__ import annotations
 
 import time
@@ -70,6 +70,11 @@ def _components(raw):
         component = _processor(item, f"gpu-{index}", "GPU" if len(gpus) == 1 else f"GPU {index + 1}")
         if component:
             result.append(component)
+    board = raw.get("motherboard")
+    if isinstance(board, dict):
+        metrics = _board_temperatures(board)
+        if metrics:
+            result.append(Component("motherboard", "BOARD", clean(board.get("name")), metrics))
     memory = raw.get("memory")
     if isinstance(memory, dict):
         metrics = [
@@ -80,6 +85,22 @@ def _components(raw):
         metrics = [item for item in metrics if item is not None]
         if metrics:
             result.append(Component("memory", "RAM", "", metrics))
+    return result
+
+
+def _board_temperatures(raw):
+    """Keep board channel names; a generic channel is never called CPU temperature."""
+    result = []
+    legacy = _metric(raw, "temperatureC", raw.get("temperatureLabel") or "Board temperature", "°C", 1)
+    if legacy:
+        result.append(legacy)
+    readings = raw.get("temperatures") if isinstance(raw.get("temperatures"), list) else []
+    for index, reading in enumerate(readings[:16]):
+        if not isinstance(reading, dict):
+            continue
+        metric = _metric(reading, "temperatureC", reading.get("name") or "Board temperature", "°C", 1)
+        if metric and not any(item.label == metric.label and item.value == metric.value for item in result):
+            result.append(Metric(f"boardTemperature-{index}", metric.label, metric.value, metric.text))
     return result
 
 
@@ -144,6 +165,62 @@ def _footer(c, s, components):
              c.width - x, 468, c.width - x * 2 - 190, align="right")
 
 
+def _notice_lines(s, width, include_readings=False):
+    notice = clean(s.sensors.get("notice"))
+    if notice.startswith("PREVIEW:"):
+        notice = ""
+    if include_readings:
+        parts, _ = _cooling_parts(s.sensors)
+        readings = []
+        for owner, _, metrics, fans in parts:
+            if _temperature(metrics) is None:
+                readings.append(owner + " temperature unavailable")
+            if fans:
+                readings.extend(f"{owner} {_fan_label(owner, fan.label)}: {fan.text}" for fan in fans)
+            else:
+                readings.append(owner + " fan RPM unavailable")
+        notice = " · ".join(([notice] if notice else []) + readings)
+    if not notice:
+        return []
+    # Instrument-size lines stay readable on the real 480-high panel.
+    capacity = max(24, int(width / 11.5))
+    lines, line = [], ""
+    sentence_end = notice.find(". ")
+    if 0 < sentence_end < capacity:
+        lines.append(notice[:sentence_end + 1])
+        notice = notice[sentence_end + 2:]
+    words = notice.split()
+    for word in words:
+        if line and len(line) + len(word) + 1 > capacity:
+            lines.append(line)
+            line = word
+        else:
+            line = (line + " " + word).strip()
+    if line:
+        lines.append(line)
+    return lines
+
+
+def _sensor_notice(c, s, y=426, include_readings=False):
+    x = 24 if c.compact else 40
+    width = c.width - x * 2
+    lines = _notice_lines(s, width, include_readings)
+    if not lines:
+        return
+    # Keep the short cause sentence visible, then cycle consecutive detail lines.
+    slots = 3 if c.compact else 2
+    if c.compact:
+        y -= 21
+    visible = lines[:slots]
+    if len(lines) > slots:
+        page_size = slots - 1
+        page = int(time.monotonic() / 6) % ((len(lines) - 1 + page_size - 1) // page_size)
+        start = 1 + page * page_size
+        visible = [lines[0]] + lines[start:start + page_size]
+    for index, line in enumerate(visible):
+        _caption(c, line, x, y + index * 21, width, s.palette[2])
+
+
 def _empty(c, s):
     x = 24 if c.compact else 40
     c.line(x, 244, x + (64 if c.compact else 120), 244, s.accent, 2)
@@ -152,7 +229,8 @@ def _empty(c, s):
 
 def _area(c):
     margin = 24 if c.compact else 40
-    return margin, 78, c.width - margin * 2, 350
+    reserve = 54 if getattr(c, "sensor_status_reserved", False) else 0
+    return margin, 78, c.width - margin * 2, 350 - reserve
 
 
 def _rows(area, count, gap=16):
@@ -180,9 +258,11 @@ def _boxes(c, components, area=None, gap=24):
 
 
 def _details(c, component, primary, x, y, width, line_height=31, tint=None, muted=None):
-    for metric in component.metrics:
-        if metric.key == primary.key:
-            continue
+    remaining = [metric for metric in component.metrics if metric.key != primary.key]
+    bottom = _area(c)[1] + _area(c)[3] - 7
+    capacity = max(1, int((bottom - y) / max(22, line_height)) + 1)
+    page = int(time.monotonic() / 5) % max(1, (len(remaining) + capacity - 1) // capacity)
+    for metric in remaining[page * capacity:(page + 1) * capacity]:
         _caption(c, metric.label, x, y, width * .55, muted)
         _text(c, metric.text, x + width, y, 20, width * .44, tint, align="right")
         y += line_height
@@ -247,21 +327,22 @@ def _trace(c, component, metric, box, tint, ticks=False):
     c.circle(*points[-1], 3, tint)
 
 
-def _dense(c, s, component, box, tint, segmented=False, prefer="usagePercent"):
+def _dense(c, s, component, box, tint, segmented=False, prefer="usagePercent", muted=None):
     x, y, width, height = box
     primary = component.primary(prefer)
     label_width = width * .43
     label = component.label if primary.key == "usagePercent" else component.label + " / " + primary.label
     _caption(c, label, x, y + 20, label_width, tint)
     if height >= 82 and component.name:
-        _caption(c, component.name, x, y + 43, label_width)
-    _text(c, primary.text, x + width, y + (25 if height < 64 else 30), 32 if height > 90 else 26,
+        _caption(c, component.name, x, y + 43, label_width, muted)
+    _text(c, primary.text, x + width, y + (20 if height < 64 else 30),
+          32 if height > 90 else 16 if height < 64 else 26,
           width * .53, tint, True, "right")
     remaining = [metric for metric in component.metrics if metric.key != primary.key]
     detail_y = y + 62 if height >= 94 else y + height - (12 if height >= 64 else 3)
-    if height >= 45:
+    if height >= 34:
         text = " · ".join(_inline(metric) for metric in remaining)
-        _caption(c, text, x, detail_y, width)
+        _caption(c, text, x, detail_y, width, muted)
     if height >= 94:
         _bar(c, x, y + height - 12, width, 4, primary, tint, segmented)
 
@@ -277,10 +358,11 @@ def _signal(c, s, components):
         primary = component.primary("usagePercent")
         _caption(c, component.label, x, y + 22, width, tint)
         _caption(c, component.name, x, y + 55, width)
-        _text(c, primary.text, x, y + 143, min(76, width * .24), width, tint, True)
-        _caption(c, primary.label, x, y + 177, width)
-        _details(c, component, primary, x, y + 225, width)
-        _trace(c, component, component.metric("usagePercent"), (x, y + 294, width, 48), tint, True)
+        _text(c, primary.text, x, y + height * .47, min(76, width * .24, height * .22), width, tint, True)
+        _caption(c, primary.label, x, y + height * .58, width)
+        _details(c, component, primary, x, y + height * .67, width)
+        _trace(c, component, component.metric("usagePercent"),
+               (x, y + height * .86, width, height * .12), tint, True)
         if index < len(components) - 1:
             c.line(x + width + 12, y, x + width + 12, y + height, s.fg, opacity=.13)
 
@@ -312,10 +394,10 @@ def _ledger(c, s, components):
             continue
         _caption(c, "01 / " + component.label, left, top + 20, span, tint)
         _caption(c, component.name, left, top + 56, span)
-        _text(c, primary.text, left - 4, top + 187, 112, span, bold=True)
-        _caption(c, primary.label.upper(), left, top + 225, span)
-        c.line(left, top + 251, left + span, top + 251, s.fg, opacity=.25)
-        _details(c, component, primary, left, top + 288, span, 37)
+        _text(c, primary.text, left - 4, top + tall * .54, min(112, tall * .28), span, bold=True)
+        _caption(c, primary.label.upper(), left, top + tall * .65, span)
+        c.line(left, top + tall * .72, left + span, top + tall * .72, s.fg, opacity=.25)
+        _details(c, component, primary, left, top + tall * .82, span, 32)
 
 
 def _terminal(c, s, components):
@@ -353,10 +435,12 @@ def _cooling_parts(raw):
         if not isinstance(source, dict):
             continue
         metrics = [item for item in (
-            _metric(source, "temperatureC", source.get("temperatureLabel") or "Temperature", "°C", 1),
+            None if label == "BOARD" else _metric(source, "temperatureC", source.get("temperatureLabel") or "Temperature", "°C", 1),
             _metric(source, "usagePercent", "Load", "%", ratio=True),
             _metric(source, "clockMHz", "Clock", " MHz"),
         ) if item is not None]
+        if label == "BOARD":
+            metrics = _board_temperatures(source) + metrics
         fans = []
         raw_fans = source.get("fans") if isinstance(source.get("fans"), list) else []
         for fan in raw_fans[:16]:
@@ -365,8 +449,10 @@ def _cooling_parts(raw):
             rpm = optional_number(fan.get("rpm"))
             if rpm is not None and 0 <= rpm <= 20000:
                 fans.append(Metric("fanRpm", clean(fan.get("name"), "Fan"), rpm, f"{rpm:.0f} RPM"))
-        if metrics or fans:
+        if metrics or fans or clean(source.get("name")):
             parts.append((label, clean(source.get("name")), metrics, fans))
+    if parts and not any(label == "BOARD" for label, _, _, _ in parts):
+        parts.append(("BOARD", "", [], []))
     memory = raw.get("memory")
     used = optional_number(memory.get("usedGiB")) if isinstance(memory, dict) else None
     total = optional_number(memory.get("totalGiB")) if isinstance(memory, dict) else None
@@ -392,28 +478,108 @@ def _cooling_photo(c, s, label, box, opacity=.65):
     c.hardware_photo(asset, left, top, span, tall, s.base, opacity)
 
 
+def _cooling_tint(s, index):
+    tint = s.palette[index % 3]
+    return blend(tint, s.fg, .45) if s.light else tint
+
+
+def _temperature(metrics):
+    return next((item for item in metrics
+                 if item.key == "temperatureC" or item.key.startswith("boardTemperature-")), None)
+
+
+def _fan_label(owner, name):
+    name = clean(name, "Fan")
+    # The group already identifies CPU/GPU/board. Do not print "GPU / GPU".
+    if name.casefold() in (owner.casefold(), (owner + " fan").casefold()):
+        return "Fan"
+    return name
+
+
+def _cooling_extras(metrics, primary):
+    return [f"{item.text} load" if item.key == "usagePercent" else
+            f"{item.label}: {item.text}" if item.key.startswith("boardTemperature-") else item.text
+            for item in metrics if item is not primary]
+
+
+def _cooling_detail(c, items, x, y, width):
+    if not items:
+        return
+    # Keep whole readings together. Extra fan/channel readings get another page
+    # instead of being permanently cut off by the canvas ellipsis.
+    capacity = max(20, int(width / 11.5))
+    lines, line = [], ""
+    for item in items:
+        proposed = line + " · " + item if line else item
+        if line and len(proposed) > capacity:
+            lines.append(line)
+            line = item
+        else:
+            line = proposed
+    if line:
+        lines.append(line)
+    # A different cadence from component pages avoids locking one reading out.
+    _caption(c, lines[int(time.monotonic() / 7) % len(lines)], x, y, width)
+
+
+def _cooling_fans(c, s, parts, box, shaded=False):
+    """Group readings by real source, including an explicit unavailable state."""
+    if not parts:
+        return
+    x, y, width, height = box
+    groups = _columns(box, len(parts), 18)
+    for index, ((owner, _, _, fans), (left, top, span, tall)) in enumerate(zip(parts, groups)):
+        tint = _cooling_tint(s, index)
+        pad = 12 if shaded else 0
+        if shaded:
+            c.rect(left, top, span, tall, tint, 3, .10)
+        _caption(c, owner + " FANS", left + pad, top + 19, span - pad * 2, tint)
+        if not fans:
+            _caption(c, "RPM unavailable", left + pad, top + 47, span - pad * 2)
+            continue
+        capacity = max(1, int((height - 30) / 22))
+        page = int(time.monotonic() / 5) % ((len(fans) + capacity - 1) // capacity)
+        start = page * capacity
+        for row, fan in enumerate(fans[start:start + capacity]):
+            label = _fan_label(owner, fan.label)
+            _caption(c, f"{label}: {fan.text}", left + pad, top + 45 + row * 22,
+                     span - pad * 2, tint)
+        if len(fans) > capacity:
+            _caption(c, f"{start + 1}-{min(start + capacity, len(fans))}/{len(fans)}",
+                     left + span - pad, top + 19, span * .35, tint, "right")
+
+
 def _cooling_compact(c, s, parts, ram):
     # Square and portrait layouts share the available height among live rows.
     x, y, width, height = _area(c)
+    if _notice_lines(s, width):
+        height -= 54
+    if len(parts) > 3:
+        start = (int(time.monotonic() / 5) % ((len(parts) + 2) // 3)) * 3
+        _caption(c, f"Sensors {start + 1}-{min(start + 3, len(parts))} of {len(parts)}",
+                 x + width, 71, width, s.muted, "right")
+        parts = parts[start:start + 3]
     count = len(parts) + int(ram is not None)
     if count == 0:
         return
     rows = _rows((x, y, width, height), count, 8)
     for index, (label, name, metrics, fans) in enumerate(parts):
         left, top, span, tall = rows[index]
-        tint = s.palette[index % 3]
+        tint = _cooling_tint(s, index)
         _cooling_photo(c, s, label, (left, top, span, tall - 3), .73 if s.light else .57)
         c.rect(left, top, 4, max(0, tall - 3), tint)
-        _caption(c, label, left + 15, top + 20, span * .42, tint)
-        primary = next((item for item in metrics if item.key == "temperatureC"),
-                       metrics[0] if metrics else fans[0])
-        _text(c, primary.text, left + span, top + 29, 27 if tall >= 65 else 21,
-              span * .58, tint, True, "right")
-        extras = [item.text for item in metrics if item is not primary]
-        extras.extend(f"{item.label} {item.text}" for item in fans if item is not primary)
+        _caption(c, label, left + 15, top + 20, span * .25, tint)
+        primary = _temperature(metrics)
+        _text(c, primary.text if primary else "Temperature unavailable",
+              left + span - 10, top + 26, 27 if primary and tall >= 65 else 16,
+              span * .70, tint if primary else s.muted, bool(primary), "right")
+        extras = _cooling_extras(metrics, primary)
+        extras.extend(f"{_fan_label(label, item.label)}: {item.text}" for item in fans)
+        if not fans:
+            extras.append("Fan RPM unavailable")
         if extras:
-            _caption(c, " · ".join(extras), left + 15, top + tall - 10, span - 15)
-        if tall >= 94 and name:
+            _cooling_detail(c, extras, left + 15, top + tall - 10, span - 15)
+        if tall >= 110 and name:
             _caption(c, name, left + 15, top + 46, span * .65)
     if ram is not None:
         left, top, span, _ = rows[-1]
@@ -428,34 +594,34 @@ def _thermal_atlas(c, s, parts, ram):
         _cooling_compact(c, s, parts, ram)
         return
     x, y, width, _ = _area(c)
-    fans = [(label, fan) for label, _, _, group in parts for fan in group]
     hero_parts = parts
-    hero_height = 197 if fans else 255
+    bottom = 404 if _notice_lines(s, width) else 438
+    fan_height = 86
+    ram_height = 36 if ram is not None else 0
+    hero_height = bottom - y - fan_height - ram_height - 14
     hero_boxes = _columns((x, y, width, hero_height), len(hero_parts), 18) if hero_parts else []
     for index, ((label, name, metrics, _), box) in enumerate(zip(hero_parts, hero_boxes)):
         left, top, span, tall = box
-        tint = s.palette[index % 3]
+        tint = _cooling_tint(s, index)
         _cooling_photo(c, s, label, box, .59 if s.light else .43)
         c.line(left, top, left + span, top, tint, 3)
-        _caption(c, label, left + 18, top + 30, span - 36, tint)
-        primary = next((item for item in metrics if item.key == "temperatureC"), metrics[0] if metrics else None)
+        _caption(c, label, left + 18, top + 25, span - 36, tint)
+        primary = _temperature(metrics)
+        value_y = top + hero_height * .68
         if primary:
-            _text(c, primary.text, left + 18, top + 116, min(77, span * .18), span - 36, tint, True)
-            _caption(c, primary.label.upper(), left + 18, top + 143, span - 36)
-        details = [item.text for item in metrics if item is not primary]
+            _text(c, primary.text, left + 18, value_y, min(64, span * .17, hero_height * .32),
+                  span - 36, tint, True)
+            _caption(c, primary.label.upper(), left + 18, value_y + 26, span - 36)
+        else:
+            _text(c, "Unavailable", left + 18, value_y, 25, span - 36, s.muted)
+            _caption(c, "TEMPERATURE", left + 18, value_y + 26, span - 36)
+        details = _cooling_extras(metrics, primary)
         if details:
-            _caption(c, "  /  ".join(details), left + 18, top + tall - 22, span - 36)
+            _cooling_detail(c, details, left + 18, top + tall - 9, span - 36)
         if name and span >= 260:
-            _caption(c, name, left + 18, top + 55, span - 36)
-    if fans:
-        start = y + hero_height + 23 if hero_parts else y + 30
-        shown = fans[:6]
-        for index, ((label, fan), box) in enumerate(zip(shown, _columns((x, start, width, 76), len(shown), 12))):
-            left, top, span, _ = box
-            tint = s.palette[index % 3]
-            _caption(c, label + " / " + fan.label, left, top + 16, span, tint)
-            _text(c, fan.text, left, top + 53, min(29, span * .16), span, tint, True)
-    _cooling_ram(c, s, ram, 413)
+            _caption(c, name, left + 18, top + 49, span - 36)
+    _cooling_fans(c, s, parts, (x, y + hero_height + 14, width, fan_height))
+    _cooling_ram(c, s, ram, bottom)
 
 
 def _airflow(c, s, parts, ram):
@@ -463,33 +629,33 @@ def _airflow(c, s, parts, ram):
         _cooling_compact(c, s, parts, ram)
         return
     x, y, width, _ = _area(c)
-    fans = [(label, fan) for label, _, _, group in parts for fan in group]
     photo_parts = parts
-    photo_boxes = _columns((x, y, width, 198), len(photo_parts), 23) if photo_parts else []
+    bottom = 404 if _notice_lines(s, width) else 438
+    fan_height = 86
+    ram_height = 36 if ram is not None else 0
+    hero_height = bottom - y - fan_height - ram_height - 14
+    photo_boxes = _columns((x, y, width, hero_height), len(photo_parts), 23) if photo_parts else []
     for index, ((label, name, metrics, _), box) in enumerate(zip(photo_parts, photo_boxes)):
         left, top, span, tall = box
-        tint = s.palette[index % 3]
+        tint = _cooling_tint(s, index)
         _cooling_photo(c, s, label, box, .64 if s.light else .50)
         c.line(left, top, left, top + tall, tint, 3)
-        primary = next((item for item in metrics if item.key == "temperatureC"), None)
-        _caption(c, label + (" THERMAL" if primary else " COOLING"),
+        primary = _temperature(metrics)
+        _caption(c, label + " TEMPERATURE",
                  left + 16, top + 24, span - 32, tint)
         if name:
             _caption(c, name, left + 16, top + 48, span - 32)
         if primary:
-            _text(c, primary.text, left + 16, top + 133, min(66, span * .18), span - 32, tint, True)
-        extras = [item.text for item in metrics if item.key != "temperatureC"]
+            _text(c, primary.text, left + 16, top + hero_height * .70,
+                  min(62, span * .17, hero_height * .32), span - 32, tint, True)
+            _caption(c, primary.label.upper(), left + 16, top + hero_height * .70 + 26, span - 32)
+        else:
+            _text(c, "Unavailable", left + 16, top + hero_height * .70, 25, span - 32, s.muted)
+        extras = _cooling_extras(metrics, primary)
         if extras:
-            _caption(c, "  /  ".join(extras), left + 16, top + 178, span - 32)
-    fan_y = 294 if photo_parts else 100
-    fan_boxes = _columns((x, fan_y, width, 87), min(len(fans), 6), 12) if fans else []
-    for index, ((label, fan), box) in enumerate(zip(fans[:6], fan_boxes)):
-        left, top, span, _ = box
-        tint = s.palette[index % 3]
-        c.rect(left, top, span, 78, tint, 3, .10)
-        _caption(c, label + " / " + fan.label, left + 12, top + 24, span - 24, tint)
-        _text(c, fan.text, left + 12, top + 62, min(29, span * .16), span - 24, tint, True)
-    _cooling_ram(c, s, ram, 423)
+            _cooling_detail(c, extras, left + 16, top + tall - 10, span - 32)
+    _cooling_fans(c, s, parts, (x, y + hero_height + 14, width, fan_height), shaded=True)
+    _cooling_ram(c, s, ram, bottom)
 
 
 def _blueprint(c, s, components):
@@ -515,10 +681,11 @@ def _blueprint(c, s, components):
         _caption(c, f"0{index + 1} / {component.label}", left + inset, top + 30, span - inset * 2, tint)
         c.line(left + inset, top + 47, left + span - inset, top + 47, tint, opacity=.4)
         _caption(c, component.name, left + inset, top + 78, span - inset * 2)
-        _text(c, primary.text, left + inset, top + 154, min(70, span * .22), span - inset * 2, tint, True)
-        _caption(c, primary.label, left + inset, top + 185, span - inset * 2)
-        _bar(c, left + inset, top + 214, span - inset * 2, 16, primary, tint, True)
-        _details(c, component, primary, left + inset, top + 282, span - inset * 2, 34)
+        _text(c, primary.text, left + inset, top + tall * .52,
+              min(70, span * .22, tall * .19), span - inset * 2, tint, True)
+        _caption(c, primary.label, left + inset, top + tall * .63, span - inset * 2)
+        _bar(c, left + inset, top + tall * .71, span - inset * 2, 12, primary, tint, True)
+        _details(c, component, primary, left + inset, top + tall * .84, span - inset * 2, 27)
         for fraction in (0, .25, .5, .75, 1):
             tick_x = left + inset + (span - inset * 2) * fraction
             c.line(tick_x, top + tall - 14, tick_x, top + tall - 9, tint, opacity=.5)
@@ -536,10 +703,11 @@ def _horizon(c, s, components):
             continue
         primary = component.primary("usagePercent")
         _caption(c, component.label, x, y + 22, width, tint)
-        _text(c, primary.text, x, y + 112, min(76, width * .23), width, bold=True)
-        _caption(c, primary.label, x, y + 148, width)
-        _details(c, component, primary, x, y + 204, width, 34)
-        _trace(c, component, component.metric("usagePercent"), (x, y + 286, width, 59), tint)
+        _text(c, primary.text, x, y + height * .34, min(76, width * .23, height * .23), width, bold=True)
+        _caption(c, primary.label, x, y + height * .45, width)
+        _details(c, component, primary, x, y + height * .61, width, 29)
+        _trace(c, component, component.metric("usagePercent"),
+               (x, y + height * .83, width, height * .15), tint)
 
 
 def _blocks(c, s, components):
@@ -555,21 +723,16 @@ def _blocks(c, s, components):
         pad = 16 if c.compact else 24
         primary = component.primary("usagePercent")
         if height < 200:
-            _caption(c, component.label, x + pad, y + 20, width * .4, foreground)
-            _text(c, primary.text, x + width - pad, y + (25 if height < 64 else 35),
-                  25 if height < 64 else 35, width * .55, foreground, True, "right")
-            extras = [item for item in component.metrics if item.key != primary.key]
-            if height >= 45:
-                _caption(c, " · ".join(_inline(item) for item in extras), x + pad,
-                         y + height - (14 if height >= 64 else 3),
-                         width - pad * 2, muted)
+            _dense(c, s, component, (x + pad, y, width - pad * 2, height),
+                   foreground, muted=muted)
             continue
         _caption(c, component.label, x + pad, y + 34, width - pad * 2, foreground)
         _caption(c, component.name, x + pad, y + 69, width - pad * 2, muted)
-        _text(c, primary.text, x + pad, y + 173, min(83, width * .23), width - pad * 2, foreground, True)
-        _caption(c, primary.label, x + pad, y + 209, width - pad * 2, muted)
-        c.line(x + pad, y + 239, x + width - pad, y + 239, foreground, opacity=.3)
-        _details(c, component, primary, x + pad, y + 280, width - pad * 2, 34, foreground, muted)
+        _text(c, primary.text, x + pad, y + height * .52,
+              min(83, width * .23, height * .22), width - pad * 2, foreground, True)
+        _caption(c, primary.label, x + pad, y + height * .63, width - pad * 2, muted)
+        c.line(x + pad, y + height * .72, x + width - pad, y + height * .72, foreground, opacity=.3)
+        _details(c, component, primary, x + pad, y + height * .84, width - pad * 2, 28, foreground, muted)
         _bar(c, x + pad, y + height - 17, width - pad * 2, 4, primary, foreground, fg=foreground)
 
 
@@ -582,11 +745,11 @@ def _quiet(c, s, components):
             continue
         primary = component.primary("usagePercent")
         _caption(c, component.label, x, y + 38, width, tint)
-        _text(c, primary.text, x, y + 153, min(78, width * .23), width, bold=True)
-        _caption(c, primary.label, x, y + 188, width)
-        c.line(x, y + 225, x + 50, y + 225, tint, 2)
-        _details(c, component, primary, x, y + 275, width, 35)
-        _caption(c, component.name, x, y + 345, width)
+        _text(c, primary.text, x, y + height * .45, min(78, width * .23, height * .22), width, bold=True)
+        _caption(c, primary.label, x, y + height * .56, width)
+        c.line(x, y + height * .67, x + 50, y + height * .67, tint, 2)
+        _details(c, component, primary, x, y + height * .79, width, 27)
+        _caption(c, component.name, x, y + height * .99, width)
 
 
 def _pulse(c, s, components):
@@ -648,19 +811,23 @@ _RENDERERS = {
 
 def render(c, s, style):
     components = _components(s.sensors)
+    cooling = style in ("thermal", "orbit")
+    c.sensor_status_reserved = not cooling and bool(_notice_lines(s, c.width - (48 if c.compact else 80), True))
     _record(components, clean(s.sensors.get("updatedAtUtc")))
     _heading(c, s, style)
-    if style in ("thermal", "orbit"):
+    if cooling:
         parts, ram = _cooling_parts(s.sensors)
         if parts or ram is not None:
             _RENDERERS[style](c, s, parts, ram)
         else:
             _empty(c, s)
+        _sensor_notice(c, s)
         _footer(c, s, parts if parts else ([ram] if ram is not None else []))
         return
     if components:
         _RENDERERS[style](c, s, components)
     else:
         _empty(c, s)
+    _sensor_notice(c, s, include_readings=True)
     _footer(c, s, components)
 # VBWR E

@@ -8,15 +8,15 @@ The three independent packs in `themes/media`, `themes/codex` and `themes/system
 
 ### System snapshots
 
-The engine sends `state.sensors` only when collecting System data. A single Open Hardware Monitor reader supplies Windows x64 CPU, NVIDIA/AMD GPU, motherboard Super I/O and physical RAM measurements when hardware exposes them. It caches one snapshot for a second independently of frame refresh. Linux, macOS and Windows ARM64 sensor readers are not implemented.
+The engine sends `state.sensors` only when collecting System data. One Windows adapter uses the official compiled LibreHardwareMonitorLib 0.9.6 for CPU, GPU and motherboard readings, and Windows' physical-memory API for RAM. It caches one snapshot for a second independently of frame refresh. CPU/motherboard access requires separately installed PawnIO; its registration does not prove sensor access. Linux, macOS and Windows ARM64 CPU/motherboard readers are not implemented.
 
 ```json
 {"cpu":{"name":"CPU","usagePercent":38,"clockMHz":4250,"temperatureC":62,"clockLabel":"Average clock","temperatureLabel":"CPU package","fans":[{"name":"CPU Fan","rpm":1250}]},"gpus":[{"name":"GPU","usagePercent":67,"clockMHz":1850,"temperatureC":58,"clockLabel":"Core clock","temperatureLabel":"GPU core","fans":[{"name":"GPU","rpm":1450}]}],"motherboard":{"name":"Board","temperatureC":37,"temperatureLabel":"System","fans":[{"name":"Chassis Fan #1","rpm":880}]},"memory":{"totalGiB":32,"usedGiB":12.4,"usagePercent":38.75},"updatedAtUtc":"2026-10-17T07:32:00Z","notice":null}
 ```
 
-These example numbers are illustrative. Unknown fields are null. System themes hide missing fields and sections, reflow remaining content, and preserve measured zeroes. RAM uses GiB (2^30 bytes). Swap is excluded. History keeps at most 60 real samples per metric, deduplicated by snapshot timestamp, with a maximum of 64 series. A missing measurement clears its trace. No synthetic graph appears while history is empty.
+These example numbers are illustrative. Unknown fields are null. System themes label unavailable temperatures/fans, show `notice`, reflow other content and preserve measured zeroes. `motherboard.temperatures` can contain additional `{name, temperatureC}` channels with their original labels. Optional `driver` contains `{available, path, notice}` for existing PawnIO registration; `available` means installation found, not validated sensor access. RAM uses GiB (2^30 bytes). Swap is excluded. History keeps at most 60 real samples per metric, deduplicated by snapshot timestamp, with a maximum of 64 series. A missing measurement clears its trace. No synthetic graph appears while history is empty.
 
-The stock library may install/load or remove WinRing0 internally. Its driver lifecycle was approved for this integration, but no library, driver or sensor was run during implementation. The original net45 DLL's .NET 10 runtime compatibility is still unverified.
+No driver installer or monitoring GUI is bundled. The old WinRing0 integration is removed. The library's memory/SPD group is disabled so it cannot load its additional RAM driver. See [sensor setup](../docs/sensors.md) for prerequisites and verification limits.
 
 ### Python packages
 

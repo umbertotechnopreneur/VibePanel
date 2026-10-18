@@ -95,6 +95,10 @@ class RecordingCanvas:
     def ring(self, x, y, radius, value=None, tint=None, stroke=4, marker=False):
         self.calls.append(("ring", {"x": x, "y": y, "radius": radius, "value": value}))
 
+    def hardware_photo(self, asset, x, y, width, height, shade, opacity=.65):
+        self.calls.append(("hardware_photo", {"asset": asset, "x": x, "y": y,
+                                              "width": width, "height": height}))
+
     def texts(self):
         return [arguments["value"] for kind, arguments in self.calls if kind == "text"]
 
@@ -152,6 +156,17 @@ class SensorNormalizationChecks(unittest.TestCase):
         self.assertEqual(memory.label, "RAM")
         self.assertEqual({metric.key for metric in memory.metrics}, {"totalGiB", "usedGiB", "usagePercent"})
         self.assertEqual(hardware._components({"memory": {"swapUsedGiB": 5}, "swap": {"usedGiB": 5}}), [])
+
+
+    def test_board_channels_keep_real_names_without_cpu_mapping(self):
+        raw = {"motherboard": {"name": "OFFLINE board", "temperatures": [
+            {"name": "Temperature #1", "temperatureC": 44.5},
+            {"name": "VRM", "temperatureC": 58},
+            {"name": "Invalid channel", "temperatureC": None}]}}
+        component = hardware._components(raw)[0]
+        self.assertEqual(component.label, "BOARD")
+        self.assertEqual([metric.label for metric in component.metrics], ["Temperature #1", "VRM"])
+        self.assertEqual([metric.value for metric in component.metrics], [44.5, 58])
 
 
 class SensorHistoryChecks(unittest.TestCase):
@@ -233,7 +248,7 @@ class ThemeDrawingContractChecks(unittest.TestCase):
                 self.assertNotIn("GPU", canvas.texts())
                 self.assertNotIn("RAM", canvas.texts())
 
-    def test_zero_is_displayed_and_missing_sections_do_not_leave_labels(self):
+    def test_zero_is_displayed_and_missing_temperatures_are_explicit(self):
         for style in STYLES:
             with self.subTest(style=style):
                 context = fixture_context({"cpu": {"usagePercent": 0}})
@@ -244,8 +259,8 @@ class ThemeDrawingContractChecks(unittest.TestCase):
                 self.assertIn("CPU", text)
                 self.assertNotIn("GPU", text)
                 self.assertNotIn("RAM", text)
-                self.assertNotIn("Temperature", text)
                 self.assertNotIn("Clock", text)
+                self.assertIn("unavailable", text)
 
     def test_many_gpus_preserve_secondary_readings_in_compact_layout(self):
         sensors = fixture_sensors(4)
@@ -256,7 +271,11 @@ class ThemeDrawingContractChecks(unittest.TestCase):
                 with self.subTest(style=style, font_scale=scale):
                     context = fixture_context(sensors, font_scale=scale)
                     canvas = RecordingCanvas(context, compact=True)
-                    hardware.render(canvas, context, style)
+                    # Page whole cooling components instead of squeezing seven
+                    # overlapping rows into a compact panel.
+                    for page in range(0, 41, 5):
+                        with patch.object(hardware.time, "monotonic", return_value=page):
+                            hardware.render(canvas, context, style)
                     text = " ".join(canvas.texts())
                     visible = [value for value in expected
                                if style not in ("thermal", "orbit") or value != "39%"]
@@ -307,6 +326,76 @@ class ThemeDrawingContractChecks(unittest.TestCase):
                     self.assertIn(value, text)
                 self.assertNotIn("Missing Fan", text)
                 self.assertNotIn("39%", text)  # RAM load is deliberately omitted.
+
+
+    def test_missing_temperature_never_uses_load_as_a_thermal_reading(self):
+        raw = fixture_sensors()
+        raw["cpu"]["temperatureC"] = None
+        raw["cpu"]["usagePercent"] = 20
+        raw["gpus"][0]["fans"] = [{"name": "GPU", "rpm": 1924}]
+        raw["notice"] = "Sensor driver unavailable. CPU temperature and board readings may be missing."
+        for style in ("thermal", "orbit"):
+            for compact in (False, True):
+                with self.subTest(style=style, compact=compact):
+                    context = fixture_context(raw)
+                    canvas = RecordingCanvas(context, compact)
+                    with patch.object(hardware.time, "monotonic", return_value=0):
+                        hardware.render(canvas, context, style)
+                    text = " ".join(canvas.texts())
+                    self.assertIn("unavailable", text.casefold())
+                    self.assertIn("20% load", text)
+                    self.assertIn("1924 RPM", text)
+                    self.assertNotIn("GPU / GPU", text)
+                    self.assertIn("Sensor driver unavailable.", text)
+                    self.assertIn("BOARD", text)
+
+    def test_thermal_values_do_not_overlap_device_names_at_any_font_scale(self):
+        raw = fixture_sensors()
+        raw["notice"] = "Sensor driver unavailable. Some readings may be missing."
+        for style in ("thermal", "orbit"):
+            for scale in (.65, 1, 1.6):
+                with self.subTest(style=style, font_scale=scale):
+                    context = fixture_context(raw, font_scale=scale)
+                    canvas = RecordingCanvas(context)
+                    hardware.render(canvas, context, style)
+                    texts = [arguments for kind, arguments in canvas.calls if kind == "text"]
+                    for name, value in (("OFFLINE fixture CPU", "61.2°C"),
+                                        ("OFFLINE fixture GPU 1", "49.1°C")):
+                        identity = next(item for item in texts if item["value"] == name)
+                        reading = next(item for item in texts if item["value"] == value)
+                        self.assertGreater(reading["y"] - reading["size"] * scale, identity["y"] + 4)
+
+    def test_every_theme_has_measured_board_readings_and_sensor_reason(self):
+        raw = fixture_sensors()
+        raw["motherboard"] = {"name": "OFFLINE board", "temperatures": [
+            {"name": "Temperature #1", "temperatureC": 44.5}]}
+        raw["notice"] = "Sensor driver unavailable. CPU and board fan RPM may be missing."
+        for style in STYLES:
+            with self.subTest(style=style):
+                context = fixture_context(raw)
+                canvas = RecordingCanvas(context)
+                with patch.object(hardware.time, "monotonic", return_value=0):
+                    hardware.render(canvas, context, style)
+                text = " ".join(canvas.texts())
+                self.assertIn("44.5°C", text)
+                self.assertIn("temperature #1", text.casefold())
+                self.assertIn("Sensor driver unavailable.", text)
+                self.assertTrue(any(item in text for item in ("fan RPM", "RPM unavailable")))
+
+    def test_long_sensor_notice_keeps_its_cause_visible_on_every_page(self):
+        raw = fixture_sensors()
+        raw["notice"] = ("Sensor driver unavailable. CPU temperature and motherboard fan readings "
+                         "may be missing; GPU and RAM can still appear.")
+        for instant in (0, 6, 12, 18):
+            with self.subTest(instant=instant):
+                context = fixture_context(raw, font_scale=1.6)
+                canvas = RecordingCanvas(context, compact=True)
+                with patch.object(hardware.time, "monotonic", return_value=instant):
+                    hardware._sensor_notice(canvas, context)
+                lines = canvas.texts()
+                self.assertIn("Sensor driver unavailable.", lines[0])
+                self.assertLessEqual(len(lines), 3)
+                self.assertTrue(all(len(line) <= 37 for line in lines))
 
 
 class SystemPackChecks(unittest.TestCase):

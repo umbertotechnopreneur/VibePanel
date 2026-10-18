@@ -18,6 +18,7 @@ internal sealed class EngineServer : IDisposable
     private readonly PythonThemeRenderer themeRenderer = new();
     private readonly CodexProcessMonitor codexProcess = new();
     private readonly Dictionary<string, DisplayDevice> devices = [];
+    private HardwareDriverStatus? sensorDriver;
     private CancellationTokenSource? playbackCancellation;
     private Task? playback;
     private string status = "Local preview only. The USB display has not been started.";
@@ -143,8 +144,29 @@ internal sealed class EngineServer : IDisposable
             case "diagnostics.status": return DiagnosticLog.Status();
             case "diagnostics.set": return DiagnosticLog.SetEnabled(Parameters<SetDiagnosticsOptions>(request).Enabled);
             case "diagnostics.open": return new { accepted = DiagnosticLog.Open() };
-            default: throw new ArgumentException("Unknown method. Use hello, themes, fonts, devices, state, present, levels, start, stop, media, codex.status, codex.prepare, or diagnostics.*.");
+            case "sensors.driver.status": return SensorDriverStatus();
+            case "sensors.driver.open": return new { accepted = OpenSensorDriverFolder() };
+            default: throw new ArgumentException("Unknown method. Use hello, themes, fonts, devices, state, present, levels, start, stop, media, codex.status, codex.prepare, diagnostics.*, or sensors.driver.*.");
         }
+    }
+
+    private SensorDriverDto SensorDriverStatus()
+    {
+        // Registry/cached metadata only. Opening this panel must not open hardware.
+        var driver = sensorDriver ?? WindowsMetricsService.ReadDriverInstallationStatus();
+        return new(driver.Available, driver.Path, driver.Notice, driver.Path is not null && File.Exists(driver.Path));
+    }
+
+    private bool OpenSensorDriverFolder()
+    {
+        var driver = SensorDriverStatus();
+        if (driver.Path is not { } path || !Path.IsPathFullyQualified(path)) { return false; }
+        var directory = Path.GetDirectoryName(path);
+        if (directory is null || !Directory.Exists(directory)) { return false; }
+        var start = new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"))
+        { UseShellExecute = false };
+        start.ArgumentList.Add(driver.FileExists ? "/select," + path : directory);
+        return Process.Start(start) is not null;
     }
 
     private async Task<PanelState> StateAsync(PreviewOptions options)
@@ -205,10 +227,12 @@ internal sealed class EngineServer : IDisposable
             previewAt = previewNotice is null ? renderingStartedAt : Environment.TickCount64;
         }
         var metrics = snapshot.Metrics;
+        if (snapshot.Sensors?.Driver is { } driver) { sensorDriver = driver; }
         return new(snapshot.Media.Title, snapshot.Media.Artist, snapshot.Media.Album, snapshot.Media.Playing,
             snapshot.Media.Source,
             snapshot.Volumes.Select(item => new AudioLevelDto(item.Key, item.Name, item.Percent, item.Muted, item.Peak)).ToArray(),
-            new(metrics.CpuUsage, metrics.CpuTemperature, metrics.GpuUsage, metrics.GpuTemperature, metrics.GpuName, metrics.CpuTemperatureSource),
+            new(metrics.CpuUsage, metrics.CpuTemperature, metrics.GpuUsage, metrics.GpuTemperature, metrics.GpuName, metrics.CpuTemperatureSource,
+                sensorDriver is null ? null : SensorDriverStatus()),
             snapshot.Network is { } network ? new(network.DownloadBytesPerSecond, network.UploadBytesPerSecond, network.DownloadBytes, network.UploadBytes, "Since engine start; adapter counters may overlap on VPN/bridges") : null,
             DeviceChoices(),
             DisplayProfileCatalog.All.Select(item => new PanelChoice(item.Id, item.Name)).ToArray(),
