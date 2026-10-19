@@ -25,6 +25,8 @@ staging folder. Native and Python dependencies have separate `-PrepareImports`
 steps. Each new archive and its extracted inputs need a completed targeted scan.
 Unchanged hashes reuse evidence saved outside build output. Builds check this
 evidence and never start scans. A detection or unavailable scanner stops the import.
+The checked-in dependency scan manifest contains the same recorded hashes with
+local paths removed, so clean CI runners can reuse the existing evidence.
 No tests or USB commands run during reinstall.
 
 The sensor library is compiled from the pinned MPL-2.0 source in

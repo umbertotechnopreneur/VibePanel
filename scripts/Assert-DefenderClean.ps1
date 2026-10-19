@@ -22,7 +22,7 @@ if ((Get-Item -LiteralPath $target -Force).Attributes -band [IO.FileAttributes]:
 $evidenceRoot = Join-Path $env:LOCALAPPDATA 'VibePanel/build-security'
 $evidencePath = Join-Path $evidenceRoot 'first-import-scans.jsonl'
 $cleanHashes = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-foreach ($recordPath in @($evidencePath, (Join-Path $artifacts 'security/scans.jsonl'))) {
+foreach ($recordPath in @($evidencePath, (Join-Path $repo 'docs/dependency-scan-manifest.jsonl'), (Join-Path $artifacts 'security/scans.jsonl'))) {
     if (-not (Test-Path -LiteralPath $recordPath)) { continue }
     foreach ($line in Get-Content -LiteralPath $recordPath) {
         if ([string]::IsNullOrWhiteSpace($line)) { continue }

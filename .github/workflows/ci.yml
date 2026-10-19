@@ -16,6 +16,9 @@ jobs:
   build:
     name: Windows ${{ matrix.arch }}
     runs-on: windows-latest
+    env:
+      NUGET_PACKAGES: ${{ github.workspace }}\artifacts\nuget-stage
+      NUGET_HTTP_CACHE_PATH: ${{ github.workspace }}\artifacts\nuget-http
     strategy:
       fail-fast: false
       matrix:
@@ -26,6 +29,9 @@ jobs:
         with:
           global-json-file: global.json
       - run: dotnet restore VibePanel.slnx -p:Platform=${{ matrix.arch }}
+      - name: Verify restored dependency scan evidence
+        shell: pwsh
+        run: ./scripts/Assert-DefenderClean.ps1 -Path $env:NUGET_PACKAGES -Source 'https://api.nuget.org/v3/index.json; restored package archives and extracted dependencies'
       # The vendored LibreHardwareMonitor source follows its upstream formatting.
       - run: dotnet format VibePanel.slnx --verify-no-changes --no-restore --exclude third_party/LibreHardwareMonitor
       - run: dotnet build VibePanel.slnx --configuration Release --no-restore --warnaserror -p:Platform=${{ matrix.arch }}
