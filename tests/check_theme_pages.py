@@ -14,11 +14,12 @@ from theme_pages import select_page
 
 class PageChecks(unittest.TestCase):
     def context(self, elapsed=0, **values):
+        values.setdefault('sensors', {})
         return SimpleNamespace(elapsed_seconds=elapsed, category='system', **values)
     def test_rotation_starts_on_first_page_and_wraps(self):
         manifest={'pages':[{'id':'overview'},{'id':'activity'},{'id':'cooling'}], 'pageSeconds':8}
         for seconds, expected in ((0,'overview'), (7.99,'overview'), (8,'activity'), (16,'cooling'), (24,'overview')):
-            self.assertEqual(select_page(self.context(seconds),manifest),expected)
+            self.assertEqual(select_page(self.context(seconds,sensors={'cpu':{'temperatureC':50}}),manifest),expected)
     def test_artist_page_never_borrows_a_different_artist(self):
         context=SimpleNamespace(elapsed_seconds=12,category='multimedia',artist='Current artist',artist_profile={'requestedArtist':'Previous artist'})
         self.assertEqual(select_page(context,{'pages':[{'id':'playback'},{'id':'artist'}],'pageSeconds':12}),'playback')
@@ -42,7 +43,12 @@ class PageRenderingChecks(unittest.TestCase):
                 for index,page in enumerate(manifest['pages']):
                   with self.subTest(theme=manifest['id'],page=page['id'],width=width,scale=scale):
                     worker.FRAME_TRANSITION.reset(); canvas._ACTIVE_THEME_TIMING=None
-                    state={'sensors':fixture_sensors(),'media':{'source':'Offline fixture','artist':'Fixture artist','title':'Fixture track'},
+                    sensors=fixture_sensors()
+                    sensors['cpu']['readings']=[{'type':'Power','name':'CPU Package','value':65,'unit':'W'},
+                                                {'type':'Clock','name':'Cores (Average)','value':4200,'unit':'MHz'}]
+                    sensors['memory']['spdModules']=[{'name':'OFFLINE SPD source (#0)',
+                                                     'readings':[{'type':'Timing','name':'tAA (CAS Latency Time)','value':14,'unit':'ns'}]}]
+                    state={'sensors':sensors,'media':{'source':'Offline fixture','artist':'Fixture artist','title':'Fixture track'},
                            'artistProfile':{'requestedArtist':'Fixture artist','name':'Fixture artist','biography':'Offline text used to check the artist layout. '*10,'facts':[],'biographyCredit':'Fixture credit'}}
                     request={'version':1,'method':'render','themePath':str(folder),'width':width,'height':480,'light':scale>1,'fontScale':scale,'colorFiltersEnabled':False,'state':state}
                     with patch('canvas.time.monotonic',return_value=0): worker.render(request)

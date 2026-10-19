@@ -4,7 +4,7 @@ I use a persistent Python worker and Skia's offscreen raster canvas. The engine 
 
 The three independent packs in `themes/media`, `themes/codex` and `themes/system` contain ten themes each. A pack is a folder with `pack.json`; each theme has its own `theme.json` and `render.py`. Multimedia and System packs do not need Codex or its hooks. Categories come from the manifest's `category`, not translated folder names. Installing a theme never installs or enables a data provider.
 
-System themes declare two or three pages at eight-second intervals. Music themes alternate playback and an attributed artist page every twelve seconds when a matching profile exists. The worker exposes `page_id`, `page_title`, `page_index`, `page_count`, `page_cycle` and `page_progress`; page changes share the track compositor's 600 ms crossfade. See [page manifests](../docs/theme-packs.md#pages) and [online artist data](../docs/artist-pages.md).
+System themes declare eight pages at eight-second intervals, skipping detail pages without readings. Music themes alternate playback and an attributed artist page every twelve seconds when a matching profile exists. The worker exposes `page_id`, `page_title`, `page_index`, `page_count`, `page_cycle` and `page_progress`; page changes share the track compositor's 600 ms crossfade. See [page manifests](../docs/theme-packs.md#pages) and [online artist data](../docs/artist-pages.md).
 
 ## Runtime
 
@@ -20,13 +20,22 @@ These example numbers are illustrative. Unknown fields are null. System themes o
 
 No driver installer or monitoring GUI is bundled. The old WinRing0 integration is removed. The owner-approved RAM/SPD group uses the NDD dependency and existing PawnIO. No driver is installed by the app. See [sensor setup](../docs/sensors.md) for prerequisites and verification limits.
 
+CPU, GPU and motherboard `readings` contain `{id, name, type, value, unit}` entries.
+RAM `modules` contain physical identities with optional `manufacturer`, `partNumber`,
+`serialNumber`, `deviceLocator`, `bankLabel` and `capacityGiB`. Keep model and serial
+separate. `spdModules` retain the library's SPD identities and timing limits. Only an
+unambiguous model/capacity match adds SPD readings to a physical module; list indexes
+never establish a slot. System detail pages omit individual core/thread rows and
+rotate bounded groups of real readings. Storage collection is disabled; only verified
+physical Ethernet/Wi-Fi remain in network diagnostics, outside System theme pages.
+
 Cooling pages show watts as numeric readouts, without an inferred power limit. Fan instruments retain sensor names and RPM, rotating through available channels. The Windows reader omits a fan from theme snapshots until that sensor reports positive RPM once in the current engine session. A later measured zero stays visible as a stopped fan. This history survives page/theme changes and Python worker restarts; raw Sensor Debug channels remain unfiltered. Their outline rotors turn only for positive measured RPM and stop at zero; missing channels stay hidden. Rotor speed is a capped visual cue, not physical revolutions. Animations use the existing theme clock and selected refresh, with no extra timer or sampling. A one-second refresh still produces one frame per second. Codex status dots pulse only during received live work.
 
 In every current and future theme, circular and linear progress indicators use
 `progress_color(tint, fraction, light)`: the theme color at zero, amber in the
 middle, and red at the end of the shown scale. This rule covers every pack,
 category, layout and light/dark appearance, including custom progress drawings.
-System load/temperature dials, core bars, RAM/VRAM segments, playback bars/rings and
+System load/temperature dials, RAM/VRAM segments, playback bars/rings and
 audio levels share this rule. Audio meters keep their full-range color ramp;
 missing measurements remain absent. These colors follow the displayed scale,
 not hardware-specific alarm thresholds. Decorative rings and Codex status symbols

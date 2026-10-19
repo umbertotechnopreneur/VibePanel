@@ -92,6 +92,7 @@ public sealed partial class WindowsMetricsService(bool allowHardwareAccess = fal
                 string? motherboardName = null;
                 var boardTemperatures = new List<HardwareTemperatureSensors>();
                 var boardFans = new List<HardwareFanSensors>();
+                var boardReadings = new List<HardwareReading>();
                 var gpus = new List<HardwareDeviceSensors>();
                 var dimms = new List<HardwareMemoryModule>();
                 var failed = false;
@@ -113,13 +114,15 @@ public sealed partial class WindowsMetricsService(bool allowHardwareAccess = fal
                                 break;
                             case Lhm.HardwareType.Motherboard:
                                 motherboardName = hardware.Name;
+                                boardReadings.AddRange(ReadThemeValues(sensors, 256 - boardReadings.Count));
                                 break;
                             case Lhm.HardwareType.Memory when hardware.Identifier.ToString().StartsWith("/memory/dimm/", StringComparison.Ordinal) && dimms.Count < 16:
-                                dimms.Add(new(hardware.Name, FindValue(sensors, Lhm.SensorType.Data, "Capacity", nonnegative: true), ReadThemeValues(sensors, 64)));
+                                dimms.Add(ReadSpdModule(hardware, sensors));
                                 break;
                             case Lhm.HardwareType.SuperIO or Lhm.HardwareType.EmbeddedController when driverStatus.Available:
                                 // Only the board's own chip supplies these readings.
                                 boardFanChannelsReported |= HasFanChannels(sensors);
+                                boardReadings.AddRange(ReadThemeValues(sensors, 256 - boardReadings.Count));
                                 foreach (var sensor in sensors.Where(item => item.SensorType == Lhm.SensorType.Temperature))
                                 {
                                     var value = Value(sensor);
@@ -138,11 +141,11 @@ public sealed partial class WindowsMetricsService(bool allowHardwareAccess = fal
                 if (cpu is not null && cpuFans.Length > 0)
                 { cpu = cpu with { Fans = (cpu.Fans ?? []).Concat(cpuFans).Take(MaximumFans).ToArray() }; }
                 var otherFans = boardFans.Where(fan => cpu is null || !fan.Name.Contains("CPU", StringComparison.OrdinalIgnoreCase)).ToArray();
-                var board = CreateMotherboard(motherboardName, boardTemperatures, otherFans);
+                var board = CreateMotherboard(motherboardName, boardTemperatures, otherFans, boardReadings);
                 if (memory is not null)
                 {
                     var clock = cpu?.Readings?.FirstOrDefault(reading => reading.Type == "Clock" && reading.Name.Equals("Memory", StringComparison.OrdinalIgnoreCase))?.Value;
-                    memory = memory with { ClockMHz = clock, Modules = dimms.Count > 0 ? dimms : memory.Modules };
+                    memory = memory with { ClockMHz = clock, Modules = MergeMemoryModules(memoryModules, dimms), SpdModules = dimms };
                 }
                 snapshot = new(cpu, gpus.ToArray(), memory, DateTimeOffset.UtcNow,
                     AvailabilityNotice(driverStatus, cpu, board, failed, boardFanChannelsReported), board, driverStatus);
@@ -210,7 +213,8 @@ public sealed partial class WindowsMetricsService(bool allowHardwareAccess = fal
                 // Owner-approved full readout, including the library's RAM/SPD driver path.
                 IsMemoryEnabled = true,
                 IsControllerEnabled = true,
-                IsStorageEnabled = true,
+                // The owner excludes disks from both polling and Sensor Debug.
+                IsStorageEnabled = false,
                 IsNetworkEnabled = true,
                 IsPsuEnabled = true,
                 IsBatteryEnabled = true,
@@ -273,13 +277,14 @@ public sealed partial class WindowsMetricsService(bool allowHardwareAccess = fal
         FindValue(sensors, Lhm.SensorType.Temperature, "GPU Core"), "Core clock", "GPU core", ReadFans(sensors), ReadThemeValues(sensors));
 
     internal static HardwareMotherboardSensors? CreateMotherboard(string? name,
-        IReadOnlyList<HardwareTemperatureSensors> temperatures, IReadOnlyList<HardwareFanSensors> fans)
+        IReadOnlyList<HardwareTemperatureSensors> temperatures, IReadOnlyList<HardwareFanSensors> fans,
+        IReadOnlyList<HardwareReading>? readings = null)
     {
-        if (name is null && temperatures.Count == 0 && fans.Count == 0) { return null; }
+        if (name is null && temperatures.Count == 0 && fans.Count == 0 && (readings?.Count ?? 0) == 0) { return null; }
         // Keep every named reading, but never present an unidentified sensor as the board's main temperature.
         var primary = temperatures.Where(item => IsBoardTemperature(item.Name))
             .OrderBy(item => item.Name.Contains("board", StringComparison.OrdinalIgnoreCase) ? 0 : 1).FirstOrDefault();
-        return new(name ?? "Motherboard", primary?.TemperatureC, primary?.Name, fans, temperatures);
+        return new(name ?? "Motherboard", primary?.TemperatureC, primary?.Name, fans, temperatures, readings);
     }
 
     internal static string? AvailabilityNotice(HardwareDriverStatus driver, HardwareDeviceSensors? cpu,
@@ -310,8 +315,8 @@ public sealed partial class WindowsMetricsService(bool allowHardwareAccess = fal
         .Where(sensor => sensor.SensorType == Lhm.SensorType.Fan)
         .Select(sensor => (Id: sensor.Identifier.ToString(), sensor.Name, Rpm: Value(sensor, nonnegative: true)))
         .Where(item => item.Rpm is >= 0 and <= 20000)
-        .Take(MaximumFans)
         .Where(item => ObserveFan(item.Id, item.Rpm!.Value))
+        .Take(MaximumFans)
         .Select(item => new HardwareFanSensors(item.Name, item.Rpm!.Value))
         .ToArray();
 
@@ -370,20 +375,25 @@ public sealed partial class WindowsMetricsService(bool allowHardwareAccess = fal
         return value;
     }
 
-    private static IEnumerable<Lhm.IHardware> EnumerateHardware(IEnumerable<Lhm.IHardware> roots)
+    private IEnumerable<Lhm.IHardware> EnumerateHardware(IEnumerable<Lhm.IHardware> roots)
     {
-        var pending = new Queue<(Lhm.IHardware Hardware, int Depth)>();
-        foreach (var root in roots.Take(MaximumHardware)) { pending.Enqueue((root, 0)); }
         var visited = new HashSet<Lhm.IHardware>(ReferenceEqualityComparer.Instance);
-        while (pending.Count > 0 && visited.Count < MaximumHardware)
+        foreach (var root in roots.Where(IncludeHardware).Take(MaximumHardware))
         {
-            var (hardware, depth) = pending.Dequeue();
-            if (!visited.Add(hardware)) { continue; }
+            foreach (var hardware in Visit(root, 0)) { yield return hardware; }
+            if (visited.Count >= MaximumHardware) { yield break; }
+        }
+
+        IEnumerable<Lhm.IHardware> Visit(Lhm.IHardware hardware, int depth)
+        {
+            if (visited.Count >= MaximumHardware || !visited.Add(hardware)) { yield break; }
             yield return hardware;
-            if (depth >= MaximumDepth) { continue; }
-            foreach (var child in hardware.SubHardware.Take(MaximumHardware - visited.Count - pending.Count))
+            if (depth >= MaximumDepth || visited.Count >= MaximumHardware) { yield break; }
+            // Visit child sensor chips before later roots can fill the shared device budget.
+            foreach (var child in hardware.SubHardware.Where(IncludeHardware).Take(MaximumHardware))
             {
-                pending.Enqueue((child, depth + 1));
+                foreach (var descendant in Visit(child, depth + 1)) { yield return descendant; }
+                if (visited.Count >= MaximumHardware) { yield break; }
             }
         }
     }

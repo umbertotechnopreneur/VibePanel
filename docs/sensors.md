@@ -33,13 +33,19 @@ disabled pending implementation evidence. Linux/macOS sensor providers are not i
 Open **Sensor Debug** beside **Themes**, then press **Refresh readings**. The tree
 shows collapsed devices and sensor groups. Expand what you need to see subdevices
 and all reported sensor types, including RAM DIMMs and
-timings, voltages, power, temperatures, fan RPM, control percentages, storage,
-network, batteries and supported controllers. Current, minimum and maximum values
+timings, voltages, power, temperatures, fan RPM, control percentages,
+physical Ethernet/Wi-Fi, batteries and supported controllers. Current, minimum and maximum values
 come directly from the library. Control percentages are displayed, never changed.
 Sensor rows also expand to show available calibration parameters and defaults,
 with no editing controls. At most 512 calibration parameters are returned.
 Unknown names and unavailable values are kept. A refresh is manual, cached for one
 second, and limited to 64 devices and 2,048 sensors with an explicit truncation notice.
+
+Storage collection is disabled. Virtual, VPN, Bluetooth, debugger and filter network
+interfaces are omitted before update and device limits. Physical network identity is
+matched by Windows adapter GUID, not a translated display name. Disconnected physical
+adapters remain eligible. If Windows metadata is unavailable, uncertain entries stay
+hidden with a notice. Adapter metadata is cached until the engine restarts.
 
 `vp sensors --all` reads the same raw schema once without audio or USB. The
 `sensors.debug` JSON-lines request uses the engine's existing sensor reader. No
@@ -56,6 +62,22 @@ still use their own files until separately updated; source changes do not modify
 ## System theme layout
 
 All ten System themes use one renderer. Names, primary values, clock lines and details have separate regions in wide and compact layouts. CPU/GPU power readings use watts; GPU channels retain their names and rotate in bounded pairs. Missing fields are omitted. RAM configured data rate (MT/s) and measured memory clock (MHz) stay distinct. Generic board channels retain their reported names. Sensor Debug retains the complete bounded tree, including missing readings.
+
+Eight pages progressively expose overview, activity, cooling, electrical readings,
+temperature channels, clock domains, RAM identities and SPD timing limits. Pages
+without relevant readings are skipped. Detail cards show at most four readings at a
+time; groups rotate using the existing theme clock. Individual CPU cores and threads
+are omitted from themes. Voltage and current remain numeric readings, with no guessed
+safe range; separate power readings are never summed.
+
+RAM cards put the model code first, with an available serial below in smaller type.
+Windows supplies physical slot and bank labels. SPD supplies module identity and timing
+limits; these are not live memory-controller timings. Identical DIMMs cannot be matched
+to physical slots by list order. Their SPD details remain separate, under the library's
+original device names. A missing serial is omitted.
+
+Named channels are still dependent on the provider's decoder and board support.
+See the [NCT6792D mapping limitation](sensor-mapping.md) found during source analysis.
 
 Themes hide a fan channel until its first positive RPM reading in the current
 engine session. Activity is remembered by sensor identifier across page and theme

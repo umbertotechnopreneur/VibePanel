@@ -3,9 +3,9 @@
   "id": "system.orbit",
   "category": "system",
   "name": "Airflow",
-  "description": "2 rotating pages: at a glance, power & cooling.",
+  "description": "CPU, GPU, board and RAM. Details rotate when readings are available.",
   "entry": "render.py",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "author": "Umberto Giacobbi",
   "license": "MIT",
   "canvas": {
@@ -51,6 +51,30 @@
     {
       "id": "cooling",
       "title": "Power & cooling"
+    },
+    {
+      "title": "Live activity",
+      "id": "activity"
+    },
+    {
+      "title": "Voltages & power",
+      "id": "electrical"
+    },
+    {
+      "title": "Temperature channels",
+      "id": "temperatures"
+    },
+    {
+      "title": "Clock domains",
+      "id": "clocks"
+    },
+    {
+      "title": "Memory modules",
+      "id": "memory"
+    },
+    {
+      "title": "SPD timing limits",
+      "id": "memory-spd"
     }
   ],
   "pageSeconds": 8

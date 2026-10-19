@@ -204,3 +204,24 @@ completed, followed by native setup and MSI 0.1.14 compilation. The published co
 matches the current Release assembly. Unchanged dependencies reused existing
 first-import evidence. Build logs, source/package hashes and receipts are saved
 outside the repository. Cleanup retained only the final 0.1.14 MSI under artifacts.
+
+## 19 October 2026: grouped sensor details and device filtering
+
+The shared System renderer now declares eight pages, omitting unavailable details.
+It shows electrical readings, named temperature channels including GPU hotspot,
+aggregate clocks, RAM model/serial/slot identities and separate SPD timing limits.
+Board readings now reach themes. Individual core/thread rows are omitted from themes.
+Storage collection is disabled. Network diagnostics match only physical Ethernet/Wi-Fi
+through Windows adapter metadata; unknown identities remain hidden with a notice.
+Child sensor chips are visited before later roots can fill the 64-device budget.
+
+The owner's saved LibreHardwareMonitor report was inventoried privately, without a
+fresh acquisition. Static source and supplied-file inspection is separate from live
+sensor validation. No tests, Python rendering, application launch, installer execution,
+driver access or USB trial has been performed for these changes.
+
+Static inspection found an upstream NCT6792D temperature-decoding defect and missing
+exact-board mapping. This package retains the official library and does not repair
+that decoder. Generic board values remain raw, not confirmed physical temperatures.
+See [sensor mapping](docs/sensor-mapping.md). Proprietary HWMonitor resources were
+inspected only as data; no code or driver was imported or executed.

@@ -179,10 +179,10 @@ class SensorHistoryChecks(unittest.TestCase):
 
 class ThemeDataContractChecks(unittest.TestCase):
     def test_multiple_gpu_power_channels_keep_names_and_watts(self):
-        from system_dashboard import power_and_fans
+        from system_details import cooling_values
         raw = {"readings": [{"type": "Power", "name": "GPU Package", "value": 100},
                             {"type": "Power", "name": "GPU Rail", "value": 40}]}
-        powers, _ = power_and_fans([("gpu-0", "GPU", raw)], {})
+        _, powers, _ = cooling_values({"gpus": [raw]})
         self.assertEqual(powers, [("GPU · Package", 100, "W"), ("GPU · Rail", 40, "W")])
 
     def test_missing_fields_are_omitted_without_losing_measured_zero(self):

@@ -65,3 +65,6 @@
 - I keep one running fan visible while other named channels rotate, including measured zeroes. A stopped-only page must not make available running fans appear to have disappeared.
 - I show short status summaries and primary actions first. Setup text, paths, advanced controls and diagnostic trees open on demand without changing saved settings.
 - I hide fan channels from themes until their sensor ID has reported positive RPM in the current engine session. A later measured zero stays visible as a stopped fan. Page/theme changes and renderer restarts do not erase that observation. Sensor Debug keeps raw channels.
+- I group System details into CPU, GPU, board and RAM pages, with at most four readings per detail card. I show aggregate clocks and omit individual cores. Empty detail pages stay hidden.
+- I put each RAM model code first and an available serial below in smaller type. Physical slot/bank labels come from firmware; an SPD index is not a slot. Identical modules keep their SPD timing limits separate.
+- I disable storage collection and keep only verified physical Ethernet/Wi-Fi in network diagnostics. Filtering happens before updates and device limits. I visit child sensor chips before later devices fill the budget.

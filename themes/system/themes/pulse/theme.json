@@ -3,9 +3,9 @@
   "id": "system.pulse",
   "category": "system",
   "name": "Pulse",
-  "description": "3 rotating pages: live activity, power & cooling, at a glance.",
+  "description": "CPU, GPU, board and RAM. Details rotate when readings are available.",
   "entry": "render.py",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "author": "Umberto Giacobbi",
   "license": "MIT",
   "canvas": {
@@ -55,6 +55,26 @@
     {
       "id": "overview",
       "title": "At a glance"
+    },
+    {
+      "title": "Voltages & power",
+      "id": "electrical"
+    },
+    {
+      "title": "Temperature channels",
+      "id": "temperatures"
+    },
+    {
+      "title": "Clock domains",
+      "id": "clocks"
+    },
+    {
+      "title": "Memory modules",
+      "id": "memory"
+    },
+    {
+      "title": "SPD timing limits",
+      "id": "memory-spd"
     }
   ],
   "pageSeconds": 8

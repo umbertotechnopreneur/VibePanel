@@ -20,14 +20,18 @@ public sealed record HardwareDeviceSensors(string Name, double? UsagePercent, do
 
 /// <summary>A named library value retained for richer themes without changing its physical meaning.</summary>
 public sealed record HardwareReading(string Id, string Name, string Type, double? Value, string Unit);
-public sealed record HardwareMemoryModule(string Name, double? CapacityGiB, IReadOnlyList<HardwareReading>? Readings = null);
+/// <summary>A physical module identity. Part numbers, serial numbers and firmware slot labels remain distinct.</summary>
+public sealed record HardwareMemoryModule(string Name, double? CapacityGiB, IReadOnlyList<HardwareReading>? Readings = null,
+    string? Id = null, string? Manufacturer = null, string? PartNumber = null, string? SerialNumber = null,
+    string? DeviceLocator = null, string? BankLabel = null);
 
 /// <summary>A named tachometer reading from the selected sensor library. RPM zero is a measured stop.</summary>
 public sealed record HardwareFanSensors(string Name, double Rpm);
 
 /// <summary>Board identity and readings from its Super I/O chips, when exposed by the library.</summary>
 public sealed record HardwareMotherboardSensors(string Name, double? TemperatureC, string? TemperatureLabel,
-    IReadOnlyList<HardwareFanSensors> Fans, IReadOnlyList<HardwareTemperatureSensors>? Temperatures = null);
+    IReadOnlyList<HardwareFanSensors> Fans, IReadOnlyList<HardwareTemperatureSensors>? Temperatures = null,
+    IReadOnlyList<HardwareReading>? Readings = null);
 
 /// <summary>A reported temperature name is kept even when the library cannot identify its physical location.</summary>
 public sealed record HardwareTemperatureSensors(string Name, double TemperatureC);
@@ -38,4 +42,5 @@ public sealed record HardwareDriverStatus(bool Available, string? Path, string? 
 /// <summary>Physical memory in GiB (2^30 bytes); excludes swap and committed virtual memory.</summary>
 public sealed record HardwareMemorySensors(double? TotalGiB, double? UsedGiB, double? UsagePercent,
     string? Type = null, double? ConfiguredSpeedMTs = null, double? ClockMHz = null,
-    IReadOnlyList<HardwareMemoryModule>? Modules = null, string? MetadataNotice = null);
+    IReadOnlyList<HardwareMemoryModule>? Modules = null, string? MetadataNotice = null,
+    IReadOnlyList<HardwareMemoryModule>? SpdModules = null);

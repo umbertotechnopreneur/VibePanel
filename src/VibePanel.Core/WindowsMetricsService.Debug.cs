@@ -65,6 +65,7 @@ public sealed partial class WindowsMetricsService
                 if (devices.Count >= MaximumHardware) { notices.Add("Hardware list reached the debug limit."); }
                 if (count >= MaximumDebugSensors) { notices.Add("Sensor list is truncated at 2,048 readings."); }
                 if (parameterCount >= 512) { notices.Add("Calibration parameter list reached the debug limit of 512."); }
+                if (networkMetadataNotice is not null) { notices.Add(networkMetadataNotice); }
                 if (devices.Count == 0) { notices.Add("The library returned no hardware devices."); }
                 if (!devices.Any(device => device.Id.StartsWith("/memory/dimm/", StringComparison.Ordinal)))
                 { notices.Add("RAM/SPD was requested, but no DIMM devices were returned. Physical RAM totals remain separate."); }

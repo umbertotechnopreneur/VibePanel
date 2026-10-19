@@ -8,6 +8,7 @@ from collections import OrderedDict
 import skia
 from canvas import blend, clean, optional_number, clip, progress_color
 from hardware import _components, _record, _points, _text
+from system_details import cooling_values, detail_step, reading_rows, sensor_groups, spd_groups, value_text
 
 NAMES = {"thermal": "THERMAL ATLAS", "orbit": "AIRFLOW", "terminal": "MATRIX"}
 _FAN_ROTATIONS = OrderedDict()
@@ -204,17 +205,13 @@ def history(c, s, component, box, tint):
     _text(c, "NOW", x + w, y + h + 17, 10, 45, s.muted, align="right")
 
 
-def core_bars(c, s, raw, box, tint):
+def aggregate_activity(c, s, raw, box, tint):
     x, y, w, h = box
-    cores = [(name, value) for name, value in readings(raw, "Load") if name.startswith("CPU Core #")][:32]
-    if not cores:
-        return
-    _text(c, "CORE LOAD  /  0–100%", x, y + 13, 11, w, s.muted)
-    step = w / len(cores)
-    for index, (_, value) in enumerate(cores):
-        xx, height = x + step * index, (h - 28) * clip(value / 100)
-        c.rect(xx, y + 28, max(1, step - 4), h - 28, tint, radius=2, opacity=.10)
-        c.rect(xx, y + h - height, max(1, step - 4), height, progress_color(tint, value / 100, s.light), radius=2)
+    rows = reading_rows(raw, ("Clock",), aggregate=True)
+    if rows:
+        (label, value, unit), = instrument_page(rows, detail_step(s), 1)[0]
+        _text(c, label, x, y + 13, 12, w, s.muted)
+        _text(c, value_text(value, unit), x, y + 53, 27, w, tint, True)
 
 
 def occupancy(c, s, used, total, box, tint, label):
@@ -255,32 +252,13 @@ def activity(c, s, style, items, components):
             _text(c, short_name(key, raw), x + 18, 139, 12, w - 36, s.muted)
             history(c, s, component, (x + 14, 166, w - 32, 115), tint)
             if key == "cpu":
-                core_bars(c, s, raw, (x + 20, 320, w - 40, 80), tint)
+                aggregate_activity(c, s, raw, (x + 20, 320, w - 40, 80), tint)
             elif key == "memory":
                 occupancy(c, s, optional_number(raw.get("usedGiB")), optional_number(raw.get("totalGiB")), (x + 20, 320, w - 40, 80), tint, "PHYSICAL RAM")
             else:
                 used, total = measured(raw, "SmallData", "GPU Memory Used"), measured(raw, "SmallData", "GPU Memory Total")
                 occupancy(c, s, used / 1024 if used is not None else None, total / 1024 if total is not None else None,
                           (x + 20, 320, w - 40, 80), tint, "VRAM")
-
-
-def power_and_fans(items, raw):
-    powers, fans = [], []
-    for key, label, device in items:
-        for name, value in readings(device, "Power"):
-            if key != "cpu" or name in ("Package", "CPU Package"):
-                powers.append((label + " · " + name.removeprefix("CPU " if key == "cpu" else "GPU "), value, "W"))
-        for fan in device.get("fans", []) or []:
-            if (value := optional_number(fan.get("rpm"))) is not None:
-                name = clean(fan.get("name")).removeprefix("GPU " if key.startswith("gpu-") else "CPU ")
-                fans.append((label + " · " + name, value, "RPM"))
-    board = raw.get("motherboard") or {}
-    for fan in board.get("fans", []) or []:
-        if (value := optional_number(fan.get("rpm"))) is not None:
-            fans.append(("BOARD · " + clean(fan.get("name")), value, "RPM"))
-    # Active channels lead the list; measured zeroes remain accessible on later pages.
-    fans.sort(key=lambda item: item[1] == 0)
-    return powers, fans
 
 
 def instrument_page(rows, cycle, count):
@@ -384,9 +362,10 @@ def fan_instruments(c, s, style, rows, box):
         _text(c, name, center, top + height - 12, 12, width - 24, s.muted, align="center")
 
 
-def cooling(c, s, style, items):
-    thermal = [(key, label, raw) for key, label, raw in items if optional_number(raw.get("temperatureC")) is not None]
-    powers, fans = power_and_fans(items, s.sensors)
+def cooling(c, s, style):
+    thermal, powers, fans = cooling_values(s.sensors)
+    if thermal:
+        thermal, _ = instrument_page(thermal, detail_step(s), 2)
     if c.compact:
         for index, (key, label, raw) in enumerate(thermal[:2]):
             x = 130 + index * 220 if len(thermal) > 1 else 240
@@ -416,6 +395,84 @@ def cooling(c, s, style, items):
             fan_instruments(c, s, style, fans, (x, fan_y, w, 422 - fan_y))
 
 
+def detail_panel(c, s, style, group, box, tint, step):
+    _, label, name, rows = group
+    x, y, w, h = box
+    panel(c, s, box, tint, style)
+    _text(c, label, x + 20, y + 27, 13, w - 40, tint, True)
+    _text(c, name, x + 20, y + 53, 14, w - 40, s.fg, True)
+    visible, start = instrument_page(rows, step, 4)
+    row_height = (h - 93) / 4
+    for index, (name, value, unit) in enumerate(visible):
+        yy = y + 80 + index * row_height
+        _text(c, name, x + 20, yy, 12, w - 40, s.muted)
+        _text(c, value_text(value, unit), x + 20, yy + 27, 25, w - 40, tint, True)
+        if index < len(visible) - 1:
+            c.line(x + 20, yy + 37, x + w - 20, yy + 37, tint, opacity=.12)
+    if len(rows) > len(visible):
+        _text(c, f"{start + 1}–{start + len(visible)} / {len(rows)}", x + w - 20, y + h - 8,
+              10, w - 40, s.muted, align="right")
+
+
+def detail_groups(c, s, style, groups, columns=3):
+    if not groups:
+        return
+    step = detail_step(s)
+    group_count = 1 if c.compact else columns
+    bank_count = math.ceil(len(groups) / group_count)
+    visible, _ = instrument_page(groups, step, group_count)
+    # Rotate readings independently of the group bank; every channel stays reachable.
+    row_step = step // bank_count
+    gap, margin = (16, 24) if c.compact else (22, 40)
+    width = (c.width - margin * 2 - gap * (len(visible) - 1)) / len(visible)
+    for index, group in enumerate(visible):
+        key = group[0]
+        tint = s.palette[0 if key == "cpu" else 1 if key.startswith("gpu-") else 2]
+        detail_panel(c, s, style, group, (margin + index * (width + gap), 77, width, 345), tint, row_step)
+
+
+def details(c, s, style, kinds):
+    detail_groups(c, s, style, sensor_groups(s.sensors, kinds))
+
+
+def memory_page(c, s, style):
+    raw = s.sensors.get("memory") or {}
+    summary = metadata("memory", raw)
+    if (clock := optional_number(raw.get("clockMHz"))) is not None:
+        summary.append(("MEMORY CLOCK", f"{clock:.0f} MHz"))
+    margin, gap = (24, 16) if c.compact else (40, 22)
+    width = c.width - margin * 2
+    for index, (label, value) in enumerate(summary[:2] if c.compact else summary):
+        cell = width / max(1, min(2, len(summary)) if c.compact else len(summary))
+        x = margin + index * cell
+        _text(c, label, x, 89, 10, cell - 12, s.muted)
+        _text(c, value, x, 118, 16 if c.compact else 27, cell - 12, s.palette[2], True)
+    modules = [module for module in raw.get("modules", []) or [] if isinstance(module, dict)]
+    if not modules:
+        occupancy(c, s, optional_number(raw.get("usedGiB")), optional_number(raw.get("totalGiB")),
+                  (margin, 220, width, 120), s.palette[2], "PHYSICAL RAM")
+        return
+    visible, start = instrument_page(modules, detail_step(s), 1 if c.compact else 2)
+    cell = (width - gap * (len(visible) - 1)) / len(visible)
+    for index, module in enumerate(visible):
+        x = margin + index * (cell + gap)
+        tint = s.palette[2]
+        panel(c, s, (x, 149, cell, 273), tint, style)
+        maker, part = clean(module.get("manufacturer")), clean(module.get("partNumber"))
+        _text(c, maker or "RAM MODULE", x + 20, 178, 14, cell - 100, tint, True)
+        _text(c, f"{start + index + 1} / {len(modules)}", x + cell - 20, 178, 11, 65, s.muted, align="right")
+        _text(c, part or clean(module.get("name")), x + 20, 212, 25 if c.compact else 30, cell - 40, s.fg, True)
+        if serial := clean(module.get("serialNumber")):
+            _text(c, "S/N  " + serial, x + 20, 237, 12, cell - 40, s.muted)
+        if (capacity := optional_number(module.get("capacityGiB"))) is not None:
+            _text(c, f"{capacity:g} GiB", x + 20, 285, 32, cell - 40, tint, True)
+        identity = [("SLOT", clean(module.get("deviceLocator"))), ("BANK", clean(module.get("bankLabel")))]
+        for row, (label, value) in enumerate((item for item in identity if item[1])):
+            yy = 316 + row * 24
+            _text(c, label, x + 20, yy, 10, 58, s.muted)
+            _text(c, value, x + 84, yy, 13, cell - 104, s.fg)
+
+
 def render(c, s, style):
     components = _components(s.sensors)
     _record(components, clean(s.sensors.get("updatedAtUtc")))
@@ -427,7 +484,17 @@ def render(c, s, style):
     elif s.page_id == "activity":
         activity(c, s, style, items, components)
     elif s.page_id == "cooling":
-        cooling(c, s, style, items)
+        cooling(c, s, style)
+    elif s.page_id == "electrical":
+        details(c, s, style, ("Power", "Voltage", "Current"))
+    elif s.page_id == "temperatures":
+        details(c, s, style, ("Temperature",))
+    elif s.page_id == "clocks":
+        details(c, s, style, ("Clock",))
+    elif s.page_id == "memory":
+        memory_page(c, s, style)
+    elif s.page_id == "memory-spd":
+        detail_groups(c, s, style, spd_groups(s.sensors), columns=2)
     else:
         raise ValueError("Unknown System page: " + s.page_id)
 # VBWR E

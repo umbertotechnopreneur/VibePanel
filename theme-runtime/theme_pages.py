@@ -21,6 +21,9 @@ def select_page(context, manifest):
         profile = context.artist_profile
         if not profile or profile.get("requestedArtist") != context.artist:
             pages = [page for page in pages if page["id"] != "artist"]
+    elif context.category == "system":
+        from system_details import page_available
+        pages = [page for page in pages if page_available(page["id"], context.sensors)]
     count = max(1, len(pages))
     position = context.elapsed_seconds / seconds
     context.page_cycle = int(position) // count
