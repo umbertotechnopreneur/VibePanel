@@ -4,6 +4,7 @@
 // VBWR E
 
 using System.Text.Json;
+using LibreHardwareMonitor.Hardware.Motherboard;
 using VibePanel.Contracts;
 using VibePanel.Core;
 
@@ -31,6 +32,7 @@ internal static class SensorProjectionChecks
             [new("Temperature #1", 60), new("SYS", 35), new("Motherboard", 37)], [])!;
         check(named is { TemperatureC: 37, TemperatureLabel: "Motherboard", Temperatures.Count: 3 },
             "a trusted board label supplies the legacy primary temperature without dropping the other readings");
+        CheckLocalBoardProfile(check);
 
         var unavailable = WindowsMetricsService.AvailabilityNotice(new(false, "fixture.sys"), null, identity, false);
         check(unavailable is not null && unavailable.Contains("PawnIO is not installed", StringComparison.Ordinal)
@@ -56,5 +58,54 @@ internal static class SensorProjectionChecks
         using var reader = new WindowsMetricsService();
         check(!reader.DriverStatus.Available && reader.DriverStatus.Notice!.Contains("not been checked", StringComparison.Ordinal),
             "reading cached driver status does not initialize or sample hardware");
+    }
+
+    private static void CheckLocalBoardProfile(Action<bool, string> check)
+    {
+        const string chipId = "/lpc/nct6792d/0";
+        var raw = new HardwareReading[]
+        {
+            new(chipId + "/temperature/1", "CPUTIN", "Temperature", 60, "°C"),
+            new(chipId + "/temperature/2", "SYSTIN", "Temperature", 109, "°C"),
+            new(chipId + "/temperature/3", "AUXTIN0", "Temperature", 52.5, "°C"),
+            new(chipId + "/temperature/4", "AUXTIN1", "Temperature", 102, "°C"),
+            new(chipId + "/temperature/17", "SMBUSMASTER0", "Temperature", 84, "°C"),
+            new(chipId + "/voltage/0", "Vcore", "Voltage", 1.25, "V"),
+            new(chipId + "/fan/1", "Fan #2", "Fan", 0, "RPM"),
+            new(chipId + "/temperature/5", "AUXTIN2", "Temperature", 40, "°C")
+        };
+        var original = raw.ToArray();
+        var projected = WindowsMetricsService.ProjectMotherboardReadings(Manufacturer.ASRock, Model.B550M_ITX_AC, chipId, raw);
+        var temperatures = projected.Where(reading => reading.Type == "Temperature").ToArray();
+        check(temperatures.SequenceEqual(new[]
+        {
+            raw[0] with { Name = "Mainboard" }, raw[2] with { Name = "Southbridge" }, raw[4] with { Name = "CPU" }
+        }), "the local board profile publishes its selected temperature sources without changing IDs, values or units");
+        check(projected.Where(reading => reading.Type != "Temperature").SequenceEqual(raw.Where(reading => reading.Type != "Temperature")),
+            "the board temperature profile leaves voltage and stopped-fan readings unchanged");
+        check(raw.SequenceEqual(original), "theme projection does not rename or remove Sensor Debug's raw input readings");
+        var board = WindowsMetricsService.CreateMotherboard("ASRock B550M-ITX/ac",
+            temperatures.Select(reading => new HardwareTemperatureSensors(reading.Name, reading.Value!.Value)).ToArray(), [], projected)!;
+        check(board is { TemperatureC: 60, TemperatureLabel: "Mainboard", Temperatures.Count: 3 }
+            && board.Readings!.SequenceEqual(projected),
+            "the mapped Mainboard source supplies the board overview while retaining the selected detail readings");
+
+        var edgeValues = new[] { raw[0] with { Value = 115 }, raw[2] with { Value = 0 }, raw[4] with { Value = null } };
+        var edges = WindowsMetricsService.ProjectMotherboardReadings(Manufacturer.ASRock, Model.B550M_ITX_AC, chipId, edgeValues);
+        check(edges.Count == 3 && edges.Select(reading => (reading.Id, reading.Value, reading.Unit))
+            .SequenceEqual(edgeValues.Select(reading => (reading.Id, reading.Value, reading.Unit))),
+            "source selection keeps a real high temperature, a measured zero and an unavailable value without inventing replacements");
+
+        foreach (var (manufacturer, model, hardwareId) in new[]
+        {
+            (Manufacturer.ASUS, Model.B550M_ITX_AC, chipId),
+            (Manufacturer.ASRock, Model.B550M_Pro4, chipId),
+            (Manufacturer.ASRock, Model.B550M_ITX_AC, "/lpc/nct6793d/0"),
+            (Manufacturer.ASRock, Model.B550M_ITX_AC, "/lpc/nct6792d/1")
+        })
+        {
+            check(WindowsMetricsService.ProjectMotherboardReadings(manufacturer, model, hardwareId, raw).SequenceEqual(raw),
+                "the local profile leaves other manufacturers, boards and sensor chips untouched");
+        }
     }
 }

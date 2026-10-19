@@ -178,6 +178,42 @@ class SensorHistoryChecks(unittest.TestCase):
 
 
 class ThemeDataContractChecks(unittest.TestCase):
+    def test_hardware_page_keeps_all_electrical_and_aggregate_clock_readings(self):
+        from system_details import HARDWARE_KINDS, sensor_groups
+        cpu = {"readings": [{"name": "Memory", "type": "Clock", "value": 1600},
+                            {"name": "Core #1", "type": "Clock", "value": 4200},
+                            {"name": "SoC", "type": "Voltage", "value": 1.025},
+                            {"name": "Package", "type": "Power", "value": 0},
+                            {"name": "TDC", "type": "Current", "value": 38.5}]}
+        groups = sensor_groups({"cpu": cpu, "gpus": [{"readings": []}]}, HARDWARE_KINDS)
+        self.assertEqual(len(groups), 1)
+        self.assertEqual(groups[0][3], [("Package", 0, "W"), ("SoC", 1.025, "V"),
+                                        ("TDC", 38.5, "A"), ("Memory", 1600, "MHz")])
+
+    def test_detail_banks_are_balanced_and_keep_every_reading_once(self):
+        from system_details import detail_rows
+        for count in range(1, 41):
+            rows = list(range(count))
+            banks = (count + 3) // 4
+            pages = [detail_rows(rows, step)[0] for step in range(banks)]
+            self.assertEqual([row for page in pages for row in page], rows)
+            self.assertLessEqual(max(map(len, pages)), 4)
+            self.assertLessEqual(max(map(len, pages)) - min(map(len, pages)), 1)
+            self.assertEqual(detail_rows(rows, banks), detail_rows(rows, 0))
+        self.assertEqual([len(detail_rows(list(range(5)), step)[0]) for step in range(2)], [3, 2])
+
+    def test_memory_sections_have_independent_counters_and_skip_missing_sections(self):
+        from system_details import memory_view, page_available
+        spd = {"spdModules": [{"name": "OFFLINE SPD source (#0)",
+                               "readings": [{"type": "Timing", "name": "tAA", "value": 14}]}]}
+        combined = {"memory": {"modules": [{"partNumber": "OFFLINE model"}], **spd}}
+        self.assertEqual([memory_view(combined, step) for step in range(8)],
+                         [("modules", 0), ("spd", 0), ("modules", 1), ("spd", 1),
+                          ("modules", 2), ("spd", 2), ("modules", 3), ("spd", 3)])
+        self.assertEqual(memory_view({"memory": spd}, 3), ("spd", 3))
+        self.assertEqual(memory_view({"memory": {"totalGiB": 32}}, 3), ("modules", 3))
+        self.assertFalse(page_available("memory", {"memory": {"notice": "Missing"}}))
+
     def test_multiple_gpu_power_channels_keep_names_and_watts(self):
         from system_details import cooling_values
         raw = {"readings": [{"type": "Power", "name": "GPU Package", "value": 100},
@@ -206,6 +242,9 @@ class SystemPackChecks(unittest.TestCase):
             self.assertEqual(manifest["category"], "system")
             self.assertIn("sensors", manifest["optional"])
             self.assertNotIn("showSpectrum", manifest["settings"])
+            self.assertEqual({page["id"] for page in manifest["pages"]},
+                             {"overview", "activity", "cooling", "electrical", "temperatures", "memory"})
+            self.assertEqual(len(manifest["pages"]), 6)
             self.assertTrue((folder / manifest["entry"]).is_file())
             identities.add(manifest["id"])
         self.assertEqual(identities, {"system." + style for style in STYLES})

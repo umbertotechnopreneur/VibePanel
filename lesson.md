@@ -66,7 +66,8 @@
 - I show short status summaries and primary actions first. Setup text, paths, advanced controls and diagnostic trees open on demand without changing saved settings.
 - I hide fan channels from themes until their sensor ID has reported positive RPM in the current engine session. A later measured zero stays visible as a stopped fan. Page/theme changes and renderer restarts do not erase that observation. Sensor Debug keeps raw channels.
 - I group System details into CPU, GPU, board and RAM pages, with at most four readings per detail card. I show aggregate clocks and omit individual cores. Empty detail pages stay hidden.
+- I keep six System pages. Power, voltage, current and aggregate clocks share one hardware page; RAM identities and SPD timing limits share the memory page without inventing a DIMM-to-SPD assignment.
 - I put each RAM model code first and an available serial below in smaller type. Physical slot/bank labels come from firmware; an SPD index is not a slot. Identical modules keep their SPD timing limits separate.
 - I disable storage collection and keep only verified physical Ethernet/Wi-Fi in network diagnostics. Filtering happens before updates and device limits. I visit child sensor chips before later devices fill the budget.
-- I contribute sensor decoder fixes upstream. Board labels keep their chip source names until the physical wiring is verified.
+- I contribute sensor decoder fixes upstream. Board labels keep their chip source names outside exact, owner-approved display profiles. A display profile preserves raw diagnostics and never changes calibration or filters by a guessed temperature threshold.
 - I build the pinned LibreHardwareMonitor fork with the app and ship its MPL-covered source. Each RAM module shows its reported type and configured rate alongside its own model and physical identity.

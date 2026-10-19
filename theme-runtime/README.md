@@ -4,7 +4,7 @@ I use a persistent Python worker and Skia's offscreen raster canvas. The engine 
 
 The three independent packs in `themes/media`, `themes/codex` and `themes/system` contain ten themes each. A pack is a folder with `pack.json`; each theme has its own `theme.json` and `render.py`. Multimedia and System packs do not need Codex or its hooks. Categories come from the manifest's `category`, not translated folder names. Installing a theme never installs or enables a data provider.
 
-System themes declare eight pages at eight-second intervals, skipping detail pages without readings. Music themes alternate playback and an attributed artist page every twelve seconds when a matching profile exists. The worker exposes `page_id`, `page_title`, `page_index`, `page_count`, `page_cycle` and `page_progress`; page changes share the track compositor's 600 ms crossfade. See [page manifests](../docs/theme-packs.md#pages) and [online artist data](../docs/artist-pages.md).
+System themes declare six pages at eight-second intervals, skipping detail pages without readings. Hardware readings combine power, voltage, current and aggregate clocks; memory identities and SPD timing limits share one page. Music themes alternate playback and an attributed artist page every twelve seconds when a matching profile exists. The worker exposes `page_id`, `page_title`, `page_index`, `page_count`, `page_cycle` and `page_progress`; page changes share the track compositor's 600 ms crossfade. See [page manifests](../docs/theme-packs.md#pages) and [online artist data](../docs/artist-pages.md).
 
 ## Runtime
 
@@ -32,9 +32,12 @@ never establish a slot. System detail pages omit individual core/thread rows and
 rotate bounded groups of real readings. Storage collection is disabled; only verified
 physical Ethernet/Wi-Fi remain in network diagnostics, outside System theme pages.
 
-The NCT6792D correction retains chip source names such as `CPUTIN`, `AUXTIN0` and
-`SMBUSMASTER0`. Keep these names until the physical sensor location is confirmed;
-similar temperatures do not justify renaming a channel. See [sensor mapping](../docs/sensor-mapping.md).
+The NCT6792D decoder retains its original chip source names. Vibe Panel's exact
+ASRock B550M-ITX/ac + NCT6792D instance 0 display profile presents CPUTIN as Mainboard,
+AUXTIN0 as Southbridge and SMBUSMASTER0 as CPU, following the owner's local comparison.
+Only those temperature channels from this chip instance enter theme snapshots; Sensor Debug keeps
+all raw channels. Values are unchanged, and other hardware retains its reported names.
+See [sensor mapping](../docs/sensor-mapping.md) for the profile's scope and evidence limits.
 
 Cooling pages show watts as numeric readouts, without an inferred power limit. Fan instruments retain sensor names and RPM, rotating through available channels. The Windows reader omits a fan from theme snapshots until that sensor reports positive RPM once in the current engine session. A later measured zero stays visible as a stopped fan. This history survives page/theme changes and Python worker restarts; raw Sensor Debug channels remain unfiltered. Their outline rotors turn only for positive measured RPM and stop at zero; missing channels stay hidden. Rotor speed is a capped visual cue, not physical revolutions. Animations use the existing theme clock and selected refresh, with no extra timer or sampling. A one-second refresh still produces one frame per second. Codex status dots pulse only during received live work.
 

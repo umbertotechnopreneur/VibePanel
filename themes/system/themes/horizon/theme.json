@@ -3,9 +3,9 @@
   "id": "system.horizon",
   "category": "system",
   "name": "Horizon",
-  "description": "CPU, GPU, board and RAM. Details rotate when readings are available.",
+  "description": "Up to six pages for CPU, GPU, board and RAM, with related readings together.",
   "entry": "render.py",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "author": "Umberto Giacobbi",
   "license": "MIT",
   "canvas": {
@@ -57,7 +57,7 @@
       "id": "cooling"
     },
     {
-      "title": "Voltages & power",
+      "title": "Hardware readings",
       "id": "electrical"
     },
     {
@@ -65,16 +65,8 @@
       "id": "temperatures"
     },
     {
-      "title": "Clock domains",
-      "id": "clocks"
-    },
-    {
-      "title": "Memory modules",
+      "title": "Memory modules & timings",
       "id": "memory"
-    },
-    {
-      "title": "SPD timing limits",
-      "id": "memory-spd"
     }
   ],
   "pageSeconds": 8

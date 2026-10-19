@@ -24,8 +24,25 @@ against CPUID HWMonitor and seeing matching readings. No automated tests were ru
 
 Names such as `PECI 0`, `CPUTIN`, `SYSTIN`, `AUXTIN0` and `SMBUSMASTER0` identify chip
 sources. They do not establish physical locations such as Southbridge or Mainboard.
-Similar readings in two programs are not enough to assign those names. No guessed
-offsets or physical aliases are applied.
+The upstream decoder and Sensor Debug retain those original names and values.
+
+Vibe Panel has an owner-approved display profile for the exact SMBIOS manufacturer
+ASRock, model B550M-ITX/ac and chip instance `/lpc/nct6792d/0`. The labels below follow
+the owner's local comparison with HWMonitor; they are presentation choices, not a
+claim that the board wiring has been independently verified.
+
+| Source ID suffix | Library label | Theme label |
+| --- | --- | --- |
+| `temperature/1` | CPUTIN | Mainboard |
+| `temperature/3` | AUXTIN0 | Southbridge |
+| `temperature/17` | SMBUSMASTER0 | CPU |
+
+Only these temperature channels from this chip instance enter theme snapshots. Other raw
+temperature inputs remain in Sensor Debug. Both theme temperature collections use
+the same profile, including the main board temperature and history. Sensor IDs,
+values and units stay unchanged; no offset, rounding or temperature cutoff is added.
+Other boards, chip instances and controllers retain their reported channels. This Vibe Panel
+profile does not change the pinned library or upstream PR.
 
 Source references for the original decoder and mapping:
 

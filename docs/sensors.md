@@ -68,8 +68,9 @@ still use their own files until separately updated; source changes do not modify
 
 All ten System themes use one renderer. Names, primary values, clock lines and details have separate regions in wide and compact layouts. CPU/GPU power readings use watts; GPU channels retain their names and rotate in bounded pairs. Missing fields are omitted. RAM configured data rate (MT/s) and measured memory clock (MHz) stay distinct. Generic board channels retain their reported names. Sensor Debug retains the complete bounded tree, including missing readings.
 
-Eight pages progressively expose overview, activity, cooling, electrical readings,
-temperature channels, clock domains, RAM identities and SPD timing limits. Pages
+Six pages progressively expose overview, activity, cooling, hardware readings,
+temperature channels and memory. Power, voltage, current and aggregate clocks share
+one hardware page. RAM identities and SPD timing limits share one memory page. Pages
 without relevant readings are skipped. Detail cards show at most four readings at a
 time; groups rotate using the existing theme clock. Individual CPU cores and threads
 are omitted from themes. Voltage and current remain numeric readings, with no guessed
@@ -83,9 +84,11 @@ limits; these are not live memory-controller timings. Identical DIMMs cannot be 
 to physical slots by list order. Their SPD details remain separate, under the library's
 original device names. A missing serial is omitted.
 
-The NCT6792D correction uses technical names such as `CPUTIN`, `AUXTIN0` and
-`SMBUSMASTER0`. These identify chip sources, not confirmed physical locations such as
-Southbridge. See the [decoder correction and mapping limits](sensor-mapping.md).
+The NCT6792D decoder and Sensor Debug retain technical chip source names. The exact
+ASRock B550M-ITX/ac + NCT6792D instance 0 theme profile uses owner-approved Mainboard,
+Southbridge and CPU labels, retaining other temperature inputs in debug only. It
+changes no measurements and does not apply to other chips or controllers. See the
+[decoder correction and display profile](sensor-mapping.md) for evidence limits.
 
 Themes hide a fan channel until its first positive RPM reading in the current
 engine session. Activity is remembered by sensor identifier across page and theme

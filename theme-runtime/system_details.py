@@ -8,10 +8,11 @@ from canvas import clean, optional_number
 
 _INDIVIDUAL_CORE = re.compile(r"\b(?:core|thread)\s*#?\s*\d+\b", re.IGNORECASE)
 _UNITS = {"Voltage": "V", "Current": "A", "Power": "W", "Temperature": "°C", "Clock": "MHz", "Timing": "ns"}
+HARDWARE_KINDS = ("Power", "Voltage", "Current", "Clock")
 
 
 def reading_rows(raw, kinds, aggregate=False):
-    rows = []
+    groups = {kind: [] for kind in kinds}
     for item in (raw.get("readings") or [])[:256]:
         if not isinstance(item, dict) or item.get("type") not in kinds:
             continue
@@ -19,8 +20,8 @@ def reading_rows(raw, kinds, aggregate=False):
         value = optional_number(item.get("value"))
         if not name or value is None or (aggregate and _INDIVIDUAL_CORE.search(name)):
             continue
-        rows.append((name, value, _UNITS.get(kind, clean(item.get("unit")))))
-    return rows
+        groups[kind].append((name, value, _UNITS.get(kind, clean(item.get("unit")))))
+    return [row for group in groups.values() for row in group]
 
 
 def hardware_devices(sensors):
@@ -82,13 +83,11 @@ def spd_groups(sensors):
 
 
 def page_available(page_id, sensors):
-    kinds = {"electrical": ("Voltage", "Current", "Power"), "temperatures": ("Temperature",), "clocks": ("Clock",)}
+    kinds = {"electrical": HARDWARE_KINDS, "temperatures": ("Temperature",)}
     if page_id in kinds:
         return bool(sensor_groups(sensors, kinds[page_id]))
     if page_id == "memory":
-        return bool(sensors.get("memory"))
-    if page_id == "memory-spd":
-        return bool(spd_groups(sensors))
+        return bool(memory_sections(sensors))
     if page_id == "cooling":
         return any(cooling_values(sensors))
     return True
@@ -102,4 +101,36 @@ def value_text(value, unit):
 def detail_step(s):
     # At most two groups per visit, with no new timer or sampling request.
     return s.page_cycle * 2 + min(1, int(s.page_progress * 2))
+
+
+def detail_rows(rows, step, maximum=4):
+    """Balance the last bank instead of leaving a lone trailing reading."""
+    if not rows:
+        return [], 0
+    banks = (len(rows) + maximum - 1) // maximum
+    bank = step % banks
+    size, extra = divmod(len(rows), banks)
+    start = bank * size + min(bank, extra)
+    return rows[start:start + size + (bank < extra)], start
+
+
+def memory_sections(sensors):
+    memory = sensors.get("memory") or {}
+    sections = []
+    if (any(isinstance(module, dict) and module for module in memory.get("modules") or [])
+            or clean(memory.get("type"))
+            or any(optional_number(memory.get(key)) is not None
+                   for key in ("usedGiB", "totalGiB", "configuredSpeedMTs", "clockMHz"))):
+        sections.append("modules")
+    if spd_groups(sensors):
+        sections.append("spd")
+    return sections
+
+
+def memory_view(sensors, step):
+    sections = memory_sections(sensors)
+    if not sections:
+        return None, 0
+    # Each section advances separately, so alternating sections never skip a bank.
+    return sections[step % len(sections)], step // len(sections)
 # VBWR E

@@ -122,12 +122,17 @@ public sealed partial class WindowsMetricsService(bool allowHardwareAccess = fal
                             case Lhm.HardwareType.SuperIO or Lhm.HardwareType.EmbeddedController when driverStatus.Available:
                                 // Only the board's own chip supplies these readings.
                                 boardFanChannelsReported |= HasFanChannels(sensors);
-                                boardReadings.AddRange(ReadThemeValues(sensors, 256 - boardReadings.Count));
-                                foreach (var sensor in sensors.Where(item => item.SensorType == Lhm.SensorType.Temperature))
+                                IReadOnlyList<HardwareReading> themeReadings = ReadThemeValues(sensors, MaximumSensorsPerDevice);
+                                if (hardware.Parent is Lhm.Motherboard.Motherboard motherboard)
                                 {
-                                    var value = Value(sensor);
-                                    if (value is not null && boardTemperatures.Count < 16)
-                                    { boardTemperatures.Add(new(sensor.Name, value.Value)); }
+                                    themeReadings = ProjectMotherboardReadings(motherboard.Manufacturer, motherboard.Model,
+                                        hardware.Identifier.ToString(), themeReadings);
+                                }
+                                boardReadings.AddRange(themeReadings.Take(256 - boardReadings.Count));
+                                foreach (var reading in themeReadings.Where(item => item.Type == "Temperature"))
+                                {
+                                    if (reading.Value is double value && boardTemperatures.Count < 16)
+                                    { boardTemperatures.Add(new(reading.Name, value)); }
                                 }
                                 boardFans.AddRange(ReadFans(sensors).Take(MaximumFans - boardFans.Count));
                                 break;

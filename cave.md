@@ -285,3 +285,22 @@ After installation, the owner reported checking the patch on this local hardware
 through Vibe Panel and seeing values matching CPUID HWMonitor. This owner-observed
 comparison is recorded in upstream PR #2590; it does not establish physical chip
 source aliases or coverage of other boards.
+
+## 19 October 2026: local board display profile and fewer System pages
+
+Vibe Panel now applies owner-approved Mainboard, Southbridge and CPU labels only
+to the ASRock B550M-ITX/ac NCT6792D instance 0 theme readings. Other temperature
+inputs from that chip remain in Sensor Debug. Raw library sensors, measurements,
+the pinned fork and its upstream PR are unchanged. These display labels follow
+the owner's comparison; physical board wiring has not been independently verified.
+
+System pack 2.1.2 has six pages instead of eight. Electrical readings and aggregate
+clocks share one page; memory identities and distinct SPD sources share another.
+Balanced detail banks avoid lone trailing rows. Static review covered independent
+memory counters and access to all groups in wide and compact layouts.
+
+Restore, changed C# formatting and the engine/CLI Release build completed with no
+warnings or errors. The prepared C# checks also compile; no tests were executed.
+Python source and JSON manifests passed syntax parsing without importing the app
+or renderer. No rendering, live sensor trial, new MSI or installation was performed
+for this change. The installed 0.1.16 and its existing MSI do not contain this update.

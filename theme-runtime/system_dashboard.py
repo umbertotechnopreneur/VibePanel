@@ -8,7 +8,7 @@ from collections import OrderedDict
 import skia
 from canvas import blend, clean, optional_number, clip, progress_color
 from hardware import _components, _record, _points, _text
-from system_details import cooling_values, detail_step, reading_rows, sensor_groups, spd_groups, value_text
+from system_details import HARDWARE_KINDS, cooling_values, detail_rows, detail_step, memory_view, reading_rows, sensor_groups, spd_groups, value_text
 
 NAMES = {"thermal": "THERMAL ATLAS", "orbit": "AIRFLOW", "terminal": "MATRIX"}
 _FAN_ROTATIONS = OrderedDict()
@@ -401,8 +401,8 @@ def detail_panel(c, s, style, group, box, tint, step):
     panel(c, s, box, tint, style)
     _text(c, label, x + 20, y + 27, 13, w - 40, tint, True)
     _text(c, name, x + 20, y + 53, 14, w - 40, s.fg, True)
-    visible, start = instrument_page(rows, step, 4)
-    row_height = (h - 93) / 4
+    visible, start = detail_rows(rows, step)
+    row_height = (h - 93) / max(1, len(visible))
     for index, (name, value, unit) in enumerate(visible):
         yy = y + 80 + index * row_height
         _text(c, name, x + 20, yy, 12, w - 40, s.muted)
@@ -420,10 +420,10 @@ def detail_panel(c, s, style, group, box, tint, step):
               10, w - 40, s.muted, align="right")
 
 
-def detail_groups(c, s, style, groups, columns=3):
+def detail_groups(c, s, style, groups, columns=3, step=None):
     if not groups:
         return
-    step = detail_step(s)
+    step = detail_step(s) if step is None else step
     group_count = 1 if c.compact else columns
     bank_count = math.ceil(len(groups) / group_count)
     visible, _ = instrument_page(groups, step, group_count)
@@ -434,14 +434,15 @@ def detail_groups(c, s, style, groups, columns=3):
     for index, group in enumerate(visible):
         key = group[0]
         tint = s.palette[0 if key == "cpu" else 1 if key.startswith("gpu-") else 2]
-        detail_panel(c, s, style, group, (margin + index * (width + gap), 77, width, 345), tint, row_step)
+        height = 93 + 63 * len(detail_rows(group[3], row_step)[0])
+        detail_panel(c, s, style, group, (margin + index * (width + gap), 77, width, height), tint, row_step)
 
 
 def details(c, s, style, kinds):
     detail_groups(c, s, style, sensor_groups(s.sensors, kinds))
 
 
-def memory_page(c, s, style):
+def memory_page(c, s, style, step):
     raw = s.sensors.get("memory") or {}
     summary = metadata("memory", raw)
     if memory_type := clean(raw.get("type")):
@@ -452,7 +453,7 @@ def memory_page(c, s, style):
     width = c.width - margin * 2
     if c.compact and summary:
         # Keep every measured summary reachable on square displays too.
-        summary, _ = instrument_page(summary, detail_step(s), 2)
+        summary, _ = instrument_page(summary, step, 2)
     for index, (label, value) in enumerate(summary):
         cell = width / len(summary)
         x = margin + index * cell
@@ -463,7 +464,7 @@ def memory_page(c, s, style):
         occupancy(c, s, optional_number(raw.get("usedGiB")), optional_number(raw.get("totalGiB")),
                   (margin, 220, width, 120), s.palette[2], "PHYSICAL RAM")
         return
-    visible, start = instrument_page(modules, detail_step(s), 1 if c.compact else 2)
+    visible, start = instrument_page(modules, step, 1 if c.compact else 2)
     cell = (width - gap * (len(visible) - 1)) / len(visible)
     for index, module in enumerate(visible):
         x = margin + index * (cell + gap)
@@ -522,15 +523,15 @@ def render(c, s, style):
     elif s.page_id == "cooling":
         cooling(c, s, style)
     elif s.page_id == "electrical":
-        details(c, s, style, ("Power", "Voltage", "Current"))
+        details(c, s, style, HARDWARE_KINDS)
     elif s.page_id == "temperatures":
         details(c, s, style, ("Temperature",))
-    elif s.page_id == "clocks":
-        details(c, s, style, ("Clock",))
     elif s.page_id == "memory":
-        memory_page(c, s, style)
-    elif s.page_id == "memory-spd":
-        detail_groups(c, s, style, spd_groups(s.sensors), columns=2)
+        section, step = memory_view(s.sensors, detail_step(s))
+        if section == "spd":
+            detail_groups(c, s, style, spd_groups(s.sensors), columns=2, step=step)
+        elif section == "modules":
+            memory_page(c, s, style, step)
     else:
         raise ValueError("Unknown System page: " + s.page_id)
 # VBWR E
