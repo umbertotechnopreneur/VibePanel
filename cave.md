@@ -198,3 +198,9 @@ page/theme changes and renderer restarts, and is not saved across app restarts.
 
 No tests, studio launch, sensor sampling, driver access, installation or USB trial
 has been performed for this change. Compilation does not establish live behavior.
+
+Windows x64 restore, format verification, Release compilation and source publication
+completed, followed by native setup and MSI 0.1.14 compilation. The published core
+matches the current Release assembly. Unchanged dependencies reused existing
+first-import evidence. Build logs, source/package hashes and receipts are saved
+outside the repository. Cleanup retained only the final 0.1.14 MSI under artifacts.
