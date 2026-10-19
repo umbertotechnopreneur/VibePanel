@@ -225,3 +225,11 @@ exact-board mapping. This package retains the official library and does not repa
 that decoder. Generic board values remain raw, not confirmed physical temperatures.
 See [sensor mapping](docs/sensor-mapping.md). Proprietary HWMonitor resources were
 inspected only as data; no code or driver was imported or executed.
+
+Windows x64 restore, format verification for Core/Data, Release compilation and
+self-contained source publication completed with no build warnings or errors.
+Native setup targets and MSI 0.1.15 compiled successfully. Published Core and Python
+sources match the current repository build inputs. Unchanged dependencies reused
+their existing first-import hashes. The guarded cleanup retained only the final MSI;
+logs, checksums and receipts are saved outside the repository. No tests or runtime
+validation were added by packaging. Installed files and settings remain unchanged.
