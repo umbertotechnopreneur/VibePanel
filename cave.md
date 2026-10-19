@@ -142,3 +142,9 @@ I replaced the long power/RPM bars in all six System cooling pages with watt rea
 At the owner's request, I rendered 108 local page previews covering all 30 themes in light and dark with synthetic data at font scale 1.5. I inspected the overview sheets, cooling pages, activity pages and artist pages, plus wide/compact Thermal Atlas and a 32-frame rotor storyboard. These are source-rendered design previews, using the existing Python/Skia runtime as a dependency. They do not validate real sensor data, sustained frame rate, an installed app or USB output. No automated tests, C# build, installer build, installation or physical-device trial ran for this change.
 
 Automatic approval rejected removal of the generated `artifacts/theme-review` folder with a policy block. It remains ignored by Git. Review images were also retained outside the repository; the existing MSI was left intact.
+
+## 19 October 2026: 0.1.11 source build
+
+At the owner's request, I restored the current projects from official NuGet, verified C# formatting and compiled/published Windows x64 Release from this repository, including Photino.Native and the updated cooling renderer. Missing build inputs came from their pinned official sources. Explicit targeted first-import scans completed without detections for their archives and extracted files. Hash evidence is saved outside repository output and reused during compilation; builds no longer launch scans. Generated app files and MSI files are not scanned as external imports.
+
+No automated tests, app launch, installation, sensor acquisition or USB trial ran. This compilation does not establish physical display behavior or animation frame rate. Build logs and package checksums are retained outside the repository, which keeps only the final requested MSI after cleanup.

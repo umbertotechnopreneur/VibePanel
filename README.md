@@ -40,3 +40,6 @@ detection with exclusions, allowlisting, restored quarantine items or disabled
 protection without separate explicit owner approval.
 
 This rule applies to future imports; it does not certify existing dependencies.
+Reuse recorded SHA-256 evidence for unchanged imports. Builds check that evidence
+and never start scans. See the [build guide](installer/README.md) for explicit
+first-import preparation. Generated app files are not external imports.

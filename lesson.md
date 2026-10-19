@@ -58,3 +58,4 @@
 - Small Windows icons use the simple two-color VP vector. Larger frames use a separate gradient drawing.
 - Cooling pages use watt readouts and named fan instruments. Outline rotors turn only for positive measured RPM and stay still at zero. Their visual speed is capped; it is not physical rotor speed. Animations share the theme clock and the selected frame refresh.
 - Codex work dots pulse only during received live work. Idle, stale, stopped and approval states keep their own still symbols.
+- I build each package from the current source. First-import scans are explicit preparation; builds only verify saved hashes. Scan evidence survives output cleanup. Generated app files and installers are not external imports.
