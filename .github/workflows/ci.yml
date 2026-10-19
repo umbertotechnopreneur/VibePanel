@@ -41,10 +41,18 @@ jobs:
       - name: Publish portable folders (no tests)
         shell: pwsh
         run: ./scripts/Publish.ps1 -Architecture ${{ matrix.arch }}
+      - name: Build Windows installer
+        shell: pwsh
+        run: |
+          $payloads = @(Get-ChildItem -LiteralPath artifacts/staging -Directory)
+          if ($payloads.Count -ne 1) { throw 'Expected exactly one fresh published payload.' }
+          ./scripts/Build-Msi.ps1 -PayloadPath $payloads[0].FullName -Architecture ${{ matrix.arch }}
       - uses: actions/upload-artifact@v7
         with:
           name: VibePanel-win-${{ matrix.arch }}
-          path: artifacts/packages/*.zip
+          path: |
+            artifacts/packages/*.zip
+            artifacts/packages/*.msi
           if-no-files-found: error
   linux-ui:
     name: Linux UI and offline model checks

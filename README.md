@@ -1,20 +1,30 @@
 # Vibe Panel
 
-I'm [Umberto Giacobbi](https://umbertogiacobbi.biz). Vibe Panel puts music and Codex activity on a small USB screen.
+I made Vibe Panel to put music and PC information on a small USB screen. I'm [Umberto Giacobbi](https://umbertogiacobbi.biz).
 
-I made it in a few days, on holiday. I was frustrated with my display's software. Other open-source apps didn't suit me, so I learned from their work and made my own. [Credits](docs/protocol-notes.md#sources-studied).
+![Ten Vibe Panel music and system themes shown with demo data](docs/theme-gallery.png)
 
-It's still rough. I shared it because it may help someone.
+- **Music:** See the song and artwork from Spotify and other players that share a Windows media session.
+- **Your PC:** See available CPU, GPU, RAM, temperatures, power and fan readings. What you see depends on your hardware and sensor access.
+- **Codex:** Try the early Codex themes. This part still needs work.
 
-I used AI to help write it. **Memory, speed and security checks are still on my list.** I haven't had time to finish them yet.
+I built this for a Thermalright-compatible USB screen (`0416:5302`). Other screens and profiles have not all been checked. [Hardware details](docs/protocol-notes.md).
 
-**Themes run Python code on your PC. For now, only get them from [this official repo](https://github.com/umbertotechnopreneur/VibePanel).**
+## Get it
 
-For now, it runs on Windows. [How to use it](PORTABLE.md) · [What's left to do](cave.md).
+[Download Vibe Panel 0.1](https://github.com/umbertotechnopreneur/VibePanel/releases/tag/0.1). On Windows, pick the MSI for your PC: **x64** or **ARM64**. Open it and follow the steps. A portable ZIP is available too.
 
-System themes have rotating gauges, charts and cooling pages. Music themes can show an [artist photo and short biography](docs/artist-pages.md) from public online sources. Missing data stays hidden.
+Windows is the supported platform today. Linux and macOS do not yet have USB or audio support. CPU and motherboard sensor access on Windows ARM64 is still unavailable. [How to use Vibe Panel](PORTABLE.md) · [Sensor setup](docs/sensors.md) · [Current limits](cave.md).
 
-This is my hobby project. [MIT license](LICENSE). No warranty.
+**Themes run Python code on your PC. For now, only download themes from [this official repository](https://github.com/umbertotechnopreneur/VibePanel).**
+
+I made this hobby project in a few days on holiday because I was unhappy with my display software. I learned from other people's public work and used AI to help write it. [Credits](docs/protocol-notes.md#sources-studied). Memory, speed and security checks are still on my list; I have not finished them.
+
+The software is open source under the [MIT license](LICENSE); the hardware is sold separately. Some included components have their own [licenses](THIRD_PARTY_NOTICES.md). This is a hobby project, with no warranty.
+
+## More tools
+
+[VoiceDucker](https://github.com/umbertotechnopreneur/VoiceDucker) · [Ulanzi Dock](https://github.com/umbertotechnopreneur/ulanzi-dock-vibeware)
 
 ---
 
@@ -24,22 +34,6 @@ Part of my VibeWare initiative. [My manifesto](https://umbertogiacobbi.biz/vibew
 
 [Terms](https://umbertogiacobbi.biz/terms/) · [Privacy](https://umbertogiacobbi.biz/privacy/)
 
-## External binary security policy
+## External binary security
 
-Before including any third-party prebuilt binary or compiled library in this
-repository or its deliverables, including files supplied without source code,
-run an explicit targeted Microsoft Windows Defender scan of the downloaded
-package/archive and all extracted files and required dependencies that will be
-used. Keep them staged until the scan finishes; real-time protection alone is
-not enough.
-
-Proceed only after the scan completes without detections. Record the official
-source, version or SHA-256, scan command and result. An unavailable, disabled,
-failed or unfinished scan, or any detection, blocks import. Do not bypass a
-detection with exclusions, allowlisting, restored quarantine items or disabled
-protection without separate explicit owner approval.
-
-This rule applies to future imports; it does not certify existing dependencies.
-Reuse recorded SHA-256 evidence for unchanged imports. Builds check that evidence
-and never start scans. See the [build guide](installer/README.md) for explicit
-first-import preparation. Generated app files are not external imports.
+Before importing a new external library or binary, I scan its archive and extracted files with Microsoft Defender, record the source, hashes, command and result, and proceed only after a clean scan. Unchanged files reuse their recorded evidence; builds do not start scans. See the [build guide](docs/build.md).
