@@ -22,8 +22,9 @@ public interface IPlaybackProvider : IDisposable
     PlaybackAnalysis Snapshot();
     void Stop();
 }
+public interface IArtistProvider : IDisposable { ArtistProfile? Read(NowPlaying media); }
 public interface INetworkProvider { NetworkTraffic Read(); }
 
 /// <summary>The host supplies platform implementations; the data layer never selects or opens hardware.</summary>
 public sealed record DashboardProviders(IMediaProvider Media, IVolumeProvider Audio, IMetricsProvider Metrics,
-    IPlaybackProvider Playback, INetworkProvider Network);
+    IPlaybackProvider Playback, INetworkProvider Network, IArtistProvider? Artists = null);

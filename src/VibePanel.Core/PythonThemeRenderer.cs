@@ -28,7 +28,7 @@ public sealed class PythonThemeRenderer : IDisposable
     /// <summary>The latest successful frame's theme accent, derived from cached cover or wallpaper colors.</summary>
     public string? AccentColor { get; private set; }
 
-    /// <summary>Only a track change temporarily requests frames faster than the user's normal refresh.</summary>
+    /// <summary>Track and page changes temporarily request frames faster than the user's normal refresh.</summary>
     public bool IsTransitioning { get; private set; }
 
     public int FrameIntervalMilliseconds(int requestedMilliseconds) => IsTransitioning ? Math.Min(requestedMilliseconds, 40) : requestedMilliseconds;
@@ -110,7 +110,8 @@ public sealed class PythonThemeRenderer : IDisposable
                     clock = new { iso = now.ToString("O", CultureInfo.InvariantCulture), locale = CultureInfo.CurrentCulture.Name },
                     desktop = new { palette = environment.DesktopPalette() },
                     codex = environment.CodexActivity(),
-                    sensors = snapshot.Sensors
+                    sensors = snapshot.Sensors,
+                    artistProfile = snapshot.ArtistProfile
                 }
             };
             try
@@ -222,9 +223,11 @@ public sealed class PythonThemeRenderer : IDisposable
         var runtime = ThemeCatalog.FindContentDirectory("theme-runtime") ?? throw new IOException("The theme-runtime folder is missing beside the engine.");
         var script = Path.Combine(runtime, "worker.py");
         if (!File.Exists(script)) { throw new IOException("The theme-runtime/worker.py file is missing."); }
-        var bundledPython = Path.Combine(AppContext.BaseDirectory, "python", OperatingSystem.IsWindows() ? "python.exe" : "bin/python3");
+        var bundledPython = Path.Combine(AppContext.BaseDirectory, "python", "python.exe");
         var configured = Environment.GetEnvironmentVariable("VIBEPANEL_PYTHON");
-        var executable = !string.IsNullOrWhiteSpace(configured) ? configured : File.Exists(bundledPython) ? bundledPython : OperatingSystem.IsWindows() ? "python" : "python3";
+        var executable = !string.IsNullOrWhiteSpace(configured) ? configured : bundledPython;
+        if (!Path.IsPathFullyQualified(executable) || !File.Exists(executable))
+        { throw new IOException("The bundled Python runtime is missing. VIBEPANEL_PYTHON may specify an existing absolute interpreter path for development."); }
         var start = new ProcessStartInfo(executable)
         {
             UseShellExecute = false,

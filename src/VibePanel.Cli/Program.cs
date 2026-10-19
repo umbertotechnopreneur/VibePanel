@@ -18,7 +18,7 @@ internal static class VibePanelCli
         try
         {
             Console.OutputEncoding = Encoding.UTF8;
-            Banner();
+            if (!string.Equals(args.FirstOrDefault(), "sensors", StringComparison.OrdinalIgnoreCase)) { Banner(); }
             return Task.FromResult(args.FirstOrDefault()?.ToLowerInvariant() switch
             {
                 "discover" => Discover(),
@@ -33,7 +33,6 @@ internal static class VibePanelCli
                 "dashboard" => Dashboard(args),
                 "media" => Media(args),
                 "volumes" => Volumes(),
-                "scenes" => Scenes(),
                 "themes" => Themes(),
                 "fonts" => Fonts(),
                 "theme" => Theme(args),
@@ -54,8 +53,7 @@ internal static class VibePanelCli
     private static void Banner()
     {
         AnsiConsole.Write(new FigletText("Vibe Panel").Color(new Color(199, 123, 211)));
-        AnsiConsole.MarkupLine("[bold white]My music. My apps. My little screen.[/]  [grey]by Umberto Giacobbi[/]");
-        AnsiConsole.MarkupLine("[rgb(221,176,235)]I stand with the VibeWare movement.[/]");
+        AnsiConsole.MarkupLine("[grey]by Umberto Giacobbi[/]");
         AnsiConsole.Write(new Rule().RuleStyle("grey"));
     }
 
@@ -66,33 +64,12 @@ internal static class VibePanelCli
         Console.CancelKeyPress += cancel;
         try
         {
-            var deviceNumber = GetOption(args, "--device");
-            if (deviceNumber is not null)
-            {
-                var device = GetDevice(new[] { "dashboard", deviceNumber });
-                AnsiConsole.WriteLine($"Sending the live dashboard to {device.Id}. Ctrl+C stops. No automatic restart.");
-                var sceneOption = GetOption(args, "--scene");
-                DashboardPlayback.RunAsync(device, GetOption(args, "--profile") ?? "auto", new Progress<string>(Console.WriteLine), cancellation.Token,
-                    sceneOption is null ? null : DashboardScenes.Parse(sceneOption)).GetAwaiter().GetResult();
-                return 0;
-            }
+            if (args.Skip(1).Any(argument => argument != "--watch")) { throw new ArgumentException("Usage: vp dashboard [--watch]. Use vp theme <id> for rendering and display output."); }
             using var service = new DashboardService(WindowsDashboardProviders.Create());
-            var renderer = new DashboardRenderer();
-            var export = GetOption(args, "--export");
             do
             {
                 var snapshot = service.ReadAsync().GetAwaiter().GetResult();
                 ShowDashboard(snapshot);
-                if (export is not null)
-                {
-                    var profile = DisplayProfileCatalog.GetRequired(GetOption(args, "--profile") ?? "wide-1280x480");
-                    if (profile.Encoding != PanelPixelEncoding.Jpeg) { throw new ArgumentException("Export needs a JPEG profile."); }
-                    using var output = new FileStream(Path.GetFullPath(export), FileMode.CreateNew);
-                    output.Write(renderer.Render(snapshot, profile with { WireRotation = 0 }, DashboardScenes.Parse(GetOption(args, "--scene") ?? "Music")));
-                    AnsiConsole.WriteLine($"Preview saved: {Path.GetFullPath(export)}");
-                    AnsiConsole.WriteLine("Background cached in memory.");
-                    break;
-                }
                 if (!args.Contains("--watch")) { break; }
                 Task.Delay(2000, cancellation.Token).GetAwaiter().GetResult();
             } while (!cancellation.IsCancellationRequested);
@@ -110,8 +87,9 @@ internal static class VibePanelCli
         ShowVolumes(snapshot.Volumes);
         var metrics = snapshot.Metrics;
         var table = new Table().Border(TableBorder.Rounded).AddColumn("System").AddColumn("Usage").AddColumn("Temperature");
-        table.AddRow("CPU", DashboardRenderer.Metric(metrics.CpuUsage, "%"), DashboardRenderer.Metric(metrics.CpuTemperature, "°C"));
-        table.AddRow(Markup.Escape(metrics.GpuName), DashboardRenderer.Metric(metrics.GpuUsage, "%"), DashboardRenderer.Metric(metrics.GpuTemperature, "°C"));
+        static string Metric(double? value, string unit) => value is { } number ? $"{number:F0}{unit}" : "—";
+        table.AddRow("CPU", Metric(metrics.CpuUsage, "%"), Metric(metrics.CpuTemperature, "°C"));
+        table.AddRow(Markup.Escape(metrics.GpuName), Metric(metrics.GpuUsage, "%"), Metric(metrics.GpuTemperature, "°C"));
         AnsiConsole.Write(table);
         AnsiConsole.MarkupLine($"[grey]CPU temperature: {Markup.Escape(metrics.CpuTemperatureSource)}[/]");
         if (snapshot.Network is { } network)
@@ -137,18 +115,6 @@ internal static class VibePanelCli
         if (args.Count != 2) { return Fail("Usage: vp media toggle|play|pause|next|previous"); }
         new WindowsMediaService().ControlAsync(args[1]).GetAwaiter().GetResult();
         AnsiConsole.WriteLine("Media command accepted by the selected Windows session.");
-        return 0;
-    }
-
-    private static int Scenes()
-    {
-        var table = new Table().Border(TableBorder.Rounded).AddColumn("Scene ID").AddColumn("Layout").AddColumn("Default rotation");
-        foreach (var scene in Enum.GetValues<DashboardScene>())
-        {
-            table.AddRow(scene.ToString(), Markup.Escape(DashboardScenes.Name(scene)), DashboardScenes.Rotation.Contains(scene) ? "Yes" : "Optional");
-        }
-        AnsiConsole.Write(table);
-        AnsiConsole.WriteLine("Five scenes, 20 seconds each, short crossfades. --scene Music locks a single layout.");
         return 0;
     }
 
@@ -227,9 +193,14 @@ internal static class VibePanelCli
 
     private static int Sensors(IReadOnlyList<string> args)
     {
-        if (args.Count > 2 || args.Count == 2 && args[1] != "--diagnose")
-        { return Fail("Usage: vp sensors [--diagnose]"); }
+        if (args.Count > 2 || args.Count == 2 && args[1] is not ("--diagnose" or "--all"))
+        { return Fail("Usage: vp sensors [--diagnose|--all]"); }
         using var sensors = new WindowsMetricsService(allowHardwareAccess: true);
+        if (args.Contains("--all"))
+        {
+            Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(sensors.ReadSensorDebug(), VibePanel.Contracts.PanelContract.Json));
+            return sensors.InitializationFailureDetails is null ? 0 : 1;
+        }
         var snapshot = sensors.ReadSensors();
         Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(snapshot, VibePanel.Contracts.PanelContract.Json));
         if (snapshot.Notice is { } notice) { Console.Error.WriteLine(notice); }
@@ -524,17 +495,14 @@ internal static class VibePanelCli
         var commands = new Table().Border(TableBorder.Rounded).AddColumn("Command").AddColumn("What it does");
         commands.AddRow("[bold]vp dashboard[/]", "Now playing, app volumes, CPU / GPU. No USB writes.");
         commands.AddRow("vp dashboard --watch", "Refresh the terminal every 2 seconds. Ctrl+C stops.");
-        commands.AddRow("vp dashboard --export frame.jpg", "Save a real-data JPEG preview; cache wallpaper palette once.");
-        commands.AddRow("vp dashboard --device 1", "Explicitly stream to a USB panel. Optional --profile <id>.");
         commands.AddRow("vp media toggle|play|pause|next|previous", "Control the current generic Windows media session.");
         commands.AddRow("vp volumes", "Read-only app volume percentages and colored peak meters.");
         commands.AddRow("vp discover / vp profiles", "List connected panels / supported geometries.");
-        commands.AddRow("vp scenes", "Eight layouts; five rotate with a short fade. --scene <ID> locks one.");
         commands.AddRow("vp themes", "List installed Multimedia and OpenAI Codex themes from their folders.");
         commands.AddRow("vp fonts", "List installed monospace families available to the Python/Skia renderer.");
         commands.AddRow("vp codex status|prepare", "Check or prepare my optional Codex plugin. Trust its hooks in Codex.");
         commands.AddRow("vp diagnostics status|on|off|open", "Opt-in local error log, capped at 512 KiB plus one backup.");
-        commands.AddRow("vp sensors [--diagnose]", "Read CPU, GPU and RAM once through the sensor library. No audio or USB. --diagnose prints local initialization details.");
+        commands.AddRow("vp sensors [--diagnose|--all]", "Read hardware once. --all returns the raw device/sensor tree; --diagnose prints initialization details. No audio or USB.");
         commands.AddRow("vp gui", "Open the desktop window from the portable folder.");
         commands.AddRow("vp gui --start-minimized", "Start in the Windows tray. Reuses the existing studio instance.");
         commands.AddRow("vp theme media.aurora --export frame.jpg", "Render a Python/Skia theme to a new file. No USB writes.");

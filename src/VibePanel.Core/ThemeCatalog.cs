@@ -7,7 +7,7 @@ using System.Text.Json;
 
 namespace VibePanel.Core;
 
-public sealed record ThemeDefinition(string Id, string Name, string Category, string Description, string PackId, string DirectoryPath, bool SupportsSpectrum = false);
+public sealed record ThemeDefinition(string Id, string Name, string Category, string Description, string PackId, string DirectoryPath, bool SupportsSpectrum = false, int PageCount = 1, int PageSeconds = 8);
 public sealed record ThemeCatalogSnapshot(IReadOnlyList<ThemeDefinition> Themes, IReadOnlyList<string> Notices);
 
 /// <summary>Finds bounded, manifest-backed theme folders; never imports or executes scripts while listing.</summary>
@@ -81,7 +81,25 @@ public static class ThemeCatalog
                             var supportsSpectrum = entry.TryGetProperty("settings", out var settings) && settings.ValueKind == JsonValueKind.Object
                                 && settings.TryGetProperty("showSpectrum", out var spectrum) && spectrum.ValueKind == JsonValueKind.Object
                                 && Text(spectrum, "type") == "boolean";
-                            if (!themes.TryAdd(id, new(id, name, category, description, packId, folder, supportsSpectrum)))
+                            var pageCount = 1;
+                            if (entry.TryGetProperty("pages", out var pages))
+                            {
+                                if (pages.ValueKind != JsonValueKind.Array) { throw new ArgumentException("Pages must be an array."); }
+                                pageCount = pages.GetArrayLength();
+                                var pageIds = new HashSet<string>(StringComparer.Ordinal);
+                                foreach (var page in pages.EnumerateArray())
+                                {
+                                    if (page.ValueKind != JsonValueKind.Object || Text(page, "id") is not { Length: > 0 and <= 40 } pageId || !pageIds.Add(pageId))
+                                    { throw new ArgumentException("Page IDs must be unique nonempty strings up to 40 characters."); }
+                                    if (page.TryGetProperty("title", out var title) && (title.ValueKind != JsonValueKind.String || title.GetString()!.Length > 80))
+                                    { throw new ArgumentException("Page titles must be strings up to 80 characters."); }
+                                }
+                            }
+                            var pageSeconds = 8;
+                            if (entry.TryGetProperty("pageSeconds", out var seconds) && (seconds.ValueKind != JsonValueKind.Number || !seconds.TryGetInt32(out pageSeconds)))
+                            { throw new ArgumentException("Page interval must be an integer."); }
+                            if (pageCount is < 1 or > 8 || pageSeconds is < 4 or > 120) { throw new ArgumentException("Invalid theme page count or interval."); }
+                            if (!themes.TryAdd(id, new(id, name, category, description, packId, folder, supportsSpectrum, pageCount, pageSeconds)))
                             { notices.Add($"Duplicate theme ID {id} was skipped; the first installed definition wins."); }
                         }
                         catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException or ArgumentException or InvalidOperationException)

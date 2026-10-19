@@ -122,7 +122,7 @@ sealed class FakeClient : IPanelClient
                     }
                     await Task.Delay(5, cancellationToken);
                     result = new PanelState("", "", "", false, "fixture", [], new(null, null, null, null, "", ""), null,
-                        [], [], [], running, "Fixture", null, [], ActiveThemeId: LastOptions.ThemeId);
+                        [], [], running, "Fixture", null, [], ActiveThemeId: LastOptions.ThemeId);
                     break;
                 default: throw new InvalidOperationException(method);
             }

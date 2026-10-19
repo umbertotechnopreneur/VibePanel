@@ -17,13 +17,13 @@ VBWR E -->
         </Style>
     </Page.Resources>
     <Grid x:Name="Root" Background="#101218">
-        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <Grid x:Name="HeaderArea" Margin="28,16,28,16">
             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                 <Image x:Name="ProductIcon" Source="/VibePanel.UI;component/Assets/vibepanel-icon.png" Width="62" Height="62" Stretch="Uniform" Margin="0,0,14,0"/>
                 <StackPanel VerticalAlignment="Center">
-                    <TextBlock x:Name="Eyebrow" Text="C O D E N A M E" FontSize="9"/>
+                    <TextBlock x:Name="Eyebrow" Text="D I S P L A Y   S T U D I O" FontSize="9"/>
                     <TextBlock x:Name="Heading" Text="Vibe Panel" FontSize="28" FontWeight="SemiBold" Margin="0,4,0,0"/>
                     <StackPanel Orientation="Horizontal" Margin="0,7,0,0">
                         <TextBlock x:Name="Author" Text="by Umberto Giacobbi" FontSize="10" VerticalAlignment="Center"/>
@@ -42,14 +42,18 @@ VBWR E -->
                     </StackPanel>
                 </Grid>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
-                    <HyperlinkButton x:Name="Manifesto" Content="Follow the vibe · Manifesto" NavigateUri="https://umbertogiacobbi.biz/vibeware/manifesto" TargetName="_blank" FontSize="10" VerticalAlignment="Center"/>
+                    <HyperlinkButton x:Name="Manifesto" Content="VibeWare · Manifesto" NavigateUri="https://umbertogiacobbi.biz/vibeware/manifesto" TargetName="_blank" FontSize="10" VerticalAlignment="Center"/>
                     <HyperlinkButton x:Name="InitiativeLogo" NavigateUri="https://umbertogiacobbi.biz/vibeware/manifesto" TargetName="_blank" Margin="10,0,0,0" ToolTipService.ToolTip="VibeWare manifesto" AutomationProperties.Name="VibeWare manifesto">
                         <Image x:Name="InitiativeImage" Source="/VibePanel.UI;component/Assets/vibeware-logo.png" Width="36" Height="36" Stretch="Uniform"/>
                     </HyperlinkButton>
                 </StackPanel>
             </StackPanel>
         </Grid>
-        <Grid x:Name="ContentArea" Grid.Row="1" Margin="28,0,28,0">
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="28,0,28,12">
+            <Button x:Name="ThemesTab" Content="Themes" Click="ThemesTab_Click" Padding="12,7" Margin="0,0,12,0"/>
+            <Button x:Name="SensorsTab" Content="Sensor Debug" Click="SensorsTab_Click" Padding="12,7"/>
+        </StackPanel>
+        <Grid x:Name="ContentArea" Grid.Row="2" Margin="28,0,28,0">
             <Grid.ColumnDefinitions><ColumnDefinition x:Name="LibraryColumn" Width="248"/><ColumnDefinition x:Name="LibraryGap" Width="24"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
             <Grid x:Name="LibraryFrame">
                 <Grid>
@@ -122,6 +126,12 @@ VBWR E -->
                     <StackPanel>
                         <TextBlock x:Name="CategoryText" Text="MULTIMEDIA" FontSize="10"/>
                         <TextBlock x:Name="SelectedThemeText" Text="Choose a theme" FontSize="26" FontWeight="SemiBold" Margin="0,6,0,0"/>
+                        <TextBlock x:Name="ThemePagesText" FontSize="11" Margin="0,7,0,0"/>
+                        <StackPanel x:Name="ArtistSourcesPanel" Orientation="Horizontal" Visibility="Collapsed" Margin="0,4,0,0">
+                            <HyperlinkButton x:Name="ArtistBiographyLink" Content="Artist biography" TargetName="_blank" FontSize="11" Padding="0"/>
+                            <HyperlinkButton x:Name="ArtistPhotoLink" Content="Photo / license" TargetName="_blank" FontSize="11" Padding="0" Margin="16,0,0,0"/>
+                            <HyperlinkButton x:Name="ArtistSalesLink" Content="Sales source" TargetName="_blank" FontSize="11" Padding="0" Margin="16,0,0,0"/>
+                        </StackPanel>
                     </StackPanel>
                     <Grid x:Name="PreviewBadge" Grid.Column="1" VerticalAlignment="Center">
                         <TextBlock x:Name="PreviewBadgeText" Text="LOCAL PREVIEW" FontSize="10"/>
@@ -135,7 +145,7 @@ VBWR E -->
                         <html:HtmlPresenter x:Name="PreviewImage" IsHitTestVisible="False" ScrollMode="Disabled" Html="&lt;div id='vp-preview' style='position:absolute;inset:0;overflow:hidden'&gt;&lt;canvas style='position:absolute;inset:0;width:100%;height:100%;opacity:0'&gt;&lt;/canvas&gt;&lt;canvas style='position:absolute;inset:0;width:100%;height:100%'&gt;&lt;/canvas&gt;&lt;/div&gt;"/>
                     </Grid>
                     <StackPanel x:Name="LoadingPanel" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="440" Margin="24">
-                        <TextBlock x:Name="LoadingTitle" Text="Your screen, your style." FontSize="23" HorizontalAlignment="Center"/>
+                        <TextBlock x:Name="LoadingTitle" Text="Choose your display theme" FontSize="23" HorizontalAlignment="Center"/>
                         <TextBlock x:Name="LoadingText" Text="Loading the local theme engine…" FontSize="12" TextWrapping="Wrap" TextAlignment="Center" Margin="0,12,0,0"/>
                     </StackPanel>
                 </Grid>
@@ -249,7 +259,24 @@ VBWR E -->
                 </Grid>
             </Grid>
         </Grid>
-        <Grid x:Name="FooterArea" Grid.Row="2" Margin="28,12,28,8">
+        <Grid x:Name="SensorDebugPanel" Grid.Row="2" Margin="28,0" Visibility="Collapsed">
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+            <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <StackPanel Margin="0,0,20,10">
+                    <TextBlock x:Name="SensorDebugHeading" Text="Sensor Debug" FontSize="24" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="SensorDebugSummary" Text="Read the devices and values available from Libre Hardware Monitor." FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+                    <Button x:Name="SensorDebugAdministrator" Content="Reopen as administrator" Click="Administrator_Click" Padding="12,7" Margin="0,0,12,0" ToolTipService.ToolTip="Save choices and reopen in preview. Themes also run as administrator."/>
+                    <Button x:Name="SensorDebugRefresh" Content="Refresh readings" Click="SensorDebugRefresh_Click" Padding="12,7"/>
+                </StackPanel>
+            </Grid>
+            <TextBlock x:Name="SensorDebugNotice" Grid.Row="1" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10"/>
+            <TextBlock x:Name="SensorDebugHelp" Grid.Row="2" Text="Device → sensor type → sensor. Columns: current, minimum, maximum. Values are read-only. Refresh samples on demand; missing readings remain unavailable." FontSize="11" TextWrapping="Wrap" Margin="0,0,0,12"/>
+            <TreeView x:Name="SensorDebugTree" Grid.Row="3" BorderThickness="0" Padding="0"/>
+        </Grid>
+        <Grid x:Name="FooterArea" Grid.Row="3" Margin="28,12,28,8">
             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
             <TextBlock x:Name="StatusText" Text="Local preview" FontSize="10" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
@@ -261,7 +288,7 @@ VBWR E -->
                     <HyperlinkButton x:Name="PrivacyLink" Content="Privacy" NavigateUri="https://umbertogiacobbi.biz/privacy/" TargetName="_blank" FontSize="10"/>
             </StackPanel>
         </Grid>
-        <Grid x:Name="PaletteOverlay" Grid.RowSpan="3" Background="#B0000000" Visibility="Collapsed">
+        <Grid x:Name="PaletteOverlay" Grid.RowSpan="4" Background="#B0000000" Visibility="Collapsed">
             <Border x:Name="PaletteFrame" Width="440" Padding="24" BorderThickness="1" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="20">
                 <StackPanel>
                     <TextBlock x:Name="PaletteHeading" FontSize="18" Text="Theme colors" TextWrapping="Wrap"/>
@@ -280,7 +307,7 @@ VBWR E -->
                 </StackPanel>
             </Border>
         </Grid>
-        <Grid x:Name="AboutOverlay" Grid.RowSpan="3" Background="#B0000000" Visibility="Collapsed">
+        <Grid x:Name="AboutOverlay" Grid.RowSpan="4" Background="#B0000000" Visibility="Collapsed">
             <Border x:Name="AboutFrame" Width="550" MaxWidth="600" Padding="30" CornerRadius="20" BorderThickness="1" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="20">
                 <StackPanel>
                     <TextBlock x:Name="AboutHeading" Text="Vibe Panel" FontSize="28" FontWeight="SemiBold"/>
@@ -301,7 +328,7 @@ VBWR E -->
                 </StackPanel>
             </Border>
         </Grid>
-        <Grid x:Name="CloseOverlay" Grid.RowSpan="3" Background="#B0000000" Visibility="Collapsed">
+        <Grid x:Name="CloseOverlay" Grid.RowSpan="4" Background="#B0000000" Visibility="Collapsed">
             <Border x:Name="CloseFrame" Width="480" Padding="24" CornerRadius="12" BorderThickness="1" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="20">
                 <StackPanel>
                     <TextBlock x:Name="CloseHeading" Text="Close Vibe Panel?" FontSize="22" FontWeight="SemiBold"/>

@@ -5,7 +5,7 @@
   "name": "Ribbon",
   "description": "A flowing blurred color ribbon behind a horizontal music card.",
   "entry": "render.py",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "author": "Umberto Giacobbi",
   "license": "MIT",
   "canvas": {
@@ -48,5 +48,16 @@
   "branding": {
     "begin": "VBWR B",
     "end": "VBWR E"
-  }
+  },
+  "pages": [
+    {
+      "id": "playback",
+      "title": "Now playing"
+    },
+    {
+      "id": "artist",
+      "title": "About the artist"
+    }
+  ],
+  "pageSeconds": 12
 }

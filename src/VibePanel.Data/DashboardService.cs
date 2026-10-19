@@ -12,11 +12,12 @@ public sealed class DashboardService : IDisposable
     public IVolumeProvider Audio { get; }
     private readonly IMetricsProvider metrics;
     private readonly INetworkProvider network;
+    private readonly IArtistProvider? artists;
     private readonly IPlaybackProvider playback;
     public DashboardService(DashboardProviders providers)
     {
         Media = providers.Media; Audio = providers.Audio; metrics = providers.Metrics;
-        network = providers.Network; playback = providers.Playback;
+        network = providers.Network; playback = providers.Playback; artists = providers.Artists;
     }
 
     public async Task<DashboardSnapshot> ReadAsync(bool includeSystem = true, bool includeMedia = true, bool analyzePlayback = false,
@@ -43,6 +44,7 @@ public sealed class DashboardService : IDisposable
             try { volumes = await Task.Run(Audio.Read); }
             catch (Exception error) { notices.Add($"Mixer unavailable: {error.Message}"); }
         }
+        var artistProfile = includeMedia ? artists?.Read(media) : null;
         if (includeSensors)
         {
             try { sensors = await Task.Run(metrics.ReadSensors); }
@@ -55,7 +57,7 @@ public sealed class DashboardService : IDisposable
         if (!includeSystem)
         {
             return new(media, volumes, new(null, null, null, null, "", "Not sampled for themes", "Not sampled for themes"), notices,
-                Playback: analysis, Sensors: sensors);
+                Playback: analysis, Sensors: sensors, ArtistProfile: artistProfile);
         }
         try { machine = await Task.Run(metrics.Read); }
         catch (Exception error)
@@ -66,11 +68,12 @@ public sealed class DashboardService : IDisposable
         NetworkTraffic? traffic = null;
         try { traffic = network.Read(); }
         catch (Exception error) { notices.Add($"Network counters unavailable: {error.Message}"); }
-        return new(media, volumes, machine, notices, traffic, analysis, sensors);
+        return new(media, volumes, machine, notices, traffic, analysis, sensors, artistProfile);
     }
 
     public void Dispose()
     {
+        artists?.Dispose();
         try { playback.Dispose(); }
         finally
         {

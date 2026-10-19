@@ -3,9 +3,9 @@
   "id": "system.ledger",
   "category": "system",
   "name": "Ledger",
-  "description": "A warm editorial layout with one large reading and compact details.",
+  "description": "2 rotating pages: at a glance, live activity.",
   "entry": "render.py",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "author": "Umberto Giacobbi",
   "license": "MIT",
   "canvas": {
@@ -42,5 +42,16 @@
   "branding": {
     "begin": "VBWR B",
     "end": "VBWR E"
-  }
+  },
+  "pages": [
+    {
+      "id": "overview",
+      "title": "At a glance"
+    },
+    {
+      "id": "activity",
+      "title": "Live activity"
+    }
+  ],
+  "pageSeconds": 8
 }

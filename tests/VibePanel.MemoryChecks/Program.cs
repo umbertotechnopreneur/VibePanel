@@ -268,7 +268,7 @@ internal static class Program
                         BitConverter.TryWriteBytes(frame.AsSpan(6, 4), ++Frames);
                         result = new PanelState("Offline memory fixture", "", "", false, "Fixture", [],
                             new(null, null, null, null, "", "Unavailable"), null, [],
-                            ProfileIds.Select(id => new PanelChoice(id, id)).ToArray(), [], active, "Offline fixture", frame, [], SubmittedFrames: 0, AccentColor: "#80A0D0");
+                            ProfileIds.Select(id => new PanelChoice(id, id)).ToArray(), active, "Offline fixture", frame, [], SubmittedFrames: 0, AccentColor: "#80A0D0");
                     }
                     finally { Interlocked.Decrement(ref stateInFlight); }
                     break;

@@ -1,5 +1,5 @@
 # VBWR B — Vibe Panel. Copyright (c) 2026 Umberto Giacobbi. MIT.
-"""Blend a changed track from the last visible frame; retain no frame queue."""
+"""Blend a changed page or track from the last visible frame; retain no frame queue."""
 from __future__ import annotations
 
 import time
@@ -7,7 +7,7 @@ import time
 import skia
 
 
-class TrackTransition:
+class FrameTransition:
     DURATION_SECONDS = .6
 
     def __init__(self, clock=time.monotonic):
@@ -43,7 +43,7 @@ class TrackTransition:
                 progress = progress * progress * (3 - 2 * progress)
                 surface = skia.Surface.MakeRaster(image.imageInfo())
                 if surface is None:
-                    raise RuntimeError("Cannot allocate the track-transition canvas.")
+                    raise RuntimeError("Cannot allocate the transition canvas.")
                 native = surface.getCanvas()
                 native.drawImage(self.origin, 0, 0, skia.SamplingOptions(),
                                  skia.Paint(Alphaf=1 - progress, BlendMode=skia.BlendMode.kSrc))

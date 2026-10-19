@@ -29,8 +29,9 @@ try:
         from canvas import Canvas, ThemeContext
         from color_adjustments import apply_color_adjustments
         from font_catalog import list_monospace_fonts
-        from track_transition import TrackTransition
-        TRACK_TRANSITION = TrackTransition()
+        from frame_transition import FrameTransition
+        from theme_pages import select_page
+        FRAME_TRANSITION = FrameTransition()
 except ImportError as exc:
     IMPORT_ERROR = str(exc)
 
@@ -104,6 +105,7 @@ def render(request: dict) -> dict:
     if not isinstance(state, dict):
         raise ValueError("Theme state must be an object.")
     context = ThemeContext(state, request, manifest)
+    page_id = select_page(context, manifest)
     surface = skia.Surface(width, height)
     if surface is None:
         raise RuntimeError("Cannot allocate the theme canvas.")
@@ -114,13 +116,13 @@ def render(request: dict) -> dict:
     # override context.colors; those values do not change the host's controls.
     snapshot = surface.makeImageSnapshot()
     transition_active = False
-    if context.category == "multimedia":
+    if context.category == "multimedia" or manifest.get("pages"):
         scope = (str(folder), manifest.get("id"), width, height, context.light,
                  context.font_family, context.font_scale, tuple(context.palette.to_json().items()))
-        track = (context.source, context.title, context.artist, context.album, context.cover_key)
-        snapshot, transition_active = TRACK_TRANSITION.compose(snapshot, scope, track)
+        track = (page_id, context.source, context.title, context.artist, context.album, context.cover_key) if context.category == "multimedia" else (page_id,)
+        snapshot, transition_active = FRAME_TRANSITION.compose(snapshot, scope, track)
     else:
-        TRACK_TRANSITION.reset()
+        FRAME_TRANSITION.reset()
     # Off means no color surface, matrix or raster pass, including theme overrides.
     # Keep the saved settings in the context so enabling filters restores them.
     if filters_enabled:

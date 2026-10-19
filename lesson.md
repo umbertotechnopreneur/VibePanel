@@ -31,7 +31,7 @@
 - I refresh the USB list every ten seconds. Reconnecting a screen does not start output.
 - At Windows sign-in I start the saved screen and theme in the tray. Opening the studio normally keeps the preview. Stop cancels a startup wait.
 - I keep one current setup. Closing saves its theme and settings, including pending slider changes. Reopening restores them in the preview.
-- I keep legacy backgrounds in a small memory cache. I check image dimensions before decoding them.
+- I keep Python artwork and backgrounds in a small memory cache. I check image dimensions before decoding them.
 - I load bundled scripts only from the engine folder, including in local builds.
 - I still need to check memory, speed and security. [My list](cave.md).
 - My MSI shows progress and closes verified app processes before replacing files. I check that my sensor driver has stopped, its service is gone, and its generated file is removed. A successful file read does not prove that a loaded driver can be deleted.
@@ -41,8 +41,8 @@
 - I hold the single-instance lock until the engine has finished closing. Setup blocks new launches until commit or rollback. A maximized window stays maximized when restored from the tray.
 - Themes share five named palette colors. Personal overrides belong to the theme and its light/dark appearance, outside the installed files.
 - I read named motherboard and fan sensors from the same Libre Hardware Monitor instance. I attach a board fan to CPU only when its sensor name says CPU. I never infer fan speed from load.
-- I use the official compiled LibreHardwareMonitorLib package for current sensor builds. PawnIO is an external prerequisite; I never install it from the app or weaken Windows security. Physical RAM uses Windows so the library's SPD driver group stays off.
-- Thermal themes put measured temperatures first and show used physical RAM over total. Missing temperatures and RPM are labelled unavailable; generic board sensors keep their names.
+- I use the official compiled LibreHardwareMonitorLib package. PawnIO is an external prerequisite; I never install it from the app or weaken Windows security. Physical RAM totals use Windows. Owner-approved SPD readings use the NDD dependency and the library's existing PawnIO adapter.
+- Thermal themes put measured temperatures first and show used physical RAM over total. Missing temperatures and RPM are omitted; generic board sensors keep their names.
 
 - I commit preferences, screens and palettes together. Each rendered frame reads one detached state. A stale rotation cannot replace a newer user edit.
 - I keep settings storage separate from the model, with a version, an atomic replacement and a last-good backup. Unknown formats stay untouched.
@@ -50,3 +50,9 @@
 - The installer owns the single Start entry. I disable unused Photino toast registration, which otherwise creates a second shortcut from the window title.
 - My local reinstall command removes the previous app, clears generated files, increments the MSI version and builds a new package. It compares installed files with that package and then keeps only the final MSI.
 - MSI cleanup removes my old script registration from the original user's registry views and verifies removal. Major upgrades remove the old MSI before installing new files. Settings and personal themes stay outside the app folder.
+- Sensor Debug exposes the library's device tree and raw sensor names, units, current/min/max values and missing readings. It refreshes on demand through the existing engine, with no sensor setters. CPU clock averages keep effective and nominal clocks separate.
+
+- System themes share one composition path; omit absent fields and remove superseded renderers. Keep CPU/GPU identity, clock and thermal data in reserved regions. The owner requested automatic output on each Windows launch; Stop still cancels the initial wait.
+
+- I use one Python page clock and one frame compositor for page and track fades. System graphs retain only timestamped readings; artist facts need attributed sources. Missing profiles skip the artist page.
+- Small Windows icons use the simple two-color VP vector. Larger frames use a separate gradient drawing.

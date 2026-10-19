@@ -1,0 +1,6 @@
+<!-- VBWR B — Vibe Panel. Copyright (c) 2026 Umberto Giacobbi. MIT. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <path fill="#16B8AC" d="M.5 3H2.8L4.4 10.3 6.1 3H8.4L5.7 13H3.1Z"/>
+  <path fill="#8866F2" fill-rule="evenodd" d="M9 3H12.3C14.5 3 15.7 4.2 15.7 6.2S14.5 9.5 12.3 9.5H11.2V13H9ZM11.2 5V7.5H12.2C13.1 7.5 13.5 7.1 13.5 6.2S13.1 5 12.2 5Z"/>
+</svg>
+<!-- VBWR E -->

@@ -23,12 +23,12 @@ internal static class Program
         if (args.FirstOrDefault() == WindowsElevation.Argument)
         {
             if (!OperatingSystem.IsWindows() || !WindowsElevation.WaitForPreviousStudio(args)) { return 2; }
-            args = []; // An explicit administrator restart never restores USB output or tray startup.
+            args = []; // Administrator restarts use the same saved display session as normal launches.
         }
         if (args.Any(argument => argument is not "--start-minimized" and not "--restore-last-session"))
         { Console.Error.WriteLine("Usage: VibePanel.exe [--start-minimized] [--restore-last-session]"); return 2; }
-        var restoreLastSession = OperatingSystem.IsWindows() && args.Contains("--restore-last-session");
-        var startMinimized = args.Contains("--start-minimized") || restoreLastSession;
+        var restoreLastSession = OperatingSystem.IsWindows();
+        var startMinimized = args.Contains("--start-minimized") || args.Contains("--restore-last-session");
         if (OperatingSystem.IsWindows() && WindowsSetupGate.IsInstalling()) { if (!startMinimized) { WindowsSetupGate.ShowBusy(); } return 3; }
         using var instance = new SingleInstanceService();
         if (!instance.IsPrimary)

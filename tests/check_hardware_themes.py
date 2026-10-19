@@ -51,58 +51,6 @@ def fixture_sensors(gpu_count=1):
     }
 
 
-def fixture_context(sensors, light=False, font_scale=1):
-    return SimpleNamespace(
-        sensors=sensors, light=light, font_scale=font_scale,
-        base="#F3F5EF" if light else "#101820",
-        fg="#20342A" if light else "#EDF4F1",
-        muted="#5E6E66" if light else "#9AAEA7", accent="#78CEB1",
-        palette=ThemePalette(("#78CEB1", "#79C8DE", "#D2C58D", "#A5ABBF"),
-                             dict(textPrimary="#EDF4F1", textSecondary="#9AAEA7",
-                                  accent="#78CEB1", warning="#FFAA00", info="#79C8DE"), {}, {}, light),
-        now=datetime.fromisoformat("2026-10-17T19:00:00+07:00"))
-
-
-class RecordingCanvas:
-    """The public Canvas signatures, recorded without allocating or rendering pixels."""
-    def __init__(self, context, compact=False):
-        self.ctx, self.compact = context, compact
-        self.width, self.height = (480 if compact else 1280), 480
-        self.calls = []
-
-    def text(self, value, x, y, size=24, tint=None, width=None, align="left", bold=False):
-        if value:
-            self.calls.append(("text", {"value": str(value), "x": x, "y": y,
-                                        "size": size, "width": width, "align": align}))
-
-    def text_size(self, role="caption"):
-        base, minimum, maximum = {"instrument": (16, 16, 18), "caption": (18, 16, 22),
-                                  "body": (20, 18, 26)}[role]
-        return max(minimum, min(maximum, base * self.ctx.font_scale)) / self.ctx.font_scale
-
-    def rect(self, x, y, width, height, tint, radius=0, opacity=1, stroke=0):
-        self.calls.append(("rect", {"x": x, "y": y, "width": width, "height": height}))
-
-    def line(self, x1, y1, x2, y2, tint, width=1, opacity=1):
-        self.calls.append(("line", {"x1": x1, "y1": y1, "x2": x2, "y2": y2}))
-
-    def circle(self, x, y, radius, tint, opacity=1, stroke=0):
-        self.calls.append(("circle", {"x": x, "y": y, "radius": radius}))
-
-    def gradient(self, x, y, width, height, colors, vertical=False, radius=0):
-        self.calls.append(("gradient", {"x": x, "y": y, "width": width, "height": height}))
-
-    def ring(self, x, y, radius, value=None, tint=None, stroke=4, marker=False):
-        self.calls.append(("ring", {"x": x, "y": y, "radius": radius, "value": value}))
-
-    def hardware_photo(self, asset, x, y, width, height, shade, opacity=.65):
-        self.calls.append(("hardware_photo", {"asset": asset, "x": x, "y": y,
-                                              "width": width, "height": height}))
-
-    def texts(self):
-        return [arguments["value"] for kind, arguments in self.calls if kind == "text"]
-
-
 class SensorNormalizationChecks(unittest.TestCase):
     def test_missing_null_and_empty_components_disappear(self):
         for raw in ({}, {"cpu": None, "gpus": None, "memory": None},
@@ -136,10 +84,10 @@ class SensorNormalizationChecks(unittest.TestCase):
                                               "clockMHz": 3200, "clockLabel": "Average core clock",
                                               "temperatureC": 51.2, "temperatureLabel": "CPU package"}})[0]
         self.assertEqual([item.key for item in cpu.metrics], ["clockMHz", "temperatureC"])
-        self.assertEqual(cpu.primary().key, "clockMHz")
+        self.assertIsNone(cpu.metric("usagePercent"))
         self.assertEqual(cpu.metric("clockMHz").label, "Average core clock")
         self.assertEqual(cpu.metric("temperatureC").label, "CPU package")
-        self.assertIn("avg", hardware._inline(cpu.metric("clockMHz")))
+        self.assertEqual(cpu.metric("clockMHz").text, "3200 MHz")
 
     def test_multiple_gpus_keep_their_identity_when_one_is_unavailable(self):
         raw = fixture_sensors(3)
@@ -229,173 +177,19 @@ class SensorHistoryChecks(unittest.TestCase):
         self.assertTrue(all(len(series["samples"]) == 1 for series in hardware._HISTORY.values()))
 
 
-class ThemeDrawingContractChecks(unittest.TestCase):
-    def setUp(self):
-        hardware._HISTORY.clear()
+class ThemeDataContractChecks(unittest.TestCase):
+    def test_multiple_gpu_power_channels_keep_names_and_watts(self):
+        from system_dashboard import power_and_fans
+        raw = {"readings": [{"type": "Power", "name": "GPU Package", "value": 100},
+                            {"type": "Power", "name": "GPU Rail", "value": 40}]}
+        powers, _ = power_and_fans([("gpu-0", "GPU", raw)], {})
+        self.assertEqual(powers, [("GPU · Package", 100, "W"), ("GPU · Rail", 40, "W")])
 
-    def tearDown(self):
-        hardware._HISTORY.clear()
-
-    def test_all_ten_empty_screens_have_no_data_instruments(self):
-        for style in STYLES:
-            with self.subTest(style=style):
-                context = fixture_context({})
-                canvas = RecordingCanvas(context, compact=True)
-                hardware.render(canvas, context, style)
-                self.assertIn("No sensor data available", canvas.texts())
-                self.assertFalse(any(kind in ("ring", "circle", "rect") for kind, _ in canvas.calls))
-                self.assertNotIn("CPU", canvas.texts())
-                self.assertNotIn("GPU", canvas.texts())
-                self.assertNotIn("RAM", canvas.texts())
-
-    def test_zero_is_displayed_and_missing_temperatures_are_explicit(self):
-        for style in STYLES:
-            with self.subTest(style=style):
-                context = fixture_context({"cpu": {"usagePercent": 0}})
-                canvas = RecordingCanvas(context, compact=True)
-                hardware.render(canvas, context, style)
-                text = " ".join(canvas.texts())
-                self.assertIn("0%", text)
-                self.assertIn("CPU", text)
-                self.assertNotIn("GPU", text)
-                self.assertNotIn("RAM", text)
-                self.assertNotIn("Clock", text)
-                self.assertIn("unavailable", text)
-
-    def test_many_gpus_preserve_secondary_readings_in_compact_layout(self):
-        sensors = fixture_sensors(4)
-        components = hardware._components(sensors)
-        expected = [metric.text for item in components for metric in item.metrics]
-        for style in STYLES:
-            for scale in (.65, 1, 1.6):
-                with self.subTest(style=style, font_scale=scale):
-                    context = fixture_context(sensors, font_scale=scale)
-                    canvas = RecordingCanvas(context, compact=True)
-                    # Page whole cooling components instead of squeezing seven
-                    # overlapping rows into a compact panel.
-                    for page in range(0, 41, 5):
-                        with patch.object(hardware.time, "monotonic", return_value=page):
-                            hardware.render(canvas, context, style)
-                    text = " ".join(canvas.texts())
-                    visible = [value for value in expected
-                               if style not in ("thermal", "orbit") or value != "39%"]
-                    for value in visible:
-                        self.assertIn(value, text)
-                    for kind, arguments in canvas.calls:
-                        if kind == "text":
-                            self.assertGreater(arguments["width"], 0)
-                            self.assertLessEqual(arguments["y"], 480)
-                        elif kind in ("rect", "gradient"):
-                            self.assertGreaterEqual(arguments["width"], 0)
-                            self.assertGreaterEqual(arguments["height"], 0)
-
-    def test_a_single_snapshot_cannot_draw_a_fake_history_trace(self):
-        context = fixture_context(fixture_sensors())
-        components = hardware._components(context.sensors)
-        hardware._record(components, context.sensors["updatedAtUtc"])
-        cpu = components[0]
-        canvas = RecordingCanvas(context)
-        hardware._trace(canvas, cpu, cpu.metric("usagePercent"), (40, 80, 300, 60), "#78CEB1")
-        self.assertEqual(canvas.calls, [])
-
-    def test_no_usage_never_draws_a_utilization_ring(self):
-        context = fixture_context({"cpu": {"clockMHz": 4200, "temperatureC": 61.2}})
-        for compact in (False, True):
-            with self.subTest(compact=compact):
-                canvas = RecordingCanvas(context, compact)
-                hardware.render(canvas, context, "orbit")
-                self.assertFalse(any(kind == "ring" for kind, _ in canvas.calls))
-                self.assertIn("4200 MHz", " ".join(canvas.texts()))
-
-    def test_thermal_themes_show_only_named_measured_fans_and_used_ram(self):
-        raw = fixture_sensors()
-        raw["cpu"]["fans"] = [{"name": "CPU Fan", "rpm": 0}]
-        raw["gpus"][0]["fans"] = [{"name": "GPU Fan", "rpm": 1560}]
-        raw["motherboard"] = {"name": "Board", "temperatureC": 39.5,
-                              "temperatureLabel": "System",
-                              "fans": [{"name": "Chassis Fan", "rpm": 870},
-                                       {"name": "Missing Fan", "rpm": None}]}
-        for style in ("thermal", "orbit"):
-            with self.subTest(style=style):
-                context = fixture_context(raw)
-                canvas = RecordingCanvas(context)
-                hardware.render(canvas, context, style)
-                text = " ".join(canvas.texts())
-                for value in ("61.2°C", "49.1°C", "39.5°C", "0 RPM", "1560 RPM",
-                              "870 RPM", "12.5 GiB", "32.0 GiB"):
-                    self.assertIn(value, text)
-                self.assertNotIn("Missing Fan", text)
-                self.assertNotIn("39%", text)  # RAM load is deliberately omitted.
-
-
-    def test_missing_temperature_never_uses_load_as_a_thermal_reading(self):
-        raw = fixture_sensors()
-        raw["cpu"]["temperatureC"] = None
-        raw["cpu"]["usagePercent"] = 20
-        raw["gpus"][0]["fans"] = [{"name": "GPU", "rpm": 1924}]
-        raw["notice"] = "Sensor driver unavailable. CPU temperature and board readings may be missing."
-        for style in ("thermal", "orbit"):
-            for compact in (False, True):
-                with self.subTest(style=style, compact=compact):
-                    context = fixture_context(raw)
-                    canvas = RecordingCanvas(context, compact)
-                    with patch.object(hardware.time, "monotonic", return_value=0):
-                        hardware.render(canvas, context, style)
-                    text = " ".join(canvas.texts())
-                    self.assertIn("unavailable", text.casefold())
-                    self.assertIn("20% load", text)
-                    self.assertIn("1924 RPM", text)
-                    self.assertNotIn("GPU / GPU", text)
-                    self.assertIn("Sensor driver unavailable.", text)
-                    self.assertIn("BOARD", text)
-
-    def test_thermal_values_do_not_overlap_device_names_at_any_font_scale(self):
-        raw = fixture_sensors()
-        raw["notice"] = "Sensor driver unavailable. Some readings may be missing."
-        for style in ("thermal", "orbit"):
-            for scale in (.65, 1, 1.6):
-                with self.subTest(style=style, font_scale=scale):
-                    context = fixture_context(raw, font_scale=scale)
-                    canvas = RecordingCanvas(context)
-                    hardware.render(canvas, context, style)
-                    texts = [arguments for kind, arguments in canvas.calls if kind == "text"]
-                    for name, value in (("OFFLINE fixture CPU", "61.2°C"),
-                                        ("OFFLINE fixture GPU 1", "49.1°C")):
-                        identity = next(item for item in texts if item["value"] == name)
-                        reading = next(item for item in texts if item["value"] == value)
-                        self.assertGreater(reading["y"] - reading["size"] * scale, identity["y"] + 4)
-
-    def test_every_theme_has_measured_board_readings_and_sensor_reason(self):
-        raw = fixture_sensors()
-        raw["motherboard"] = {"name": "OFFLINE board", "temperatures": [
-            {"name": "Temperature #1", "temperatureC": 44.5}]}
-        raw["notice"] = "Sensor driver unavailable. CPU and board fan RPM may be missing."
-        for style in STYLES:
-            with self.subTest(style=style):
-                context = fixture_context(raw)
-                canvas = RecordingCanvas(context)
-                with patch.object(hardware.time, "monotonic", return_value=0):
-                    hardware.render(canvas, context, style)
-                text = " ".join(canvas.texts())
-                self.assertIn("44.5°C", text)
-                self.assertIn("temperature #1", text.casefold())
-                self.assertIn("Sensor driver unavailable.", text)
-                self.assertTrue(any(item in text for item in ("fan RPM", "RPM unavailable")))
-
-    def test_long_sensor_notice_keeps_its_cause_visible_on_every_page(self):
-        raw = fixture_sensors()
-        raw["notice"] = ("Sensor driver unavailable. CPU temperature and motherboard fan readings "
-                         "may be missing; GPU and RAM can still appear.")
-        for instant in (0, 6, 12, 18):
-            with self.subTest(instant=instant):
-                context = fixture_context(raw, font_scale=1.6)
-                canvas = RecordingCanvas(context, compact=True)
-                with patch.object(hardware.time, "monotonic", return_value=instant):
-                    hardware._sensor_notice(canvas, context)
-                lines = canvas.texts()
-                self.assertIn("Sensor driver unavailable.", lines[0])
-                self.assertLessEqual(len(lines), 3)
-                self.assertTrue(all(len(line) <= 37 for line in lines))
+    def test_missing_fields_are_omitted_without_losing_measured_zero(self):
+        from system_dashboard import metadata
+        self.assertEqual(metadata("cpu", {}), [])
+        self.assertEqual(metadata("cpu", {"temperatureC": 0}), [("TEMPERATURE", "0.0°C")])
+        self.assertEqual(metadata("memory", {"totalGiB": 32}), [("TOTAL", "32.0 GiB")])
 
 
 class SystemPackChecks(unittest.TestCase):

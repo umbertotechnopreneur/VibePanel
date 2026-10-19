@@ -44,7 +44,7 @@ public sealed class ThemePanelOutput : IDisposable
         if (previousQuality == jpegQuality && previousJpeg is not null && previousJpeg.AsSpan().SequenceEqual(jpeg)
             && Environment.TickCount64 - submittedAt < 10_000) { return false; }
         var payload = Profile is { Encoding: PanelPixelEncoding.Jpeg, WireRotation: 0 }
-            ? jpeg : DashboardRenderer.Fade(jpeg, jpeg, Profile, 1, quality);
+            ? jpeg : PanelFrameRenderer.PrepareJpeg(jpeg, Profile, quality);
         var packet = Thermalright04165302Protocol.CreatePicturePacket(Profile, payload);
         await session.SendPacketAsync(packet, cancellationToken);
         previousJpeg = jpeg;

@@ -1,0 +1,33 @@
+# VBWR B — Vibe Panel. Copyright (c) 2026 Umberto Giacobbi. MIT.
+"""Manifest-driven pages share the worker's single monotonic theme clock."""
+from __future__ import annotations
+
+
+
+def select_page(context, manifest):
+    pages = manifest.get("pages", [])
+    if not isinstance(pages, list) or len(pages) > 8:
+        raise ValueError("A theme may declare up to eight pages.")
+    ids = [page.get("id") for page in pages if isinstance(page, dict)]
+    if len(ids) != len(pages) or any(not isinstance(value, str) or not value or len(value) > 40 for value in ids) or len(set(ids)) != len(ids):
+        raise ValueError("Theme page IDs must be unique nonempty strings.")
+    seconds = manifest.get("pageSeconds", 8)
+    if isinstance(seconds, bool) or not isinstance(seconds, int) or not 4 <= seconds <= 120:
+        raise ValueError("pageSeconds must be between 4 and 120.")
+    if any(not isinstance(page.get("title", ""), str) or len(page.get("title", "")) > 80 for page in pages):
+        raise ValueError("Page titles must be strings up to 80 characters.")
+    # An artist page appears only for the exact artist whose profile was resolved.
+    if context.category == "multimedia":
+        profile = context.artist_profile
+        if not profile or profile.get("requestedArtist") != context.artist:
+            pages = [page for page in pages if page["id"] != "artist"]
+    count = max(1, len(pages))
+    position = context.elapsed_seconds / seconds
+    context.page_cycle = int(position) // count
+    context.page_index = int(position) % count
+    context.page_count = count
+    context.page_progress = position % 1
+    context.page_id = pages[context.page_index]["id"] if pages else "main"
+    context.page_title = pages[context.page_index].get("title", context.page_id) if pages else ""
+    return context.page_id
+# VBWR E

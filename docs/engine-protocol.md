@@ -30,13 +30,13 @@ Use an ID returned by `devices`:
 
 Only one request/frame is in flight. A slow update lowers the rate rather than creating a queue. Theme updates follow the GUI's requests; they stop when the window closes or the engine reaches EOF. `stop` closes the panel. Errors close the theme output; reconnecting requires another explicit start. An accepted submission does not prove visible pixels.
 
-Normal GUI launches start in preview. At the owner's request, Windows sign-in uses `--restore-last-session`: the studio issues one `start` for its saved device/theme, then the usual `present` requests with saved settings, while its window stays in the tray. Missing saved choices never fall back to another device or theme. A late device is checked every ten seconds; Stop cancels that startup wait. A failed start is not replayed.
+Every Windows GUI launch automatically starts the saved display and theme. With no saved display, a single connected device is selected; multiple devices require a selection. At the owner's request, Windows sign-in uses `--restore-last-session`: the studio issues one `start` for its saved device/theme, then the usual `present` requests with saved settings, while its window stays in the tray. Missing saved choices never fall back to another device or theme. A late device is checked every ten seconds; Stop cancels that startup wait. A failed start is not replayed.
 
 The studio requests `devices` every ten seconds, with one enumeration pending at most. Discovery reads Windows interface metadata and closes a missing theme session; it never sends a probe or a frame. Reconnection only updates the list, apart from the initial Windows-startup wait described above. Starting output still needs `start`. A browser preview failure leaves a successfully opened USB session active.
 
 During explicit `present` requests, an identical JPEG is sent again after ten seconds. This detects a stale handle after an unplug/replug between enumerations. It uses the existing session and never reopens it. An I/O failure closes output and requires a new explicit start. Legacy `vp play` also stops on a disconnect rather than retrying.
 
-`colorFiltersEnabled: false` skips the final color pass, including theme overrides. It keeps the slider values. The studio saves this switch and starts with it off; omitted engine values default to true for CLI color requests. Replies include `accentColor`, the theme's cached accent, for the preview shadow and slider guides.
+`colorFiltersEnabled: false` skips the final color pass, including theme overrides. It keeps the slider values. The studio saves this switch and starts with it off; omitted engine values default to true for CLI color requests. Replies include `accentColor`, the theme's cached accent, for the slider guides.
 
 ## Rate and quality
 
@@ -46,7 +46,7 @@ During explicit `present` requests, an identical JPEG is sent again after ten se
 
 `PanelState` adds `frameMilliseconds` (server-side data/render/send duration) and `submittedFrames`. These are not measurements of physical display latency. `displayRunning` and `status` report the session.
 
-`nextFrameMilliseconds` is normally null. During a 600 ms track/cover crossfade it requests updates at up to 40 ms, or the user's faster interval. The studio returns to the selected interval when it becomes null. The worker blends before the single color pass and JPEG encoding, so preview and USB receive the same image. Slow rendering or USB can reduce the fade steps; no frames are queued.
+`nextFrameMilliseconds` is normally null. During a 600 ms page or track/cover crossfade it requests updates at up to 40 ms, or the user's faster interval. The studio returns to the selected interval when it becomes null. The worker blends before the single color pass and JPEG encoding, so preview and USB receive the same image. Slow rendering or USB can reduce the fade steps; no frames are queued.
 
 ## Other settings
 
@@ -88,7 +88,7 @@ Codex themes read optional local hook activity. The latest twelve observed event
 
 The engine caches that preference. If a separate CLI changes it while the GUI is open, reopen the GUI to pick it up.
 
-The engine resolves Python from `VIBEPANEL_PYTHON`, bundled `python/python.exe`, then PATH. It uses a persistent worker with a twelve-second render deadline. Themes are executable Python, not sandboxed documents.
+The engine resolves Python from `VIBEPANEL_PYTHON`, bundled `python/python.exe`, and requires that file to exist. There is no PATH search. It uses a persistent worker with a twelve-second render deadline. Themes are executable Python, not sandboxed documents.
 
 ## CLI
 
@@ -108,8 +108,8 @@ vp theme media.aurora --device 1 --interval-ms 250 --quality medium --seconds 20
 
 Export is local and never overwrites a file. Device playback stops on Ctrl+C, its optional duration or a failure. It does not reconnect automatically.
 
-`--saturation`, `--hue`, `--brightness`, `--contrast` and `--no-spectrum` work with both `theme --export` and `theme --device`. Use decimal points for numeric arguments. `--no-spectrum` hides only supported FFT bars; VU meters remain. Legacy diagnostic `preview` and C# scenes are unchanged.
+`--saturation`, `--hue`, `--brightness`, `--contrast` and `--no-spectrum` work with both `theme --export` and `theme --device`. Use decimal points for numeric arguments. `--no-spectrum` hides only supported FFT bars; VU meters remain.
 
-Legacy `start` requests without `themeId` retain the C# scene/rotation behavior. `levels` reads cached playback meters. `media` controls the current OS media session when explicitly requested; there is no volume-write method.
+`state`, `start` and `present` require a theme ID. The retired C# scenes and scene fields are removed. `levels` reads cached playback meters. `media` controls the current OS media session when explicitly requested; there is no volume-write method.
 
 Request lines are limited to 16 KiB; replies to two million characters. Reply fields are `version`, matching `id`, `ok`, `result` and `error`. Native providers currently support Windows.

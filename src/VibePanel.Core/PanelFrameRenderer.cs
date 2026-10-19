@@ -14,6 +14,16 @@ namespace VibePanel.Core;
 /// <summary>Renders local images and a diagnostic chart using Windows GDI+.</summary>
 public static class PanelFrameRenderer
 {
+    /// <summary>Converts an already rendered frame only when the panel needs rotation or RGB565.</summary>
+    public static byte[] PrepareJpeg(byte[] jpeg, DisplayProfile profile, int jpegQuality = 90)
+    {
+        using var stream = new MemoryStream(jpeg, writable: false);
+        using var image = RasterImage.Open(stream);
+        if (image.Width != profile.Width || image.Height != profile.Height) { throw new IOException("Frame dimensions do not match the panel."); }
+        using var bitmap = new Bitmap(image);
+        return Encode(bitmap, profile, jpegQuality);
+    }
+
     /// <summary>A black frame clears an inactive screen without closing or reopening its USB session.</summary>
     public static byte[] Blank(DisplayProfile profile, int jpegQuality = 90)
     {

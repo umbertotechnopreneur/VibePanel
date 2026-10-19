@@ -12,6 +12,8 @@ I used AI to help write it. **Memory, speed and security checks are still on my 
 
 For now, it runs on Windows. [How to use it](PORTABLE.md) · [What's left to do](cave.md).
 
+System themes have rotating gauges, charts and cooling pages. Music themes can show an [artist photo and short biography](docs/artist-pages.md) from public online sources. Missing data stays hidden.
+
 This is my hobby project. [MIT license](LICENSE). No warranty.
 
 ---

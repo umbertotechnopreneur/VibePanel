@@ -17,11 +17,24 @@ my-pack/
 
 Put the pack in `%LOCALAPPDATA%\VibePanel\themes`. Press **Reload** in the app.
 
-## Colors and fades
+## Pages
+
+Declare pages and their interval in the manifest:
+
+```json
+"pages": [{"id":"overview","title":"At a glance"},{"id":"activity","title":"Live activity"}],
+"pageSeconds": 8
+```
+
+Inside `render`, draw the page named by `s.page_id`. The worker also supplies `page_title`, `page_index`, `page_count`, `page_cycle` and `page_progress`. It owns one monotonic timer and a 600 ms crossfade. Page fades work with color filters off. A manifest may declare one to eight unique page IDs and an integer interval from 4 to 120 seconds. Omitting pages gives one static page.
+
+The ten System themes have two or three pages at eight seconds each. Music themes use playback and an optional [artist page](artist-pages.md) at twelve seconds each. This page rotation is separate from the studio's twenty-second theme cycling.
+
+## Color adjustments
 
 The theme starts with the colors chosen in the app. It can change them:
 
-Turn on **Color filters** to see these changes. Turning them off keeps the values but skips filters and fades.
+Turn on **Color filters** to see these changes. Turning them off keeps the values but skips color adjustments, including fades through black. Page and track crossfades still work.
 
 ```python
 def render(c, s):
@@ -44,7 +57,7 @@ Use `s.show_spectrum` to respect the sound-bars checkbox. `c.spectrum(...)` alre
 
 ## CLI
 
-System themes receive CPU, GPU, motherboard and physical RAM in `s.sensors`. CPU and GPU objects may include named `fans` with measured `rpm`; motherboard readings include the original sensor names and optional `temperatures`. A CPU fan named by the board can appear under CPU; generic channels retain their names. Keep measured zeroes. Show unavailable temperatures/fans explicitly and display the provider notice when present. There is no swap field. Thermal Atlas and Airflow separate device names, temperatures, load and fan readings into distinct bands. Long groups of readings page as complete lines. Their blurred hardware photos are illustrative backgrounds, not pictures of installed hardware. The shared `hardware.py` helper applies this to all ten System themes. [Snapshot format](../theme-runtime/README.md#system-snapshots).
+System themes receive CPU, GPU, motherboard and physical RAM in `s.sensors`. CPU/GPU `readings` retain sensor names, types and units. `fans` contain measured RPM; generic board channels keep their names. Preserve measured zeroes and omit absent fields. `system_dashboard.py` draws gauges, timestamped history, core-load bars, memory occupancy and named watt/RPM channels. Power channels keep separate names and are never added together. `hardware.py` retains at most 60 observed samples per series; repeated timestamps add nothing. There is no simulated history or swap field. [Snapshot format](../theme-runtime/README.md#system-snapshots).
 
 ```powershell
 vp fonts

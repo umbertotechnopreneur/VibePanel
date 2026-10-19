@@ -15,7 +15,12 @@ public sealed record HardwareSensorSnapshot(HardwareDeviceSensors? Cpu, IReadOnl
 
 /// <summary>Measurements supplied by the selected hardware library, in percent, MHz, and degrees Celsius.</summary>
 public sealed record HardwareDeviceSensors(string Name, double? UsagePercent, double? ClockMHz, double? TemperatureC,
-    string? ClockLabel = null, string? TemperatureLabel = null, IReadOnlyList<HardwareFanSensors>? Fans = null);
+    string? ClockLabel = null, string? TemperatureLabel = null, IReadOnlyList<HardwareFanSensors>? Fans = null,
+    IReadOnlyList<HardwareReading>? Readings = null);
+
+/// <summary>A named library value retained for richer themes without changing its physical meaning.</summary>
+public sealed record HardwareReading(string Id, string Name, string Type, double? Value, string Unit);
+public sealed record HardwareMemoryModule(string Name, double? CapacityGiB, IReadOnlyList<HardwareReading>? Readings = null);
 
 /// <summary>A named tachometer reading from the selected sensor library. RPM zero is a measured stop.</summary>
 public sealed record HardwareFanSensors(string Name, double Rpm);
@@ -31,4 +36,6 @@ public sealed record HardwareTemperatureSensors(string Name, double TemperatureC
 public sealed record HardwareDriverStatus(bool Available, string? Path, string? Notice = null);
 
 /// <summary>Physical memory in GiB (2^30 bytes); excludes swap and committed virtual memory.</summary>
-public sealed record HardwareMemorySensors(double? TotalGiB, double? UsedGiB, double? UsagePercent);
+public sealed record HardwareMemorySensors(double? TotalGiB, double? UsedGiB, double? UsagePercent,
+    string? Type = null, double? ConfiguredSpeedMTs = null, double? ClockMHz = null,
+    IReadOnlyList<HardwareMemoryModule>? Modules = null, string? MetadataNotice = null);

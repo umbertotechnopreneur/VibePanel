@@ -4,6 +4,8 @@ I use a persistent Python worker and Skia's offscreen raster canvas. The engine 
 
 The three independent packs in `themes/media`, `themes/codex` and `themes/system` contain ten themes each. A pack is a folder with `pack.json`; each theme has its own `theme.json` and `render.py`. Multimedia and System packs do not need Codex or its hooks. Categories come from the manifest's `category`, not translated folder names. Installing a theme never installs or enables a data provider.
 
+System themes declare two or three pages at eight-second intervals. Music themes alternate playback and an attributed artist page every twelve seconds when a matching profile exists. The worker exposes `page_id`, `page_title`, `page_index`, `page_count`, `page_cycle` and `page_progress`; page changes share the track compositor's 600 ms crossfade. See [page manifests](../docs/theme-packs.md#pages) and [online artist data](../docs/artist-pages.md).
+
 ## Runtime
 
 ### System snapshots
@@ -14,9 +16,9 @@ The engine sends `state.sensors` only when collecting System data. One Windows a
 {"cpu":{"name":"CPU","usagePercent":38,"clockMHz":4250,"temperatureC":62,"clockLabel":"Average clock","temperatureLabel":"CPU package","fans":[{"name":"CPU Fan","rpm":1250}]},"gpus":[{"name":"GPU","usagePercent":67,"clockMHz":1850,"temperatureC":58,"clockLabel":"Core clock","temperatureLabel":"GPU core","fans":[{"name":"GPU","rpm":1450}]}],"motherboard":{"name":"Board","temperatureC":37,"temperatureLabel":"System","fans":[{"name":"Chassis Fan #1","rpm":880}]},"memory":{"totalGiB":32,"usedGiB":12.4,"usagePercent":38.75},"updatedAtUtc":"2026-10-17T07:32:00Z","notice":null}
 ```
 
-These example numbers are illustrative. Unknown fields are null. System themes label unavailable temperatures/fans, show `notice`, reflow other content and preserve measured zeroes. `motherboard.temperatures` can contain additional `{name, temperatureC}` channels with their original labels. Optional `driver` contains `{available, path, notice}` for existing PawnIO registration; `available` means installation found, not validated sensor access. RAM uses GiB (2^30 bytes). Swap is excluded. History keeps at most 60 real samples per metric, deduplicated by snapshot timestamp, with a maximum of 64 series. A missing measurement clears its trace. No synthetic graph appears while history is empty.
+These example numbers are illustrative. Unknown fields are null. System themes omit absent fields, reflow available content and preserve measured zeroes. Provider notices remain visible in the studio. `motherboard.temperatures` can contain additional `{name, temperatureC}` channels with their original labels. Optional `driver` contains `{available, path, notice}` for existing PawnIO registration; `available` means installation found, not validated sensor access. RAM uses GiB (2^30 bytes). Swap is excluded. History keeps at most 60 real samples per metric, deduplicated by snapshot timestamp, with a maximum of 64 series. A missing measurement clears its trace. No synthetic graph appears while history is empty.
 
-No driver installer or monitoring GUI is bundled. The old WinRing0 integration is removed. The library's memory/SPD group is disabled so it cannot load its additional RAM driver. See [sensor setup](../docs/sensors.md) for prerequisites and verification limits.
+No driver installer or monitoring GUI is bundled. The old WinRing0 integration is removed. The owner-approved RAM/SPD group uses the NDD dependency and existing PawnIO. No driver is installed by the app. See [sensor setup](../docs/sensors.md) for prerequisites and verification limits.
 
 ### Python packages
 
@@ -40,7 +42,7 @@ One UTF-8 JSON object per line, request and response IDs preserved:
 
 Errors are `{ "version": 1, "id": "frame-1", "ok": false, "error": "..." }`. All diagnostics and accidental theme prints go to stderr. A missing Python dependency is reported for each request rather than corrupting stdout. A malformed or unsupported theme produces an error, never a fabricated scene.
 
-Multimedia track or cover changes crossfade for 600 ms from the last frame to the new live frame. The worker keeps at most two unfiltered snapshots, blends them on a native CPU raster surface, then applies the current color filter once before JPEG encoding. Track fades also work with color filters off. Position, pause and meters do not start a new fade. A second track change starts from the current mix; changing theme, geometry, appearance or font clears the old track images. Codex frames keep no track history.
+Page changes and Multimedia track or cover changes crossfade for 600 ms from the last frame to the new live frame. The worker keeps at most two unfiltered snapshots, blends them on a native CPU raster surface, then applies the current color filter once before JPEG encoding. Track fades also work with color filters off. Position, pause and meters do not start a new fade. A second track change starts from the current mix; changing theme, geometry, appearance or font clears the old track images. Codex frames keep no track history.
 
 The response adds `transitionActive`. While true, the host requests another frame within 40 ms (or the user's faster interval), with one frame in flight. After the fade it restores the selected interval. Slow rendering or USB can reduce the number of fade steps; the duration uses a monotonic clock, not a frame count.
 
@@ -64,7 +66,7 @@ def render(c, s):
     # Draw the rest of the theme as usual. The worker applies colors at the end.
 ```
 
-`ColorAdjustments(...).validate()` is also available from `color_adjustments`; it validates all four fields before normalizing them to floats and returns the same object. Do not save `s.colors` in module globals or mutate the request. These overrides apply only to that rendered frame: they do not change saved UI settings, shared backdrop caches or the next frame. The twenty bundled themes currently leave all four values untouched.
+`ColorAdjustments(...).validate()` is also available from `color_adjustments`; it validates all four fields before normalizing them to floats and returns the same object. Do not save `s.colors` in module globals or mutate the request. These overrides apply only to that rendered frame: they do not change saved UI settings, shared backdrop caches or the next frame. The thirty bundled themes currently leave all four values untouched.
 
 `s.color_filters_enabled` follows the studio's **Color filters** switch. Off skips the final color pass, including theme overrides and fades. The studio saves the values and starts with filters off.
 
@@ -85,7 +87,7 @@ def render(c, s):
 
 The worker's `fonts` method returns `{ "version": 1, "id": "fonts-1", "ok": true, "families": [], "notice": null }`, with the array populated from the renderer's installed-font backend. It uses [FontMgr and native style sets](https://skia-python.github.io/skia-python/reference/skia.FontMgr.html), accepting only families whose normal and bold matches report [isFixedPitch](https://skia-python.github.io/skia-python/reference/skia.Typeface.html#skia.Typeface.isFixedPitch). Names are not guessed from “Mono,” and no fonts are installed or directories scanned. Discovery is cached once per worker: restart it after installing fonts. At most 4,096 families are inspected, 512 names returned, and 32 backend errors tolerated; limits, missing fonts and partial results have an explicit notice. Names are sorted, case-insensitively deduplicated and limited to 128 printable characters. Fixed-pitch metadata is not a guarantee that every glyph has identical advance width.
 
-`coverKey` stays in each media snapshot. Send `coverBase64` when that key changes or when the worker starts. Omit it on later frames to reuse the cached image; explicitly send `null` to clear it. Media metadata, elapsed position, volume and peak are actual provider values. `null` is unavailable, not zero. `audio.volumePercent` is the media application's volume setting, labeled **APP VOLUME**, not the level of the complete output mix. The legacy `audio.peak` is an instantaneous app-session linear amplitude, not spectrum data.
+`coverKey` stays in each media snapshot. Send `coverBase64` when that key changes or when the worker starts. Omit it on later frames to reuse the cached image; explicitly send `null` to clear it. Media metadata, elapsed position, volume and peak are actual provider values. `null` is unavailable, not zero. `audio.volumePercent` is the media application's volume setting, labeled **APP VOLUME**, not the level of the complete output mix. `audio.peak` is an instantaneous app-session linear amplitude, not spectrum data.
 
 ### Output spectrum and stereo meters
 
