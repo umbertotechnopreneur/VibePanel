@@ -28,8 +28,17 @@ public sealed partial class WindowsMetricsService
                     if (modules.Count >= 16) { break; }
                     var type = Convert.ToInt32(module["SMBIOSMemoryType"] ?? 0, CultureInfo.InvariantCulture) switch
                     {
-                        20 => "DDR", 21 => "DDR2", 24 => "DDR3", 26 => "DDR4", 27 => "LPDDR", 28 => "LPDDR2",
-                        29 => "LPDDR3", 30 => "LPDDR4", 34 => "DDR5", 35 => "LPDDR5", _ => null
+                        20 => "DDR",
+                        21 => "DDR2",
+                        24 => "DDR3",
+                        26 => "DDR4",
+                        27 => "LPDDR",
+                        28 => "LPDDR2",
+                        29 => "LPDDR3",
+                        30 => "LPDDR4",
+                        34 => "DDR5",
+                        35 => "LPDDR5",
+                        _ => null
                     };
                     if (type is not null) { types.Add(type); }
                     var speed = Convert.ToDouble(module["ConfiguredClockSpeed"] ?? 0, CultureInfo.InvariantCulture);

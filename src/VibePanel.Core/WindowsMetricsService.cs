@@ -153,7 +153,7 @@ public sealed partial class WindowsMetricsService(bool allowHardwareAccess = fal
         }
     }
 
-    /// <summary>Preserves the legacy scene contract, derived from the same cached library sample.</summary>
+    /// <summary>Returns the terminal dashboard metrics from the same cached library sample.</summary>
     public MachineMetrics Read()
     {
         var sensors = ReadSensors();

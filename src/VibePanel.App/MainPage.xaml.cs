@@ -257,6 +257,7 @@ public sealed partial class MainPage : Page
         var renderedTheme = state.ActiveThemeId ?? selectedTheme;
         var category = catalog?.Themes.FirstOrDefault(theme => theme.Id == renderedTheme)?.Category ?? selectedCategory;
         UpdateFrameHeading(renderedTheme, state.FrameSuppressed);
+        UpdateArtistSources(state.ArtistSources);
         SourceText.Text = state.FrameSuppressed ? "No enabled screen is available." : category == "codex" ? "OpenAI Codex · local activity"
             : category == "system" ? "Local hardware sensors" : state.Source;
         if (state.System.Driver is { } driver) { ApplySensorDriverStatus(driver); }
@@ -391,6 +392,8 @@ public sealed partial class MainPage : Page
         foreach (var text in new[] { Subtitle, Author, HeaderDot, CatalogText, SourceText, StatusText, LoadingText, FontLabel, SizeLabel, GeometryLabel, DeviceLabel, RefreshLabel, QualityLabel, SaturationLabel, HueLabel, BrightnessLabel, ContrastLabel, FiltersStatus, ScreensHelpText, CodexEventText, CodexHelpText, FooterDot2, AboutVersion, AboutDisclosure, AboutInitiative, AdministratorHelp }) { text.Foreground = muted; }
         foreach (var text in new[] { Eyebrow, LibraryHeading, CategoryText, PreviewBadgeText, ScreensHeading, CodexSetupHeading }) { text.Foreground = accent; }
         foreach (var link in new[] { Manifesto, AboutLink, TermsLink, PrivacyLink, AboutManifesto, ProjectLink, InitiativeLink, WebsiteLink, AboutTerms, AboutPrivacy }) { link.Foreground = accent; }
+        ThemePagesText.Foreground = muted;
+        foreach (var link in new[] { ArtistBiographyLink, ArtistPhotoLink, ArtistSalesLink }) { link.Foreground = accent; }
         CategoriesBox.Background = ThemesBox.Background = transparent;
         FontBox.Background = surface;
         FontBox.Foreground = ink;
@@ -454,6 +457,7 @@ public sealed partial class MainPage : Page
             ? Visibility.Visible : Visibility.Collapsed;
         CategoryText.Text = (categoryRows.FirstOrDefault(row => row.Id == selectedCategory)?.Name ?? selectedCategory).ToUpperInvariant();
         SelectedThemeText.Text = themeRows.FirstOrDefault(row => row.Id == selectedTheme)?.Name ?? "No themes installed";
+        UpdatePageLabel(catalog?.Themes.FirstOrDefault(theme => theme.Id == selectedTheme));
         ToolTipService.SetToolTip(SelectedThemeText, null);
         PositionText.Text = $"{ThemesBox.SelectedIndex + 1:00} / {themeRows.Count:00}";
         PreviousButton.IsEnabled = NextButton.IsEnabled = themeRows.Count > 1;
@@ -461,6 +465,26 @@ public sealed partial class MainPage : Page
         UpdateDisplayControls();
         UpdateRows();
         if (themeRows.Count == 0) { ClearPreview(); LoadingTitle.Text = "This category is empty."; LoadingText.Text = "Add a theme pack and reload the library."; }
+    }
+
+    private void UpdatePageLabel(ThemeChoiceDto? theme)
+    {
+        ThemePagesText.Text = theme?.PageCount > 1 ? $"{theme.PageCount} pages · {theme.PageSeconds}s each · fade" : "";
+        if (theme?.Category == "multimedia") { ThemePagesText.Text += " · artist info online when available"; }
+    }
+
+    private void UpdateArtistSources(ArtistSourcesDto? sources)
+    {
+        static void Set(HyperlinkButton link, string? value)
+        {
+            var valid = Uri.TryCreate(value, UriKind.Absolute, out var uri) && uri.Scheme == "https";
+            link.NavigateUri = valid ? uri : null;
+            link.Visibility = valid ? Visibility.Visible : Visibility.Collapsed;
+        }
+        Set(ArtistBiographyLink, sources?.BiographyUrl);
+        Set(ArtistPhotoLink, sources?.PhotoUrl);
+        Set(ArtistSalesLink, sources?.SalesUrl);
+        ArtistSourcesPanel.Visibility = sources is null ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private void Navigate(int direction)
@@ -491,6 +515,7 @@ public sealed partial class MainPage : Page
         var category = categoryRows.FirstOrDefault(item => item.Id == theme.Category)?.Name ?? theme.Category;
         CategoryText.Text = category.ToUpperInvariant();
         SelectedThemeText.Text = theme.Name;
+        UpdatePageLabel(theme);
         ToolTipService.SetToolTip(SelectedThemeText, themeId != selectedTheme ? "The selected screen is unavailable. Showing this enabled screen on the display." : null);
     }
 

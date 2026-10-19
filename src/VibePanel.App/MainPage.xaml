@@ -23,7 +23,7 @@ VBWR E -->
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                 <Image x:Name="ProductIcon" Source="/VibePanel.UI;component/Assets/vibepanel-icon.png" Width="62" Height="62" Stretch="Uniform" Margin="0,0,14,0"/>
                 <StackPanel VerticalAlignment="Center">
-                    <TextBlock x:Name="Eyebrow" Text="C O D E N A M E" FontSize="9"/>
+                    <TextBlock x:Name="Eyebrow" Text="D I S P L A Y   S T U D I O" FontSize="9"/>
                     <TextBlock x:Name="Heading" Text="Vibe Panel" FontSize="28" FontWeight="SemiBold" Margin="0,4,0,0"/>
                     <StackPanel Orientation="Horizontal" Margin="0,7,0,0">
                         <TextBlock x:Name="Author" Text="by Umberto Giacobbi" FontSize="10" VerticalAlignment="Center"/>
@@ -42,7 +42,7 @@ VBWR E -->
                     </StackPanel>
                 </Grid>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
-                    <HyperlinkButton x:Name="Manifesto" Content="Follow the vibe · Manifesto" NavigateUri="https://umbertogiacobbi.biz/vibeware/manifesto" TargetName="_blank" FontSize="10" VerticalAlignment="Center"/>
+                    <HyperlinkButton x:Name="Manifesto" Content="VibeWare · Manifesto" NavigateUri="https://umbertogiacobbi.biz/vibeware/manifesto" TargetName="_blank" FontSize="10" VerticalAlignment="Center"/>
                     <HyperlinkButton x:Name="InitiativeLogo" NavigateUri="https://umbertogiacobbi.biz/vibeware/manifesto" TargetName="_blank" Margin="10,0,0,0" ToolTipService.ToolTip="VibeWare manifesto" AutomationProperties.Name="VibeWare manifesto">
                         <Image x:Name="InitiativeImage" Source="/VibePanel.UI;component/Assets/vibeware-logo.png" Width="36" Height="36" Stretch="Uniform"/>
                     </HyperlinkButton>
@@ -126,6 +126,12 @@ VBWR E -->
                     <StackPanel>
                         <TextBlock x:Name="CategoryText" Text="MULTIMEDIA" FontSize="10"/>
                         <TextBlock x:Name="SelectedThemeText" Text="Choose a theme" FontSize="26" FontWeight="SemiBold" Margin="0,6,0,0"/>
+                        <TextBlock x:Name="ThemePagesText" FontSize="11" Margin="0,7,0,0"/>
+                        <StackPanel x:Name="ArtistSourcesPanel" Orientation="Horizontal" Visibility="Collapsed" Margin="0,4,0,0">
+                            <HyperlinkButton x:Name="ArtistBiographyLink" Content="Artist biography" TargetName="_blank" FontSize="11" Padding="0"/>
+                            <HyperlinkButton x:Name="ArtistPhotoLink" Content="Photo / license" TargetName="_blank" FontSize="11" Padding="0" Margin="16,0,0,0"/>
+                            <HyperlinkButton x:Name="ArtistSalesLink" Content="Sales source" TargetName="_blank" FontSize="11" Padding="0" Margin="16,0,0,0"/>
+                        </StackPanel>
                     </StackPanel>
                     <Grid x:Name="PreviewBadge" Grid.Column="1" VerticalAlignment="Center">
                         <TextBlock x:Name="PreviewBadgeText" Text="LOCAL PREVIEW" FontSize="10"/>
@@ -139,7 +145,7 @@ VBWR E -->
                         <html:HtmlPresenter x:Name="PreviewImage" IsHitTestVisible="False" ScrollMode="Disabled" Html="&lt;div id='vp-preview' style='position:absolute;inset:0;overflow:hidden'&gt;&lt;canvas style='position:absolute;inset:0;width:100%;height:100%;opacity:0'&gt;&lt;/canvas&gt;&lt;canvas style='position:absolute;inset:0;width:100%;height:100%'&gt;&lt;/canvas&gt;&lt;/div&gt;"/>
                     </Grid>
                     <StackPanel x:Name="LoadingPanel" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="440" Margin="24">
-                        <TextBlock x:Name="LoadingTitle" Text="Your screen, your style." FontSize="23" HorizontalAlignment="Center"/>
+                        <TextBlock x:Name="LoadingTitle" Text="Choose your display theme" FontSize="23" HorizontalAlignment="Center"/>
                         <TextBlock x:Name="LoadingText" Text="Loading the local theme engine…" FontSize="12" TextWrapping="Wrap" TextAlignment="Center" Margin="0,12,0,0"/>
                     </StackPanel>
                 </Grid>

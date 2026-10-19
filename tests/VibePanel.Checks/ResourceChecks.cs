@@ -10,7 +10,7 @@ using VibePanel.Core;
 
 internal static class ResourceChecks
 {
-    internal static void Run(Action<bool, string> check, DashboardSnapshot snapshot)
+    internal static void Run(Action<bool, string> check)
     {
         var root = Path.Combine(AppContext.BaseDirectory, "resource-fixtures-" + Guid.NewGuid().ToString("N"));
         var engine = Path.Combine(root, "engine");
@@ -98,19 +98,6 @@ internal static class ResourceChecks
             catch (IOException) { rejected = true; }
             check(rejected, "truncated raster header is rejected");
         }
-        var renderer = new DashboardRenderer();
-        var profile = DisplayProfileCatalog.GetRequired("wide-1280x480");
-        for (var index = 0; index < 32; index++)
-        {
-            using (var graphics = Graphics.FromImage(bitmap)) { graphics.Clear(Color.FromArgb(index * 7, 100, 190)); }
-            using var cover = new MemoryStream();
-            bitmap.Save(cover, ImageFormat.Png);
-            var current = snapshot with { Media = snapshot.Media with { Artwork = cover.ToArray() } };
-            var frame = renderer.Render(current, profile);
-            check(frame.Length > 0 && renderer.CachedBackgroundCount <= 12 && renderer.CachedBackgroundBytes <= 8 * 1024 * 1024,
-                "changing artwork keeps the real legacy renderer cache bounded");
-        }
-        check(renderer.CachedBackgroundCount == 12, "older backgrounds are evicted after 32 covers");
     }
 
     private sealed class DeclaredLengthStream(long length) : MemoryStream

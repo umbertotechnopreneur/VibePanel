@@ -16,13 +16,10 @@ internal sealed class EngineServer : IDisposable
     private readonly WindowsMetricsService metrics = new(allowHardwareAccess: true);
     private readonly DashboardService dashboard;
     public EngineServer() => dashboard = new(WindowsDashboardProviders.Create(metrics));
-    private readonly DashboardRenderer renderer = new();
     private readonly PythonThemeRenderer themeRenderer = new();
     private readonly CodexProcessMonitor codexProcess = new();
     private readonly Dictionary<string, DisplayDevice> devices = [];
     private HardwareDriverStatus? sensorDriver;
-    private CancellationTokenSource? playbackCancellation;
-    private Task? playback;
     private string status = "Local preview only. The USB display has not been started.";
     private string? previousFingerprint;
     private byte[]? preview;
@@ -101,7 +98,7 @@ internal sealed class EngineServer : IDisposable
                 preview = null;
                 previewNotice = null;
                 return new ThemeCatalogDto([new("multimedia", "Music"), new("codex", "Codex"), new("system", "System")],
-                    themeCatalog.Themes.Select(theme => new ThemeChoiceDto(theme.Id, theme.Name, theme.Category, theme.Description, theme.PackId, theme.SupportsSpectrum)).ToArray(), themeCatalog.Notices);
+                    themeCatalog.Themes.Select(theme => new ThemeChoiceDto(theme.Id, theme.Name, theme.Category, theme.Description, theme.PackId, theme.SupportsSpectrum, theme.PageCount, theme.PageSeconds)).ToArray(), themeCatalog.Notices);
             case "fonts":
                 var fonts = await themeRenderer.ListFontsAsync();
                 return new FontCatalogDto(fonts.Families, fonts.Notice);
@@ -113,31 +110,21 @@ internal sealed class EngineServer : IDisposable
             case "levels": return dashboard.Audio.ReadLevels();
             case "start":
                 var options = Parameters<StartOptions>(request);
-                if (themeOutput is not null || playback is { IsCompleted: false }) { throw new InvalidOperationException("Stop the current display session first."); }
+                if (themeOutput is not null) { throw new InvalidOperationException("Stop the current display session first."); }
                 if (!devices.TryGetValue(options.DeviceId, out var selected)) { throw new ArgumentException("Refresh and choose a connected panel."); }
                 var connected = DisplayDiscovery.FindDevices().SingleOrDefault(item => item.DevicePath == selected.DevicePath && item.Transport == selected.Transport)
                     ?? throw new IOException("The selected panel disconnected. Refresh the device list.");
                 if (options.ProfileId != "auto") { _ = DisplayProfileCatalog.GetRequired(options.ProfileId); }
-                if (options.ThemeId is not null)
-                {
-                    _ = FindTheme(options.ThemeId);
-                    themeOutput = await ThemePanelOutput.OpenAsync(connected, options.ProfileId);
-                    themeDeviceId = options.DeviceId;
-                    frameMilliseconds = null;
-                    previousFingerprint = null;
-                    preview = null;
-                    previewNotice = null;
-                    Volatile.Write(ref status, $"Display ready · {themeOutput.Profile.Width} × {themeOutput.Profile.Height}");
-                    return new DisplayStartResult(true, themeOutput.Profile.Id);
-                }
-                DashboardScene? scene = options.Scene is null ? null : DashboardScenes.Parse(options.Scene);
-                playbackCancellation?.Dispose();
-                playbackCancellation = new();
-                var token = playbackCancellation.Token;
-                Volatile.Write(ref status, "Starting the selected panel. Physical rendering is not confirmed by submission.");
-                playback = RunDisplayAsync(connected, options.ProfileId, scene, token);
-                return new DisplayStartResult(true);
-            case "stop": await StopAsync(); return new { stopped = playback is null || playback.IsCompleted };
+                _ = FindTheme(options.ThemeId ?? throw new ArgumentException("Choose a theme before starting the display."));
+                themeOutput = await ThemePanelOutput.OpenAsync(connected, options.ProfileId);
+                themeDeviceId = options.DeviceId;
+                frameMilliseconds = null;
+                previousFingerprint = null;
+                preview = null;
+                previewNotice = null;
+                Volatile.Write(ref status, $"Display ready · {themeOutput.Profile.Width} × {themeOutput.Profile.Height}");
+                return new DisplayStartResult(true, themeOutput.Profile.Id);
+            case "stop": await StopAsync(); return new { stopped = true };
             case "media":
                 await dashboard.Media.ControlAsync(Parameters<MediaOptions>(request).Action);
                 return new { accepted = true };
@@ -175,20 +162,15 @@ internal sealed class EngineServer : IDisposable
     private async Task<PanelState> StateAsync(PreviewOptions options)
     {
         ValidatePreviewOptions(options);
-        ThemeDefinition? theme = null;
-        if (options.ThemeId is not null)
-        {
-            theme = FindTheme(options.ThemeId);
-        }
-        var scene = theme is null ? DashboardScenes.Parse(options.Scene) : DashboardScene.Music;
+        var theme = FindTheme(options.ThemeId ?? throw new ArgumentException("Choose a theme for the preview."));
         var profile = DisplayProfileCatalog.GetRequired(options.ProfileId) with { Encoding = PanelPixelEncoding.Jpeg, WireRotation = 0 };
-        var includeSystem = theme is null;
-        var includeMedia = theme is null || theme.Category == "multimedia";
-        var includeSensors = theme?.Category == "system";
+        const bool includeSystem = false;
+        var includeMedia = theme.Category == "multimedia";
+        var includeSensors = theme.Category == "system";
         if (lastSnapshot is null || snapshotIncludesSystem != includeSystem || snapshotIncludesMedia != includeMedia || snapshotIncludesSensors != includeSensors
-            || Environment.TickCount64 - snapshotAt >= (theme is null ? 2000 : options.RefreshIntervalMilliseconds))
+            || Environment.TickCount64 - snapshotAt >= options.RefreshIntervalMilliseconds)
         {
-            lastSnapshot = await dashboard.ReadAsync(includeSystem, includeMedia, analyzePlayback: theme?.Category == "multimedia", includeSensors: includeSensors);
+            lastSnapshot = await dashboard.ReadAsync(includeSystem, includeMedia, analyzePlayback: theme.Category == "multimedia", includeSensors: includeSensors);
             snapshotAt = Environment.TickCount64;
             snapshotIncludesSystem = includeSystem;
             snapshotIncludesMedia = includeMedia;
@@ -199,33 +181,25 @@ internal sealed class EngineServer : IDisposable
         {
             DiscoverDevices();
         }
-        int? drift = options.AmbientDrift ? DashboardRenderer.AmbientOffset() : null;
-        var fingerprint = theme is null
-            ? DashboardRenderer.Fingerprint(snapshot, scene) + profile.Id + options.Light + drift
-            : $"{theme.Id}|{profile.Id}|{options.Light}|{options.AmbientDrift}|{options.FontFamily}|{options.FontScale}|{options.JpegQuality}|{options.SaturationPercent}|{options.HueDegrees}|{options.ShowSpectrum}|{options.BrightnessPercent}|{options.ContrastPercent}|{options.ColorFiltersEnabled}";
-        var paletteKey = theme?.Id + (options.Light ? "@light" : "@dark");
-        var palette = options.Palettes?.GetValueOrDefault(paletteKey) ?? options.Palettes?.GetValueOrDefault(theme?.Id ?? "");
+        var fingerprint = $"{theme.Id}|{profile.Id}|{options.Light}|{options.AmbientDrift}|{options.FontFamily}|{options.FontScale}|{options.JpegQuality}|{options.SaturationPercent}|{options.HueDegrees}|{options.ShowSpectrum}|{options.BrightnessPercent}|{options.ContrastPercent}|{options.ColorFiltersEnabled}";
+        var paletteKey = theme.Id + (options.Light ? "@light" : "@dark");
+        var palette = options.Palettes?.GetValueOrDefault(paletteKey) ?? options.Palettes?.GetValueOrDefault(theme.Id);
         fingerprint += "|" + JsonSerializer.Serialize(palette, PanelContract.Json);
         var configurationChanged = previousFingerprint != fingerprint;
         var refreshInterval = previewNotice is null ? themeRenderer.FrameIntervalMilliseconds(options.RefreshIntervalMilliseconds) : 5000;
-        if (options.IncludeFrame && (configurationChanged || theme is not null && Environment.TickCount64 - previewAt >= refreshInterval))
+        if (options.IncludeFrame && (configurationChanged || Environment.TickCount64 - previewAt >= refreshInterval))
         {
             var renderingStartedAt = Environment.TickCount64;
-            if (theme is null)
-            { preview = renderer.Render(snapshot, profile, scene, options.Light, drift); previewNotice = null; }
-            else
+            if (configurationChanged) { preview = null; }
+            try
             {
-                if (configurationChanged) { preview = null; }
-                try
-                {
-                    preview = await themeRenderer.RenderAsync(theme, snapshot, profile, options.Light, options.AmbientDrift, options.FontFamily, options.FontScale, options.JpegQuality,
-                        saturationPercent: options.SaturationPercent, hueDegrees: options.HueDegrees, showSpectrum: options.ShowSpectrum,
-                        brightnessPercent: options.BrightnessPercent, contrastPercent: options.ContrastPercent, colorFiltersEnabled: options.ColorFiltersEnabled, palette: palette);
-                    previewNotice = null;
-                }
-                catch (Exception error) when (error is not OutOfMemoryException)
-                { DiagnosticLog.ThemeRenderFailure(error.GetType().Name); previewNotice = "Theme preview: " + error.Message; }
+                preview = await themeRenderer.RenderAsync(theme, snapshot, profile, options.Light, options.AmbientDrift, options.FontFamily, options.FontScale, options.JpegQuality,
+                    saturationPercent: options.SaturationPercent, hueDegrees: options.HueDegrees, showSpectrum: options.ShowSpectrum,
+                    brightnessPercent: options.BrightnessPercent, contrastPercent: options.ContrastPercent, colorFiltersEnabled: options.ColorFiltersEnabled, palette: palette);
+                previewNotice = null;
             }
+            catch (Exception error) when (error is not OutOfMemoryException)
+            { DiagnosticLog.ThemeRenderFailure(error.GetType().Name); previewNotice = "Theme preview: " + error.Message; }
             previousFingerprint = fingerprint;
             previewAt = previewNotice is null ? renderingStartedAt : Environment.TickCount64;
         }
@@ -239,14 +213,14 @@ internal sealed class EngineServer : IDisposable
             snapshot.Network is { } network ? new(network.DownloadBytesPerSecond, network.UploadBytesPerSecond, network.DownloadBytes, network.UploadBytes, "Since engine start; adapter counters may overlap on VPN/bridges") : null,
             DeviceChoices(),
             DisplayProfileCatalog.All.Select(item => new PanelChoice(item.Id, item.Name)).ToArray(),
-            Enum.GetValues<DashboardScene>().Select(item => new PanelChoice(item.ToString(), DashboardScenes.Name(item))).ToArray(),
-            themeOutput is not null || playback is { IsCompleted: false }, Volatile.Read(ref status), options.IncludeFrame ? preview : null,
+            themeOutput is not null, Volatile.Read(ref status), options.IncludeFrame ? preview : null,
             previewNotice is null ? snapshot.Notices : snapshot.Notices.Concat([previewNotice]).ToArray(),
             frameMilliseconds, themeOutput?.SubmittedFrames ?? 0,
-            options.IncludeFrame && preview is not null && theme is not null ? themeRenderer.AccentColor : null,
-            options.IncludeFrame && preview is not null && theme is not null && themeRenderer.IsTransitioning
+            options.IncludeFrame && preview is not null ? themeRenderer.AccentColor : null,
+            options.IncludeFrame && preview is not null && themeRenderer.IsTransitioning
                 ? themeRenderer.FrameIntervalMilliseconds(options.RefreshIntervalMilliseconds) : null,
-            theme?.Id, codexProcess.IsRunning());
+            theme.Id, codexProcess.IsRunning(), ArtistSources: snapshot.ArtistProfile is { } artist
+                ? new(artist.SourceUrl, artist.PhotoSourceUrl, artist.AlbumSales?.SourceUrl) : null);
     }
 
     private static void ValidatePreviewOptions(PreviewOptions options)
@@ -312,7 +286,7 @@ internal sealed class EngineServer : IDisposable
                 frameMilliseconds = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
                 Volatile.Write(ref status, "No active screens. Enable a screen to resume.");
                 return new("", "", "", false, "", [], new(null, null, null, null, "", ""), null,
-                    DeviceChoices(), DisplayProfileCatalog.All.Select(item => new PanelChoice(item.Id, item.Name)).ToArray(), [],
+                    DeviceChoices(), DisplayProfileCatalog.All.Select(item => new PanelChoice(item.Id, item.Name)).ToArray(),
                     true, Volatile.Read(ref status), preview, [], frameMilliseconds, output.SubmittedFrames,
                     CodexProcessRunning: processRunning, FrameSuppressed: true);
             }
@@ -331,22 +305,11 @@ internal sealed class EngineServer : IDisposable
         }
     }
 
-    private async Task RunDisplayAsync(DisplayDevice device, string profile, DashboardScene? scene, CancellationToken cancellationToken)
-    {
-        try
-        {
-            await DashboardPlayback.RunAsync(device, profile, new StatusProgress(message => Volatile.Write(ref status, message)), cancellationToken, scene);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { Volatile.Write(ref status, "Display stopped."); }
-        catch (Exception error) { Volatile.Write(ref status, $"Display stopped: {error.Message}"); }
-    }
-
-    private async Task StopAsync()
+    private Task StopAsync()
     {
         CloseThemeOutput();
-        playbackCancellation?.Cancel();
-        if (playback is not null) { await playback.WaitAsync(TimeSpan.FromSeconds(10)); }
         Volatile.Write(ref status, "Display stopped.");
+        return Task.CompletedTask;
     }
 
     private void CloseThemeOutput()
@@ -360,6 +323,5 @@ internal sealed class EngineServer : IDisposable
     private static T Parameters<T>(EngineRequest request, T? fallback = default) where T : class =>
         request.Parameters?.Deserialize<T>(PanelContract.Json) ?? fallback ?? throw new ArgumentException("Missing parameters.");
 
-    public void Dispose() { CloseThemeOutput(); playbackCancellation?.Cancel(); playbackCancellation?.Dispose(); themeRenderer.Dispose(); dashboard.Dispose(); }
-    private sealed class StatusProgress(Action<string> report) : IProgress<string> { public void Report(string value) => report(value); }
+    public void Dispose() { CloseThemeOutput(); themeRenderer.Dispose(); dashboard.Dispose(); }
 }

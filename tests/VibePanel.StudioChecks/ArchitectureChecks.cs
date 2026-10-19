@@ -49,12 +49,13 @@ internal static class ArchitectureChecks
         check(recovered.PersistenceNotice?.Contains("recovered") == true && recovered.Preferences.SelectedTheme == previous, "Corrupt current settings recover the last complete backup.");
         recovered.Save();
         check(new StudioModel(path).PersistenceNotice is null && Directory.GetFiles(directory, "*.tmp").Length == 0, "Recovery restores valid settings without temporary files.");
-        var legacyPath = Path.Combine(directory, "legacy.json");
-        File.WriteAllText(legacyPath, """{"category":"codex","themeId":"codex.a","fontScale":9,"refreshMilliseconds":17}""");
-        var legacy = new StudioModel(legacyPath);
-        check(legacy.ScreenEnabled["codex"] && legacy.Preferences.FontScale == 1.5 && legacy.Preferences.RefreshMilliseconds == 1000, "Unversioned settings migrate with existing bounds.");
-        legacy.Save();
-        check(new StudioModel(legacyPath).Preferences.SelectedTheme == "codex.a", "Migrated settings survive reload.");
+        var unversionedPath = Path.Combine(directory, "unversioned.json");
+        const string unversioned = """{"category":"codex","themeId":"codex.a"}""";
+        File.WriteAllText(unversionedPath, unversioned);
+        var unversionedModel = new StudioModel(unversionedPath);
+        check(unversionedModel.PersistenceNotice is not null && unversionedModel.Preferences.SelectedTheme == "", "Unversioned settings are rejected without migration.");
+        try { unversionedModel.Save(); throw new InvalidOperationException("Unversioned settings overwritten."); } catch (IOException) { }
+        check(File.ReadAllText(unversionedPath) == unversioned, "Unsupported settings are preserved.");
         var futurePath = Path.Combine(directory, "future.json");
         const string future = """{"schemaVersion":99,"themeId":"future"}""";
         File.WriteAllText(futurePath, future);

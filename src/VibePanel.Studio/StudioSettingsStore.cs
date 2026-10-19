@@ -86,7 +86,7 @@ public sealed class StudioSettingsStore(string path)
         using var document = JsonDocument.Parse(stream);
         var json = document.RootElement;
         if (json.ValueKind != JsonValueKind.Object) { throw new JsonException("Settings must be an object."); }
-        if (json.TryGetProperty("schemaVersion", out var version) && (version.ValueKind != JsonValueKind.Number || !version.TryGetInt32(out var v) || v != 1))
+        if (!json.TryGetProperty("schemaVersion", out var version) || version.ValueKind != JsonValueKind.Number || !version.TryGetInt32(out var v) || v != 1)
         { throw new NotSupportedException("Settings use an unsupported version and will not be overwritten."); }
         var state = new StudioState();
         var preferences = state.Preferences;
@@ -117,11 +117,6 @@ public sealed class StudioSettingsStore(string path)
                 if (screen.TryGetProperty("themeId", out var screenTheme) && screenTheme.ValueKind == JsonValueKind.String)
                 { ScreenThemes[categoryId] = screenTheme.GetString() ?? ""; }
             }
-        }
-        else if (preferences.SelectedCategory == "codex")
-        {
-            // Preserve a saved Codex session from settings predating screen toggles.
-            ScreenEnabled["codex"] = true;
         }
         if (json.TryGetProperty("profile", out var profile)) { preferences.SelectedProfile = profile.GetString() ?? preferences.SelectedProfile; }
         if (json.TryGetProperty("profileSelection", out var profileChoice)) { preferences.ProfileSelection = profileChoice.GetString() ?? "auto"; }

@@ -64,27 +64,19 @@ var rejected = false;
 try { Thermalright04165302Protocol.CreatePicturePacket(profile, new byte[] { 1, 2, 3 }); }
 catch (ArgumentException) { rejected = true; }
 Check(rejected, "reject invalid JPEG before transport");
-Check(Enum.GetValues<DashboardScene>().Length == 8, "eight distinct dashboard layouts");
 var previewOptions = new PreviewOptions(Light: true, AmbientDrift: true);
 var requestJson = JsonSerializer.Serialize(new EngineRequest("fixture", "state", JsonSerializer.SerializeToElement(previewOptions, PanelContract.Json)), PanelContract.Json);
 var parsedRequest = JsonSerializer.Deserialize<EngineRequest>(requestJson, PanelContract.Json)!;
 Check(parsedRequest.Version == 1 && parsedRequest.Id == "fixture", "JSON Lines version and correlation survive serialization");
 Check(parsedRequest.Parameters!.Value.Deserialize<PreviewOptions>(PanelContract.Json) is { Light: true, AmbientDrift: true, IncludeDevices: false }, "preview options cannot implicitly enumerate USB");
 Check(AudioLevel.Fraction(0) == 0 && AudioLevel.Fraction(1) == 1, "VU scale covers silence through digital full scale");
-Check(DashboardScenes.Rotation.Count == 5 && DashboardScenes.Rotation.Distinct().Count() == 5, "five distinct default rotation scenes");
-Check(DashboardScenes.Parse("artwork") == DashboardScene.Artwork, "scene parsing is case insensitive");
-var snapshot = new DashboardSnapshot(NowPlaying.Empty, [], new MachineMetrics(null, null, null, null, "GPU", "Unavailable", "Unavailable"), []);
-var changedMetrics = snapshot with { Metrics = snapshot.Metrics with { CpuUsage = 50 } };
-Check(DashboardRenderer.Fingerprint(snapshot, DashboardScene.Artwork) == DashboardRenderer.Fingerprint(changedMetrics, DashboardScene.Artwork), "invisible sensor changes do not reencode artwork");
-Check(DashboardRenderer.Fingerprint(snapshot, DashboardScene.System) != DashboardRenderer.Fingerprint(changedMetrics, DashboardScene.System), "visible sensor changes invalidate system scene");
-Check(DashboardRenderer.Metric(null, "°C") == "—", "unavailable temperature is never fabricated as zero");
-using (var stream = new MemoryStream(DashboardRenderer.Fade(image, image, profile, 0.5f)))
+using (var stream = new MemoryStream(PanelFrameRenderer.PrepareJpeg(image, profile)))
 using (var bitmap = new Bitmap(stream))
 {
-    Check(bitmap.Width == profile.Width && bitmap.Height == profile.Height, "fade preserves native geometry");
-    Check(bitmap.GetPixel(160, 300).R > 235, "fade of identical frames preserves the red bar");
+    Check(bitmap.Width == profile.Width && bitmap.Height == profile.Height, "panel conversion preserves native geometry");
+    Check(bitmap.GetPixel(160, 300).R > 235, "panel conversion preserves the red bar");
 }
-ResourceChecks.Run(Check, snapshot);
+ResourceChecks.Run(Check);
 ScreenChecks.Run(Check);
 SensorDependencyChecks.Run(Check);
 SensorProjectionChecks.Run(Check);

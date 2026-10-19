@@ -68,8 +68,12 @@ public sealed partial class MainPage
         var nodes = new Dictionary<string, TreeViewItem>();
         foreach (var device in sample.Devices)
         {
-            var node = new TreeViewItem { Header = DebugText($"{device.Name} · {device.Type}", true), Tag = device.Id,
-                IsExpanded = expanded.GetValueOrDefault(device.Id, device.Type is not ("Network" or "Storage")) };
+            var node = new TreeViewItem
+            {
+                Header = DebugText($"{device.Name} · {device.Type}", true),
+                Tag = device.Id,
+                IsExpanded = expanded.GetValueOrDefault(device.Id, device.Type is not ("Network" or "Storage"))
+            };
             ToolTipService.SetToolTip(node, device.Id);
             nodes.TryAdd(device.Id, node);
         }
@@ -83,8 +87,12 @@ public sealed partial class MainPage
             foreach (var group in device.Sensors.GroupBy(sensor => sensor.Type))
             {
                 var groupId = device.Id + "::" + group.Key;
-                var category = new TreeViewItem { Header = DebugText($"{group.Key} · {group.Count()}"), Tag = groupId,
-                    IsExpanded = expanded.GetValueOrDefault(groupId, group.Key is "Fan" or "Temperature" or "Data") };
+                var category = new TreeViewItem
+                {
+                    Header = DebugText($"{group.Key} · {group.Count()}"),
+                    Tag = groupId,
+                    IsExpanded = expanded.GetValueOrDefault(groupId, group.Key is "Fan" or "Temperature" or "Data")
+                };
                 category.Items.Add(new TreeViewItem { Header = SensorDebugRow("Sensor", "Current", "Minimum", "Maximum", true) });
                 foreach (var sensor in group)
                 {
