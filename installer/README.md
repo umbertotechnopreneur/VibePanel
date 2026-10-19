@@ -4,7 +4,11 @@
 It creates one Start entry and one saved-session startup entry. The MSI owns
 Windows uninstall registration. User settings stay outside its install folder.
 Opening the MSI shows a license/setup page, progress, and a completion or error
-page. It does not launch the studio after installation.
+page. Successful interactive installation offers two independent, default-checked
+options: **Start after install** and **See the latest news**. Finish starts the
+installed app and/or opens its [GitHub Releases page](https://github.com/umbertotechnopreneur/VibePanel/releases?utm_source=vibepanel&utm_medium=installer&utm_campaign=release_news).
+The fixed UTM tags identify the installer link. Repair, removal, silent setup,
+cancellation and failed setup do not run these actions.
 
 Before install, repair or removal changes files, a native helper closes only
 verified Vibe Panel processes. New studios support a normal installer exit;
@@ -73,3 +77,6 @@ owner-approved checks. See `cave.md` for the exact boundaries.
 References: [WiX UI](https://docs.firegiant.com/wix/tools/wixext/wixui/),
 [upgrade order](https://docs.firegiant.com/wix/schema/wxs/majorupgrade/),
 [service deletion](https://learn.microsoft.com/en-us/windows/win32/api/winsvc/nf-winsvc-deleteservice).
+The completion page uses an original layout and WiX's supported overridable
+success sequence. I studied the upstream [4.0.6 ExitDialog](https://github.com/wixtoolset/wix/blob/v4.0.6/src/ext/UI/wixlib/ExitDialog.wxs)
+and [sequence rules](https://learn.microsoft.com/en-us/windows/win32/msi/installuisequence-table).

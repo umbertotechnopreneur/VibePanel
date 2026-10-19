@@ -6,7 +6,7 @@ import math
 from collections import OrderedDict
 
 import skia
-from canvas import blend, clean, optional_number, clip
+from canvas import blend, clean, optional_number, clip, progress_color
 from hardware import _components, _record, _points, _text
 
 NAMES = {"thermal": "THERMAL ATLAS", "orbit": "AIRFLOW", "terminal": "MATRIX"}
@@ -81,7 +81,8 @@ def dial(c, s, x, y, radius, value, unit, maximum, tint, style):
     segments = style in ("terminal", "signal", "blocks")
     arc(c, x, y, radius, start, sweep, tint, 7, .13, segments)
     if value is not None:
-        arc(c, x, y, radius, start, sweep * clip(value / maximum), tint, 7, 1, segments)
+        active = progress_color(tint, value / maximum, s.light)
+        arc(c, x, y, radius, start, sweep * clip(value / maximum), active, 7, 1, segments)
     if style in ("blueprint", "orbit", "thermal"):
         for index in range(21):
             angle = math.radians(start + sweep * index / 20)
@@ -91,7 +92,7 @@ def dial(c, s, x, y, radius, value, unit, maximum, tint, style):
                    x + math.cos(angle) * outer, y + math.sin(angle) * outer, tint, 1, .4)
     if value is not None:
         _text(c, f"{value:.0f}" if unit == "%" else f"{value:.1f}", x, y + 10, radius * .57, radius * 1.7, s.fg, True, "center")
-        _text(c, unit, x, y + radius * .52, 15, radius * 1.5, tint, align="center")
+        _text(c, unit, x, y + radius * .52, 15, radius * 1.5, active, align="center")
     if sweep < 360:
         _text(c, "0", x - radius * .7, y + radius + 20, 11, 50, s.muted, align="center")
         _text(c, str(maximum), x + radius * .7, y + radius + 20, 11, 50, s.muted, align="center")
@@ -140,7 +141,7 @@ def frame(c, s, style):
         x = c.width / 2 - s.page_count * 12 + index * 24
         c.rect(x, 459, 17, 3, s.palette[0], radius=1, opacity=1 if index == s.page_index else .2)
         if index == s.page_index:
-            c.rect(x, 459, 17 * s.page_progress, 3, s.fg, radius=1)
+            c.rect(x, 459, 17 * s.page_progress, 3, progress_color(s.palette[0], s.page_progress, s.light), radius=1)
     _text(c, f"{s.page_index + 1:02d} / {s.page_count:02d}", c.width - margin, 468, 11, 90, s.muted, align="right")
 
 
@@ -212,7 +213,7 @@ def core_bars(c, s, raw, box, tint):
     for index, (_, value) in enumerate(cores):
         xx, height = x + step * index, (h - 28) * clip(value / 100)
         c.rect(xx, y + 28, max(1, step - 4), h - 28, tint, radius=2, opacity=.10)
-        c.rect(xx, y + h - height, max(1, step - 4), height, tint, radius=2)
+        c.rect(xx, y + h - height, max(1, step - 4), height, progress_color(tint, value / 100, s.light), radius=2)
 
 
 def occupancy(c, s, used, total, box, tint, label):
@@ -221,9 +222,11 @@ def occupancy(c, s, used, total, box, tint, label):
     x, y, w, h = box
     _text(c, label, x, y + 13, 11, w, s.muted)
     _text(c, f"{used:.1f} / {total:.1f} GiB", x, y + 44, 23, w, tint, True)
+    active = progress_color(tint, used / total, s.light)
     for index in range(32):
-        c.rect(x + index * w / 32, y + h - 19, w / 32 - 3, 16, tint, radius=2,
-               opacity=1 if (index + 1) / 32 <= clip(used / total) else .14)
+        filled = (index + 1) / 32 <= clip(used / total)
+        c.rect(x + index * w / 32, y + h - 19, w / 32 - 3, 16, active if filled else tint, radius=2,
+               opacity=1 if filled else .14)
 
 
 def activity(c, s, style, items, components):

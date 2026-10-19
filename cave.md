@@ -150,3 +150,9 @@ At the owner's request, I restored the current projects from official NuGet, ver
 No automated tests, app launch, installation, sensor acquisition or USB trial ran. This compilation does not establish physical display behavior or animation frame rate. Build logs and package checksums are retained outside the repository, which keeps only the final requested MSI after cleanup.
 
 MSI 0.1.11 compiled successfully from that fresh payload. The guarded cleanup completed and removed the old MSI, ZIP, preview folder, staged dependencies, build tools, intermediates and generated web files. Only `artifacts/packages/VibePanel-win-x64-0.1.11.msi` remains. No installer execution or MSI validation ran.
+
+## 19 October 2026: shared progress colors and completion choices
+
+Circular and linear progress now share a theme-to-amber-to-red scale across System meters, playback and audio. Colors use the shown range, not guessed hardware alarm thresholds. The successful MSI completion page has two independent checked choices: start the app and open GitHub Releases with fixed installer UTM tags. Finish dispatches them after commit, with matching guards in the native actions. Silent setup, repair, removal, failure and cancellation do not dispatch them.
+
+These changes have not been exercised through a real installer. No automated tests, app launch, browser launch, sensor read or USB trial is authorized by this implementation checkpoint. Compilation and local synthetic design previews are separate evidence, not installer or hardware validation.

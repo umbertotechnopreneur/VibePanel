@@ -24,11 +24,16 @@ VBWR E -->
     <Property Id="MSIDISABLERMRESTART" Value="1" />
     <ui:WixUI Id="WixUI_Minimal" />
     <UIRef Id="WixUI_ErrorProgressText" />
+    <Property Id="VP_START_AFTER_INSTALL" Value="1" />
+    <Property Id="VP_SEE_LATEST_NEWS" Value="1" />
     <WixVariable Id="WixUILicenseRtf" Value="$(var.InstallerRoot)\License.rtf" />
     <Binary Id="SetupGate" SourceFile="$(var.SetupGate)" />
     <CustomAction Id="BeginSetupGate" BinaryRef="SetupGate" DllEntry="BeginSetup" Execute="deferred" Impersonate="yes" Return="check" />
     <CustomAction Id="RollbackSetupGate" BinaryRef="SetupGate" DllEntry="EndSetup" Execute="rollback" Impersonate="yes" Return="check" />
     <CustomAction Id="CommitSetupGate" BinaryRef="SetupGate" DllEntry="EndSetup" Execute="commit" Impersonate="yes" Return="check" />
+    <!-- Completion actions run only from the visible success dialog, after commit. -->
+    <CustomAction Id="StartVibePanelAfterInstall" BinaryRef="SetupGate" DllEntry="StartVibePanelAfterInstall" Execute="immediate" Return="ignore" />
+    <CustomAction Id="SeeLatestVibePanelNews" BinaryRef="SetupGate" DllEntry="SeeLatestVibePanelNews" Execute="immediate" Return="ignore" />
     <Binary Id="SetupActions" SourceFile="$(var.SetupHelper)" />
     <!-- Close before InstallValidate enumerates in-use files. This changes runtime
          state only; service/file cleanup remains in the deferred transaction. -->
@@ -60,10 +65,38 @@ VBWR E -->
               Condition="NOT Installed AND NOT UPGRADINGPRODUCTCODE" />
     </InstallExecuteSequence>
     <UI>
+      <Dialog Id="VibePanelComplete" Width="370" Height="270" Title="Vibe Panel Setup" NoMinimize="yes">
+        <Control Id="Title" Type="Text" X="24" Y="26" Width="322" Height="40" NoPrefix="yes"
+                 Text="{\WixUI_Font_Bigger}Vibe Panel setup is complete" />
+        <Control Id="Description" Type="Text" X="24" Y="73" Width="322" Height="24" NoPrefix="yes"
+                 Text="Click Finish to close setup." />
+        <Control Id="StartAfterInstall" Type="CheckBox" X="24" Y="117" Width="322" Height="18"
+                 Property="VP_START_AFTER_INSTALL" CheckBoxValue="1" Text="Start after install"
+                 Hidden="yes" ShowCondition="NOT Installed AND NOT REMOVE AND UILevel = 5" />
+        <Control Id="SeeLatestNews" Type="CheckBox" X="24" Y="149" Width="322" Height="18"
+                 Property="VP_SEE_LATEST_NEWS" CheckBoxValue="1" Text="See the latest news"
+                 Hidden="yes" ShowCondition="NOT Installed AND NOT REMOVE AND UILevel = 5" />
+        <Control Id="NewsDestination" Type="Text" X="39" Y="170" Width="307" Height="28" NoPrefix="yes"
+                 Text="Vibe Panel releases on GitHub" Hidden="yes"
+                 ShowCondition="NOT Installed AND NOT REMOVE AND UILevel = 5" />
+        <Control Id="Divider" Type="Line" X="0" Y="234" Width="370" Height="0" />
+        <Control Id="Finish" Type="PushButton" X="290" Y="243" Width="56" Height="17" Default="yes" Cancel="yes" Text="Finish">
+          <Publish Event="DoAction" Value="StartVibePanelAfterInstall" Order="1"
+                   Condition="VP_START_AFTER_INSTALL = 1 AND NOT Installed AND NOT REMOVE AND UILevel = 5" />
+          <Publish Event="DoAction" Value="SeeLatestVibePanelNews" Order="2"
+                   Condition="VP_SEE_LATEST_NEWS = 1 AND NOT Installed AND NOT REMOVE AND UILevel = 5" />
+          <Publish Event="EndDialog" Value="Return" Order="3" />
+        </Control>
+      </Dialog>
       <ProgressText Action="CloseVibePanel" Message="Closing Vibe Panel..." />
       <ProgressText Action="CleanupVibePanel" Message="Closing Vibe Panel and releasing its hardware monitoring driver..." />
       <ProgressText Action="CleanupFreshVibePanel" Message="Removing previous Vibe Panel files and registration..." />
     </UI>
+    <InstallUISequence>
+      <!-- Replace WixUI's overridable success sequence, retaining its other dialogs. -->
+      <Show Dialog="ExitDialog" Sequence="0" Condition="0" />
+      <Show Dialog="VibePanelComplete" OnExit="success" />
+    </InstallUISequence>
     <StandardDirectory Id="LocalAppDataFolder">
       <Directory Id="PublisherFolder" Name="Umberto Giacobbi.biz">
         <Directory Id="AppsFolder" Name="Apps">
