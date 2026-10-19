@@ -68,8 +68,8 @@ VBWR E -->
       <Dialog Id="VibePanelComplete" Width="370" Height="270" Title="Vibe Panel Setup" NoMinimize="yes">
         <Control Id="Title" Type="Text" X="24" Y="26" Width="322" Height="40" NoPrefix="yes"
                  Text="{\WixUI_Font_Bigger}Vibe Panel setup is complete" />
-        <Control Id="Description" Type="Text" X="24" Y="73" Width="322" Height="24" NoPrefix="yes"
-                 Text="Click Finish to close setup." />
+        <Control Id="Description" Type="Text" X="24" Y="73" Width="322" Height="36" NoPrefix="yes"
+                 Text="Vibe Panel requests administrator access when it starts. Windows asks for your approval. Themes run with the same rights." />
         <Control Id="StartAfterInstall" Type="CheckBox" X="24" Y="117" Width="322" Height="18"
                  Property="VP_START_AFTER_INSTALL" CheckBoxValue="1" Text="Start after install"
                  Hidden="yes" ShowCondition="NOT Installed AND NOT REMOVE AND UILevel = 5" />

@@ -72,7 +72,7 @@ public sealed partial class MainPage
             {
                 Header = DebugText($"{device.Name} · {device.Type}", true),
                 Tag = device.Id,
-                IsExpanded = expanded.GetValueOrDefault(device.Id, device.Type is not ("Network" or "Storage"))
+                IsExpanded = expanded.GetValueOrDefault(device.Id, false)
             };
             ToolTipService.SetToolTip(node, device.Id);
             nodes.TryAdd(device.Id, node);
@@ -91,7 +91,7 @@ public sealed partial class MainPage
                 {
                     Header = DebugText($"{group.Key} · {group.Count()}"),
                     Tag = groupId,
-                    IsExpanded = expanded.GetValueOrDefault(groupId, group.Key is "Fan" or "Temperature" or "Data")
+                    IsExpanded = expanded.GetValueOrDefault(groupId, false)
                 };
                 category.Items.Add(new TreeViewItem { Header = SensorDebugRow("Sensor", "Current", "Minimum", "Maximum", true) });
                 foreach (var sensor in group)

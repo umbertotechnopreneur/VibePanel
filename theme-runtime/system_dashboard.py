@@ -350,9 +350,16 @@ def power_instruments(c, s, style, rows, box):
 
 def fan_instruments(c, s, style, rows, box):
     x, y, w, h = box
-    visible, start = instrument_page(rows, s.page_cycle, 2 if c.compact else 3)
+    count = 2 if c.compact else 3
+    if len(rows) > count and rows[0][1] > 0:
+        # Keep one running fan visible while the remaining named channels rotate.
+        # A late page containing only stopped headers otherwise looks like lost sensors.
+        rotating, _ = instrument_page(rows[1:], s.page_cycle, count - 1)
+        visible = [rows[0], *rotating]
+    else:
+        visible, _ = instrument_page(rows, s.page_cycle, count)
     _text(c, "FAN SPEED", x, y + 14, 12, w * .6, s.palette[1], True)
-    _text(c, f"{start + 1}–{start + len(visible)} / {len(rows)}", x + w, y + 14, 11, w * .35, s.muted, align="right")
+    _text(c, f"{len(rows)} channels", x + w, y + 14, 11, w * .35, s.muted, align="right")
     top = y + 28
     height = h - 28
     if c.compact:

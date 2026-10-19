@@ -86,8 +86,13 @@ internal static class AdministratorChecks
             if (!value) { throw new InvalidOperationException(text); }
             Console.WriteLine($"Administrator check {++count}: {text}");
         }
-        var panel = (Grid)page.FindName("AdministratorPanel");
+        var panel = (System.Windows.FrameworkElement)page.FindName("AdministratorPanel");
         var button = (Button)page.FindName("AdministratorButton");
+        var details = (System.Windows.FrameworkElement)page.FindName("SensorDetails");
+        var disclosure = (Button)page.FindName("SensorDetailsButton");
+        Check(details.Visibility == Visibility.Collapsed, "sensor details start closed");
+        ((IInvokeProvider)new ButtonAutomationPeer(disclosure).GetPattern(PatternInterface.Invoke)).Invoke();
+        Check(details.Visibility == Visibility.Visible, "sensor details open on request");
         void Click() => ((IInvokeProvider)new ButtonAutomationPeer(button).GetPattern(PatternInterface.Invoke)).Invoke();
         Check(panel.Visibility == Visibility.Visible, "System offers administrator restart without opening another provider");
         ((Slider)page.FindName("BrightnessSlider")).Value = 23;
@@ -125,7 +130,12 @@ internal static class AdministratorChecks
         var launch = WindowsElevation.CreateStartInfo(Environment.ProcessId, Process.GetCurrentProcess().StartTime.ToUniversalTime().Ticks);
         Check(launch.UseShellExecute && launch.Verb == "runas"
             && !launch.ArgumentList.Contains("--restore-last-session") && !launch.ArgumentList.Contains("--start-minimized"),
-            "the native launch requests elevation and cannot resume startup output");
+            "manual elevation requests a foreground launch");
+        var startup = WindowsElevation.CreateStartInfo(Environment.ProcessId, Process.GetCurrentProcess().StartTime.ToUniversalTime().Ticks,
+            ["--start-minimized", "--restore-last-session"]);
+        Check(startup.UseShellExecute && startup.Verb == "runas"
+            && startup.ArgumentList.TakeLast(2).SequenceEqual(new[] { "--start-minimized", "--restore-last-session" }),
+            "startup elevation retains both saved-output and tray arguments");
         Console.WriteLine($"{count} offline administrator checks passed. No engine, sensor or USB backend was opened.");
     }
 

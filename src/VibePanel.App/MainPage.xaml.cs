@@ -160,16 +160,12 @@ public sealed partial class MainPage : Page
         var narrow = width < 1060;
         Grid.SetColumnSpan(DeviceField, narrow ? 5 : 1);
         Grid.SetColumn(RefreshDevicesButton, narrow ? 5 : 1);
-        Grid.SetRow(RefreshField, narrow ? 1 : 0);
-        Grid.SetColumn(RefreshField, narrow ? 0 : 2);
-        Grid.SetColumnSpan(RefreshField, narrow ? 2 : 1);
-        Grid.SetRow(QualityField, narrow ? 1 : 0);
-        Grid.SetColumn(QualityField, narrow ? 2 : 3);
         Grid.SetRow(StartDisplayButton, narrow ? 1 : 0);
         Grid.SetColumn(StartDisplayButton, narrow ? 3 : 4);
         Grid.SetColumnSpan(StartDisplayButton, narrow ? 2 : 1);
         Grid.SetRow(StopDisplayButton, narrow ? 1 : 0);
-        RefreshField.Margin = QualityField.Margin = new Thickness(0, narrow ? 8 : 0, 12, 0);
+        Grid.SetRow(DisplayOptionsButton, narrow ? 2 : 1);
+        Grid.SetRow(DisplayOptionsPanel, narrow ? 3 : 2);
         StartDisplayButton.Margin = new Thickness(0, narrow ? 8 : 0, 6, 0);
         StopDisplayButton.Margin = new Thickness(0, narrow ? 8 : 0, 0, 0);
 
@@ -186,7 +182,8 @@ public sealed partial class MainPage : Page
 
         CodexSetupFrame.Margin = new Thickness(14, compact ? 10 : 28, 8, 0);
         ScreensFrame.Margin = new Thickness(14, compact ? 10 : 16, 8, 0);
-        CodexHelpText.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
+        // Details are available on demand even on shorter monitors.
+        CodexHelpText.Visibility = Visibility.Visible;
         CodexStatusText.TextWrapping = CodexEventText.TextWrapping = compact ? TextWrapping.NoWrap : TextWrapping.Wrap;
         CodexStatusText.TextTrimming = CodexEventText.TextTrimming = TextTrimming.CharacterEllipsis;
     }
@@ -238,7 +235,7 @@ public sealed partial class MainPage : Page
         if (unloaded || !ready || preview?.IsVisible == false) { lastFrame = null; return Task.CompletedTask; }
         var current = session.Snapshot;
         ApplyAppearance();
-        if (SensorDebugPanel.Visibility == Visibility.Visible) { StatusText.Text = current.Status; return Task.CompletedTask; }
+        if (SensorDebugPanel.Visibility == Visibility.Visible) { ShowSessionStatus(current.Status); return Task.CompletedTask; }
         if (selectedCategory == "codex") { _ = RefreshCodexStatusAsync(); }
         ApplyDevices(current.Devices);
         var p = viewModel.Preferences;
@@ -250,7 +247,7 @@ public sealed partial class MainPage : Page
             updatingChoices = false;
         }
         UpdateDisplayControls();
-        StatusText.Text = viewModel.PersistenceNotice ?? current.Status;
+        ShowSessionStatus(current.Status);
         if (current.Frame is not { } state || current.FrameRevision == appliedFrameRevision && lastFrame is not null) { return Task.CompletedTask; }
         appliedFrameRevision = current.FrameRevision;
         UpdateProfiles(state.Profiles);
@@ -263,8 +260,8 @@ public sealed partial class MainPage : Page
         if (state.System.Driver is { } driver) { ApplySensorDriverStatus(driver); }
         if (state.Notices.Count > 0) { StatusText.Text = string.Join(" · ", new[] { viewModel.PersistenceNotice }.Where(n => n is not null).Concat(state.Notices)); }
         ScreensHelpText.Text = screenEnabled["codex"] && !codexProcessRunning
-            ? "Codex is closed, so its screen is skipped on the display. You can still preview it."
-            : "Codex hides when its process is closed. You can preview every theme.";
+            ? "Codex is closed. Its display screen is skipped."
+            : "Preview any theme. Codex appears while running.";
         if (!state.FrameSuppressed && state.FrameJpeg is { Length: > 0 } frame)
         {
             UpdatePreviewAccent(state.AccentColor);
@@ -370,6 +367,8 @@ public sealed partial class MainPage : Page
         SensorDriverText.Foreground = ink;
         SensorDriverPath.Foreground = muted;
         SensorDriverHelp.Foreground = muted;
+        SensorSummaryText.Foreground = CodexSummaryText.Foreground = muted;
+        TimingDetailsText.Foreground = muted;
         SensorDriverFolderButton.Background = surface;
         SensorDriverFolderButton.Foreground = ink;
         SensorDriverFolderButton.BorderBrush = line;
@@ -414,6 +413,8 @@ public sealed partial class MainPage : Page
         foreach (var box in new[] { MusicScreenBox, CodexScreenBox, SystemScreenBox }) { box.Foreground = ink; }
         foreach (var button in new[] { ReloadButton, PreviousButton, NextButton, ApplyFontButton, FontListButton, ResetColorsButton, SmallerButton, LargerButton, CloseAboutButton, RefreshDevicesButton, StartDisplayButton, StopDisplayButton, CodexRefreshButton, CodexPrepareButton, OpenLogButton, AdministratorButton })
         { button.Background = transparent; button.Foreground = ink; button.BorderThickness = new Thickness(0); }
+        foreach (var button in new[] { ScreensDetailsButton, CodexDetailsButton, SensorDetailsButton, AppearanceDetailsButton, DisplayOptionsButton, DiagnosticsDetailsButton })
+        { button.Background = transparent; button.Foreground = accent; button.BorderThickness = new Thickness(0); }
         StartDisplayButton.Background = Brush(light ? "#68468F" : "#C5AAE8");
         StartDisplayButton.Foreground = Brush(light ? "#FFFFFF" : "#1C1428");
         foreach (var button in new[] { SmallerButton, LargerButton, ResetColorsButton, StopDisplayButton, ApplyFontButton })
@@ -450,6 +451,7 @@ public sealed partial class MainPage : Page
     private void UpdateSelection()
     {
         SpectrumBox.IsEnabled = catalog?.Themes.FirstOrDefault(theme => theme.Id == selectedTheme)?.SupportsSpectrum == true;
+        SpectrumBox.Visibility = SpectrumBox.IsEnabled ? Visibility.Visible : Visibility.Collapsed;
         CodexSetupFrame.Visibility = selectedCategory == "codex" ? Visibility.Visible : Visibility.Collapsed;
         SensorSetupFrame.Visibility = selectedCategory == "system" ? Visibility.Visible : Visibility.Collapsed;
         if (selectedCategory == "system") { _ = RefreshSensorDriverStatusAsync(); }
@@ -566,13 +568,14 @@ public sealed partial class MainPage : Page
             ShowCodexStatus(status);
             codexStatusAt = Environment.TickCount64;
         }
-        catch (Exception error) { CodexStatusText.Text = error.Message; }
+        catch (Exception error) { CodexStatusText.Text = error.Message; CodexSummaryText.Text = "Connection check unavailable"; }
         finally { codexLoading = false; CodexRefreshButton.IsEnabled = !codexPreparing; }
     }
 
     private void ShowCodexStatus(CodexSetupStatus status)
     {
         CodexStatusText.Text = status.Status;
+        CodexSummaryText.Text = status.ActivitySeen ? "Activity received" : status.Prepared && status.Listed ? "Plugin ready · waiting for activity" : "Plugin setup needed";
         CodexEventText.Text = status.LastEvent is { } last ? $"Last event: {last}\n{status.LastEventUtc}" : "No events received yet.";
         CodexHelpText.Text = status.Instructions;
         ToolTipService.SetToolTip(CodexStatusText, status.Status);
@@ -943,6 +946,7 @@ public sealed partial class MainPage : Page
         public string Id { get; } = id;
         public string Name { get; } = name;
         public string Description { get; } = description;
+        public Visibility DescriptionVisibility { get; private set; } = Visibility.Collapsed;
         public string Number { get; } = number;
         public Brush Outline { get; private set; } = new SolidColorBrush(Colors.Transparent);
         public FontWeight Weight { get; private set; } = FontWeights.Normal;
@@ -952,6 +956,7 @@ public sealed partial class MainPage : Page
         public event PropertyChangedEventHandler? PropertyChanged;
         public void Update(bool light, bool selected)
         {
+            DescriptionVisibility = selected ? Visibility.Visible : Visibility.Collapsed;
             Outline = selected ? MainPage.Brush(light ? "#7854B5" : "#C9AEF3") : new SolidColorBrush(Colors.Transparent);
             Weight = selected ? FontWeights.SemiBold : FontWeights.Normal;
             Ink = MainPage.Brush(selected ? light ? "#68468F" : "#D8BAFA" : light ? "#242231" : "#F1F1FA");

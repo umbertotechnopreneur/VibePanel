@@ -61,3 +61,6 @@
 - I build each package from the current source. First-import scans are explicit preparation; builds only verify saved hashes. Scan evidence survives output cleanup. Generated app files and installers are not external imports.
 - I use one theme-to-amber-to-red scale for every circular and linear progress indicator in all current and future themes, in every category, layout and appearance. Custom meters use the same shared helper. Colors follow each displayed range; decorative rings keep their own meaning.
 - Setup's successful Finish page has two checked choices for starting the app and opening release news. They are independent and run only after interactive installation completes. Release links use fixed UTM campaign tags.
+- I request administrator access before starting Windows child processes. A canceled request shows a warning and leaves missing sensors unavailable. Sign-in and tray arguments survive elevation.
+- I keep one running fan visible while other named channels rotate, including measured zeroes. A stopped-only page must not make available running fans appear to have disappeared.
+- I show short status summaries and primary actions first. Setup text, paths, advanced controls and diagnostic trees open on demand without changing saved settings.

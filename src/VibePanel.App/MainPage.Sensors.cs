@@ -19,6 +19,7 @@ public sealed partial class MainPage
         catch (Exception error)
         {
             SensorDriverText.Text = "Sensor driver status could not be read: " + error.Message;
+            SensorSummaryText.Text = "Access check unavailable";
             SensorDriverFolderButton.IsEnabled = false;
         }
         finally { sensorDriverReading = false; }
@@ -26,6 +27,9 @@ public sealed partial class MainPage
 
     private void ApplySensorDriverStatus(SensorDriverDto driver)
     {
+        SensorSummaryText.Text = sensorDriverActionNotice is not null ? "Driver folder unavailable"
+            : windowActions?.CanRestartAsAdministrator == true ? "Administrator access needed"
+            : driver.Available ? "PawnIO found" : "PawnIO unavailable · see details";
         SensorDriverText.Text = sensorDriverActionNotice ?? driver.Notice ?? (driver.Available
             ? "PawnIO installation found. Individual sensor readings show what this computer exposes."
             : "PawnIO is unavailable. CPU temperature and motherboard/fan readings may be missing.");

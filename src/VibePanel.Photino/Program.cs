@@ -23,14 +23,21 @@ internal static class Program
         if (args.FirstOrDefault() == WindowsElevation.Argument)
         {
             if (!OperatingSystem.IsWindows() || !WindowsElevation.WaitForPreviousStudio(args)) { return 2; }
-            args = []; // Administrator restarts use the same saved display session as normal launches.
+            args = args.Skip(3).ToArray();
         }
         if (args.Any(argument => argument is not "--start-minimized" and not "--restore-last-session"))
         { Console.Error.WriteLine("Usage: VibePanel.exe [--start-minimized] [--restore-last-session]"); return 2; }
         var restoreLastSession = OperatingSystem.IsWindows();
         var startMinimized = args.Contains("--start-minimized") || args.Contains("--restore-last-session");
         if (OperatingSystem.IsWindows() && WindowsSetupGate.IsInstalling()) { if (!startMinimized) { WindowsSetupGate.ShowBusy(); } return 3; }
-        using var instance = new SingleInstanceService();
+        // Request elevation before creating the job, engine, WebView or single-instance objects.
+        // The child waits for this launcher to exit and keeps the sign-in/tray arguments.
+        if (OperatingSystem.IsWindows() && WindowsElevation.StartAdministrator(args)) { return 0; }
+        SingleInstanceService instance;
+        try { instance = new SingleInstanceService(); }
+        catch (UnauthorizedAccessException) when (OperatingSystem.IsWindows())
+        { WindowsElevation.ShowSessionUnavailable(); return 1; }
+        using var instanceLifetime = instance;
         if (!instance.IsPrimary)
         {
             if (!startMinimized) { instance.RequestActivation(); }

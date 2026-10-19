@@ -162,3 +162,19 @@ Windows x64 Release source publication, both native setup targets and MSI 0.1.12
 Read-only MSI table inspection confirmed version 0.1.12, both option properties set to 1, independent guarded Finish events, and one active success dialog. No installer or custom action was executed. This does not verify the displayed Windows dialog, default-browser behavior or actual app startup after installation.
 
 Output cleanup completed. The repository keeps only the final 0.1.12 MSI; its SHA-256, build logs, MSI table snapshot and design previews are saved outside the repository. Installed files and user settings were left intact.
+
+## 19 October 2026: administrator launch and progressive disclosure
+
+Windows startup now requests elevation before creating the studio's child processes.
+Canceling shows an explicit non-administrator warning; saved-session and tray flags
+are forwarded on success. Setup explains the request and that themes share these rights.
+Fan pagination keeps one measured running fan visible while other channels rotate.
+This addresses the stopped-only page visible in the owner's screenshot; it does not
+establish that every possible sensor initialization issue has been reproduced.
+
+The studio now starts with setup, appearance, display options and diagnostics closed.
+Short connection/access summaries remain visible. Sensor Debug preserves expansion
+choices on refresh and initially leaves devices and groups collapsed.
+
+No automated tests, UAC dialog, real studio launch, installation, sensor read or USB
+trial has been run for these changes. Compilation is separate from runtime validation.

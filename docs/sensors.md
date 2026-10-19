@@ -6,7 +6,8 @@ without the LibreHardwareMonitor application or any driver installer.
 
 CPU and motherboard temperatures and fan RPM need PawnIO. Its official signed edition
 is available from [pawnio.eu](https://pawnio.eu/). Vibe Panel does not install it.
-The System sidebar shows existing registration and the driver path when available.
+The System sidebar shows a brief access status. Expand **Sensor access** for
+registration details and the driver path when available.
 **Open driver folder** reveals that location; it does not execute or allow the driver.
 Registration is not proof that every sensor can be read.
 
@@ -19,14 +20,19 @@ modules through the existing PawnIO installation. Vibe Panel installs no driver.
 No values are inferred from load or ACPI thermal zones. Zero RPM is a measured stop;
 an unavailable RPM is a missing reading. Generic motherboard channels retain their names.
 
-Some hardware also needs administrator rights. Elevation does not install a missing
+Vibe Panel requests administrator access on every Windows launch, including sign-in.
+Windows asks for approval. If canceled, a popup warns that the app is running without
+administrator rights and some readings may be unavailable. **Sensor access** and
+**Sensor Debug** offer **Reopen as administrator**. Themes run with the app's rights.
+The request keeps the saved display session and tray choice. Elevation does not install a missing
 driver or bypass a Windows security block. Windows ARM64 CPU/motherboard access remains
 disabled pending implementation evidence. Linux/macOS sensor providers are not implemented.
 
 ## Sensor Debug
 
 Open **Sensor Debug** beside **Themes**, then press **Refresh readings**. The tree
-shows devices, subdevices and all reported sensor types, including RAM DIMMs and
+shows collapsed devices and sensor groups. Expand what you need to see subdevices
+and all reported sensor types, including RAM DIMMs and
 timings, voltages, power, temperatures, fan RPM, control percentages, storage,
 network, batteries and supported controllers. Current, minimum and maximum values
 come directly from the library. Control percentages are displayed, never changed.
@@ -50,3 +56,8 @@ still use their own files until separately updated; source changes do not modify
 ## System theme layout
 
 All ten System themes use one renderer. Names, primary values, clock lines and details have separate regions in wide and compact layouts. CPU/GPU power readings use watts; GPU channels retain their names and rotate in bounded pairs. Missing fields are omitted. RAM configured data rate (MT/s) and measured memory clock (MHz) stay distinct. Generic board channels retain their reported names. Sensor Debug retains the complete bounded tree, including missing readings.
+
+Fan pages keep one running channel visible while the other named channels rotate.
+This prevents a later page of stopped headers from looking like lost fan data.
+Measured zeroes remain visible and their rotors stay still. If all fans report zero,
+the page shows those stopped readings without animation.
