@@ -3,23 +3,29 @@
 Useful names need both a correct chip decoder and a supported motherboard mapping.
 A similar temperature in two programs does not establish the same physical source.
 
-The inspected LibreHardwareMonitor 0.9.6 NCT6792D path uses a selector without masking
+The original LibreHardwareMonitor 0.9.6 NCT6792D path uses a selector without masking
 its flag bits and reads zero-address placeholders as registers. This can lose real
-temperatures and overwrite a channel with a configuration value. The generic ASRock
-mapping also omits some chip sources. The exact B550M-ITX/ac model is absent from the
-inspected mapping. These findings do not establish physical aliases such as Southbridge.
+temperatures and overwrite a channel with a configuration value. Its generic ASRock
+mapping also omits chip sources and does not recognize the exact B550M-ITX/ac model.
 
-This release preserves the library's raw names and values. It does not repair that
-dependency decoder. Generic board temperatures should not be treated as confirmed
-component temperatures. Changing labels or applying guessed offsets would not recover
-the lost readings. A dependency repair needs separate source review and validation.
-
-I submitted the decoder repair and exact-board source mapping in
+Vibe Panel now references
+[fork commit e5fa436eae6cb9ad5e8693d9909cd81ddf473629](https://github.com/umbertotechnopreneur/LibreHardwareMonitor/tree/e5fa436eae6cb9ad5e8693d9909cd81ddf473629).
+It routes NCT6792D through the existing decoder that masks selectors, skips empty
+register entries and preserves the first valid source reading. The exact-board
+mapping also exposes `SMBUSMASTER0`. I submitted these changes in
 [LibreHardwareMonitor PR #2590](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/pull/2590).
-The fork compiles for .NET 10 x64. The draft has not been checked on live hardware,
-and Vibe Panel 0.1.15 still uses the official package without this patch.
 
-Sources studied, without copying their implementation into the MIT application:
+The library source remains MPL-2.0 under `third_party/LibreHardwareMonitor`, with a
+.NET 10 project adapted for Vibe Panel's build and packaging. The distribution
+includes it under `sources/LibreHardwareMonitor`. Sensor code and embedded modules
+match the pinned fork. Integration and live hardware behavior need separate validation.
+
+Names such as `PECI 0`, `CPUTIN`, `SYSTIN`, `AUXTIN0` and `SMBUSMASTER0` identify chip
+sources. They do not establish physical locations such as Southbridge or Mainboard.
+Similar readings in two programs are not enough to assign those names. No guessed
+offsets or physical aliases are applied.
+
+Source references for the original decoder and mapping:
 
 - [0.9.6 NCT decoder](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/blob/v0.9.6/LibreHardwareMonitorLib/Hardware/Motherboard/Lpc/Nct677X.cs#L790).
 - [0.9.6 ASRock mapping](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/blob/v0.9.6/LibreHardwareMonitorLib/Hardware/Motherboard/SuperIOHardware.cs#L4063).

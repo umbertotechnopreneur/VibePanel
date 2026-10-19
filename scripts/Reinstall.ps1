@@ -65,4 +65,4 @@ finally { [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($instal
 Write-Host "Installed $version; $checked installed files match the fresh payload."
 Get-FileHash -LiteralPath $msi -Algorithm SHA256 | Format-List
 & "$PSScriptRoot/Clean-BuildOutputs.ps1" -KeepMsiPath $msi
-Write-Host "Finished. Kept only $msi. No app launch, tests or USB commands executed."
+Write-Host "Finished. Kept only $msi. Installer completion choices control app launch and release news. No tests or USB commands executed by this script."

@@ -252,3 +252,22 @@ reused recorded hash evidence. No tests, application launch, live sensor reads,
 driver operations or installation were performed. Vibe Panel 0.1.15 retains the
 official library and does not yet include this fork. Upstream CI requires action
 before it can run; the contributor account cannot assign upstream labels or users.
+
+## 19 October 2026: fork integration and RAM details
+
+Vibe Panel now builds the pinned LibreHardwareMonitor fork from source in this
+repository. Its original C# files, embedded modules, license and editor settings
+are preserved. The project file targets .NET 10 and repository-local build output.
+The distribution includes the exact MPL-covered source. No upstream GUI or driver
+installer is added. Previously scanned unchanged inputs reuse their hash evidence;
+new NuGet inputs passed a separate targeted scan before compilation.
+
+Each physical RAM module now carries its own reported type and configured rate.
+System themes use a clear model/serial hierarchy, a small DIMM outline and rotating
+compact summaries. Temperature details use the shared color scale and disclose
+their 0–120°C display range. Raw SYSTIN remains a detail channel, without being
+promoted to a confirmed motherboard temperature. No physical alias is guessed.
+
+Restore, changed C# formatting and the Core/library Release build completed.
+No tests, renderer execution or hardware validation was performed during these
+changes. Installation and package evidence are recorded separately below.

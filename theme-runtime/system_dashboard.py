@@ -406,9 +406,15 @@ def detail_panel(c, s, style, group, box, tint, step):
     for index, (name, value, unit) in enumerate(visible):
         yy = y + 80 + index * row_height
         _text(c, name, x + 20, yy, 12, w - 40, s.muted)
-        _text(c, value_text(value, unit), x + 20, yy + 27, 25, w - 40, tint, True)
-        if index < len(visible) - 1:
+        value_tint = progress_color(tint, value / 120, s.light) if unit == "°C" else tint
+        _text(c, value_text(value, unit), x + 20, yy + 27, 25, w - 40, value_tint, True)
+        if unit == "°C":
+            c.rect(x + 20, yy + 37, w - 40, 2, tint, opacity=.13)
+            c.rect(x + 20, yy + 37, (w - 40) * clip(value / 120), 2, value_tint)
+        elif index < len(visible) - 1:
             c.line(x + 20, yy + 37, x + w - 20, yy + 37, tint, opacity=.12)
+    if any(unit == "°C" for _, _, unit in visible):
+        _text(c, "SCALE 0–120°C", x + 20, y + h - 8, 10, (w - 40) / 2, s.muted)
     if len(rows) > len(visible):
         _text(c, f"{start + 1}–{start + len(visible)} / {len(rows)}", x + w - 20, y + h - 8,
               10, w - 40, s.muted, align="right")
@@ -438,12 +444,17 @@ def details(c, s, style, kinds):
 def memory_page(c, s, style):
     raw = s.sensors.get("memory") or {}
     summary = metadata("memory", raw)
+    if memory_type := clean(raw.get("type")):
+        summary.insert(0, ("MEMORY TYPE", memory_type))
     if (clock := optional_number(raw.get("clockMHz"))) is not None:
         summary.append(("MEMORY CLOCK", f"{clock:.0f} MHz"))
     margin, gap = (24, 16) if c.compact else (40, 22)
     width = c.width - margin * 2
-    for index, (label, value) in enumerate(summary[:2] if c.compact else summary):
-        cell = width / max(1, min(2, len(summary)) if c.compact else len(summary))
+    if c.compact and summary:
+        # Keep every measured summary reachable on square displays too.
+        summary, _ = instrument_page(summary, detail_step(s), 2)
+    for index, (label, value) in enumerate(summary):
+        cell = width / len(summary)
         x = margin + index * cell
         _text(c, label, x, 89, 10, cell - 12, s.muted)
         _text(c, value, x, 118, 16 if c.compact else 27, cell - 12, s.palette[2], True)
@@ -465,12 +476,37 @@ def memory_page(c, s, style):
         if serial := clean(module.get("serialNumber")):
             _text(c, "S/N  " + serial, x + 20, 237, 12, cell - 40, s.muted)
         if (capacity := optional_number(module.get("capacityGiB"))) is not None:
-            _text(c, f"{capacity:g} GiB", x + 20, 285, 32, cell - 40, tint, True)
+            _text(c, "CAPACITY", x + 20, 263, 10, cell - 160, s.muted)
+            _text(c, f"{capacity:g} GiB", x + 20, 293, 30, cell - 160, tint, True)
+        memory_outline(c, x + cell - 123, 260, tint)
         identity = [("SLOT", clean(module.get("deviceLocator"))), ("BANK", clean(module.get("bankLabel")))]
         for row, (label, value) in enumerate((item for item in identity if item[1])):
-            yy = 316 + row * 24
+            yy = 322 + row * 24
             _text(c, label, x + 20, yy, 10, 58, s.muted)
             _text(c, value, x + 84, yy, 13, cell - 104, s.fg)
+        module_type = clean(module.get("type"))
+        speed = optional_number(module.get("configuredSpeedMTs"))
+        if module_type or speed is not None:
+            c.line(x + 20, 367, x + cell - 20, 367, tint, opacity=.16)
+            if module_type:
+                _text(c, module_type, x + 20, 399, 22, (cell - 40) / 2, tint, True)
+            if speed is not None:
+                _text(c, "CONFIGURED", x + cell - 20, 384, 9, (cell - 40) / 2, s.muted, align="right")
+                _text(c, f"{speed:.0f} MT/s", x + cell - 20, 406, 18, (cell - 40) / 2, s.fg, True, "right")
+
+
+def memory_outline(c, x, y, tint):
+    # A small DIMM symbol, not a diagram of the installed module's chip layout.
+    c.line(x, y, x + 100, y, tint, 1.5, .7)
+    c.line(x, y, x, y + 29, tint, 1.5, .7)
+    c.line(x + 100, y, x + 100, y + 29, tint, 1.5, .7)
+    c.line(x, y + 29, x + 43, y + 29, tint, 1.5, .7)
+    c.line(x + 49, y + 29, x + 100, y + 29, tint, 1.5, .7)
+    for offset in (8, 37, 66):
+        c.rect(x + offset, y + 7, 23, 14, tint, radius=2, opacity=.17)
+    for offset in range(7, 100, 7):
+        if offset != 49:
+            c.line(x + offset, y + 30, x + offset, y + 34, tint, 2, .6)
 
 
 def render(c, s, style):

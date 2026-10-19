@@ -51,7 +51,8 @@ public sealed partial class WindowsMetricsService
                     modules.Add(new(string.IsNullOrWhiteSpace(name) ? "Memory module" : Limit(name), bytes > 0 ? bytes / (1024d * 1024 * 1024) : null,
                         Id: tag is null ? null : "smbios:" + tag, Manufacturer: manufacturer, PartNumber: partNumber,
                         SerialNumber: MemoryIdentityText(module["SerialNumber"], serialNumber: true),
-                        DeviceLocator: MemoryIdentityText(module["DeviceLocator"]), BankLabel: MemoryIdentityText(module["BankLabel"])));
+                        DeviceLocator: MemoryIdentityText(module["DeviceLocator"]), BankLabel: MemoryIdentityText(module["BankLabel"]),
+                        Type: type, ConfiguredSpeedMTs: speed > 0 ? speed : null));
                 }
             }
             memoryModules = modules;

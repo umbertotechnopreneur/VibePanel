@@ -10,7 +10,7 @@ System themes declare eight pages at eight-second intervals, skipping detail pag
 
 ### System snapshots
 
-The engine sends `state.sensors` only when collecting System data. One Windows adapter uses the official compiled LibreHardwareMonitorLib 0.9.6 for CPU, GPU and motherboard readings, and Windows' physical-memory API for RAM. It caches one snapshot for a second independently of frame refresh. CPU/motherboard access requires separately installed PawnIO; its registration does not prove sensor access. Linux, macOS and Windows ARM64 CPU/motherboard readers are not implemented.
+The engine sends `state.sensors` only when collecting System data. One Windows adapter uses the source-built LibreHardwareMonitor fork `e5fa436eae6cb9ad5e8693d9909cd81ddf473629` for CPU, GPU and motherboard readings, and Windows APIs for physical RAM totals and identities. The MPL-2.0 library is under `third_party/LibreHardwareMonitor` in the repository and `sources/LibreHardwareMonitor` in the distribution. It caches one snapshot for a second independently of frame refresh. CPU/motherboard access requires separately installed PawnIO; its registration does not prove sensor access. Linux, macOS and Windows ARM64 CPU/motherboard readers are not implemented.
 
 ```json
 {"cpu":{"name":"CPU","usagePercent":38,"clockMHz":4250,"temperatureC":62,"clockLabel":"Average clock","temperatureLabel":"CPU package","fans":[{"name":"CPU Fan","rpm":1250}]},"gpus":[{"name":"GPU","usagePercent":67,"clockMHz":1850,"temperatureC":58,"clockLabel":"Core clock","temperatureLabel":"GPU core","fans":[{"name":"GPU","rpm":1450}]}],"motherboard":{"name":"Board","temperatureC":37,"temperatureLabel":"System","fans":[{"name":"Chassis Fan #1","rpm":880}]},"memory":{"totalGiB":32,"usedGiB":12.4,"usagePercent":38.75},"updatedAtUtc":"2026-10-17T07:32:00Z","notice":null}
@@ -22,12 +22,19 @@ No driver installer or monitoring GUI is bundled. The old WinRing0 integration i
 
 CPU, GPU and motherboard `readings` contain `{id, name, type, value, unit}` entries.
 RAM `modules` contain physical identities with optional `manufacturer`, `partNumber`,
-`serialNumber`, `deviceLocator`, `bankLabel` and `capacityGiB`. Keep model and serial
-separate. `spdModules` retain the library's SPD identities and timing limits. Only an
+`serialNumber`, `deviceLocator`, `bankLabel`, `capacityGiB`, `type` and
+`configuredSpeedMTs`. The last two describe each module's Windows-reported RAM type
+and configured data rate; they are not measured clocks or SPD timing limits. Keep
+model and serial separate, with an available serial below the model in smaller type.
+`spdModules` retain the library's SPD identities and timing limits. Only an
 unambiguous model/capacity match adds SPD readings to a physical module; list indexes
 never establish a slot. System detail pages omit individual core/thread rows and
 rotate bounded groups of real readings. Storage collection is disabled; only verified
 physical Ethernet/Wi-Fi remain in network diagnostics, outside System theme pages.
+
+The NCT6792D correction retains chip source names such as `CPUTIN`, `AUXTIN0` and
+`SMBUSMASTER0`. Keep these names until the physical sensor location is confirmed;
+similar temperatures do not justify renaming a channel. See [sensor mapping](../docs/sensor-mapping.md).
 
 Cooling pages show watts as numeric readouts, without an inferred power limit. Fan instruments retain sensor names and RPM, rotating through available channels. The Windows reader omits a fan from theme snapshots until that sensor reports positive RPM once in the current engine session. A later measured zero stays visible as a stopped fan. This history survives page/theme changes and Python worker restarts; raw Sensor Debug channels remain unfiltered. Their outline rotors turn only for positive measured RPM and stop at zero; missing channels stay hidden. Rotor speed is a capped visual cue, not physical revolutions. Animations use the existing theme clock and selected refresh, with no extra timer or sampling. A one-second refresh still produces one frame per second. Codex status dots pulse only during received live work.
 

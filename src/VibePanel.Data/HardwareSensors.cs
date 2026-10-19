@@ -23,7 +23,7 @@ public sealed record HardwareReading(string Id, string Name, string Type, double
 /// <summary>A physical module identity. Part numbers, serial numbers and firmware slot labels remain distinct.</summary>
 public sealed record HardwareMemoryModule(string Name, double? CapacityGiB, IReadOnlyList<HardwareReading>? Readings = null,
     string? Id = null, string? Manufacturer = null, string? PartNumber = null, string? SerialNumber = null,
-    string? DeviceLocator = null, string? BankLabel = null);
+    string? DeviceLocator = null, string? BankLabel = null, string? Type = null, double? ConfiguredSpeedMTs = null);
 
 /// <summary>A named tachometer reading from the selected sensor library. RPM zero is a measured stop.</summary>
 public sealed record HardwareFanSensors(string Name, double Rpm);

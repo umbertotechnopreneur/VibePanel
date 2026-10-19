@@ -1,8 +1,12 @@
 # System sensors
 
-Vibe Panel uses the official compiled LibreHardwareMonitorLib 0.9.6 library for CPU,
-GPU and motherboard readings. It includes the library and required runtime dependencies,
-without the LibreHardwareMonitor application or any driver installer.
+Vibe Panel builds its CPU, GPU and motherboard reader from
+[LibreHardwareMonitor fork e5fa436](https://github.com/umbertotechnopreneur/LibreHardwareMonitor/tree/e5fa436eae6cb9ad5e8693d9909cd81ddf473629).
+This includes the NCT6792D decoder repair and ASRock B550M-ITX/ac source mapping.
+The MPL-2.0 library source is in `third_party/LibreHardwareMonitor`, and distributions
+include it under `sources/LibreHardwareMonitor`. Its project is adapted for .NET 10;
+sensor code and embedded modules match the pinned fork. The GUI and driver installers
+are excluded.
 
 CPU and motherboard temperatures and fan RPM need PawnIO. Its official signed edition
 is available from [pawnio.eu](https://pawnio.eu/). Vibe Panel does not install it.
@@ -15,10 +19,11 @@ GPU readings and physical RAM can remain available without PawnIO. RAM is read w
 Windows' [GlobalMemoryStatusEx](https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-globalmemorystatusex);
 physical totals remain independent of SPD access. Following owner approval, the
 library's RAM/SPD group is enabled. `RAMSPDToolkit-NDD` contains no default driver;
-LibreHardwareMonitor 0.9.6 supplies a PawnIO adapter that opens its embedded SMBus
+LibreHardwareMonitor supplies a PawnIO adapter that opens its embedded SMBus
 modules through the existing PawnIO installation. Vibe Panel installs no driver.
 No values are inferred from load or ACPI thermal zones. Zero RPM is a measured stop;
-an unavailable RPM is a missing reading. Generic motherboard channels retain their names.
+an unavailable RPM is a missing reading. Technical motherboard source names remain
+visible when their physical location is unknown.
 
 Vibe Panel requests administrator access on every Windows launch, including sign-in.
 Windows asks for approval. If canceled, a popup warns that the app is running without
@@ -71,13 +76,16 @@ are omitted from themes. Voltage and current remain numeric readings, with no gu
 safe range; separate power readings are never summed.
 
 RAM cards put the model code first, with an available serial below in smaller type.
-Windows supplies physical slot and bank labels. SPD supplies module identity and timing
+Each physical module can also show its RAM type, capacity and configured data rate in
+MT/s. Windows supplies these details and physical slot and bank labels. The configured
+rate is distinct from a measured clock in MHz. SPD supplies module identity and timing
 limits; these are not live memory-controller timings. Identical DIMMs cannot be matched
 to physical slots by list order. Their SPD details remain separate, under the library's
 original device names. A missing serial is omitted.
 
-Named channels are still dependent on the provider's decoder and board support.
-See the [NCT6792D mapping limitation](sensor-mapping.md) found during source analysis.
+The NCT6792D correction uses technical names such as `CPUTIN`, `AUXTIN0` and
+`SMBUSMASTER0`. These identify chip sources, not confirmed physical locations such as
+Southbridge. See the [decoder correction and mapping limits](sensor-mapping.md).
 
 Themes hide a fan channel until its first positive RPM reading in the current
 engine session. Activity is remembered by sensor identifier across page and theme

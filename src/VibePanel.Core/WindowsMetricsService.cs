@@ -305,8 +305,7 @@ public sealed partial class WindowsMetricsService(bool allowHardwareAccess = fal
     private static bool IsBoardTemperature(string name) => name.Contains("Mainboard", StringComparison.OrdinalIgnoreCase)
         || name.Contains("Motherboard", StringComparison.OrdinalIgnoreCase)
         || name.Equals("System", StringComparison.OrdinalIgnoreCase)
-        || name.Equals("SYS", StringComparison.OrdinalIgnoreCase)
-        || name.Equals("SYSTIN", StringComparison.OrdinalIgnoreCase);
+        || name.Equals("SYS", StringComparison.OrdinalIgnoreCase);
 
     private static bool HasFanChannels(Lhm.ISensor[] sensors) => sensors.Any(sensor =>
         sensor.SensorType == Lhm.SensorType.Fan && Value(sensor, nonnegative: true) is >= 0 and <= 20000);
