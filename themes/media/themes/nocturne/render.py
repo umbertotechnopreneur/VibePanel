@@ -1,5 +1,9 @@
 # VBWR B — Vibe Panel. Copyright (c) 2026 Umberto Giacobbi. MIT.
 def render(c, s):
+    if s.page_id == "artist":
+        from artist_page import render as render_artist
+        render_artist(c, s)
+        return
     if c.compact:
         c.compact_media("nocturne")
         return

@@ -35,8 +35,6 @@ class Component:
     def metric(self, key):
         return next((item for item in self.metrics if item.key == key), None)
 
-    def primary(self, prefer="usagePercent"):
-        return self.metric(prefer) or self.metrics[0]
 
 
 def _metric(raw, key, label, suffix, digits=0, ratio=False):
@@ -91,9 +89,6 @@ def _components(raw):
 def _board_temperatures(raw):
     """Keep board channel names; a generic channel is never called CPU temperature."""
     result = []
-    legacy = _metric(raw, "temperatureC", raw.get("temperatureLabel") or "Board temperature", "°C", 1)
-    if legacy:
-        result.append(legacy)
     readings = raw.get("temperatures") if isinstance(raw.get("temperatures"), list) else []
     for index, reading in enumerate(readings[:16]):
         if not isinstance(reading, dict):
@@ -116,15 +111,18 @@ def _record(components, stamp):
                 continue
             previous = _HISTORY.get(key)
             if previous is None:
-                previous = {"stamp": "", "at": now, "samples": deque(maxlen=_MAX_SAMPLES)}
+                previous = {"stamp": "", "at": now, "samples": deque(maxlen=_MAX_SAMPLES), "times": deque(maxlen=_MAX_SAMPLES)}
             if previous["stamp"] != stamp:
                 # A long gap starts a new trace rather than joining stale readings.
                 if now - previous["at"] > 10:
                     previous["samples"].clear()
+                    previous["times"].clear()
                 previous["samples"].append(metric.value)
+                previous["times"].append(now)
                 previous["stamp"], previous["at"] = stamp, now
             elif now - previous["at"] > 10:
                 previous["samples"].clear()
+                previous["times"].clear()
             _HISTORY[key] = previous
             _HISTORY.move_to_end(key)
     for key in tuple(_HISTORY):
@@ -144,57 +142,8 @@ def _text(c, value, x, y, size, width, tint=None, bold=False, align="left"):
     c.text(value, x, y, min(size, size * 1.14 / c.ctx.font_scale), tint, width, align, bold)
 
 
-def _caption(c, value, x, y, width, tint=None, align="left"):
-    c.text(value, x, y, c.text_size("instrument"), tint or c.ctx.muted, width, align)
 
-
-def _heading(c, s, style):
-    x = 24 if c.compact else 40
-    title = {"thermal": "THERMAL ATLAS", "orbit": "AIRFLOW"}.get(style, style.upper())
-    _caption(c, "SYSTEM / " + title, x, 34, c.width - x * 2 - 110, s.accent)
-    _text(c, s.now.strftime("%H:%M"), c.width - x, 35, 24, 100, align="right")
-    c.line(x, 54, c.width - x, 54, s.fg, opacity=.13)
-
-
-def _footer(c, s, components):
-    x = 24 if c.compact else 40
-    _caption(c, "VIBE PANEL", x, 468, 180)
-    # These are live readings even when the studio is in preview mode.
-    sample = clean(s.sensors.get("notice")).startswith("PREVIEW:")
-    _caption(c, "SAMPLE DATA" if sample else "LOCAL SENSORS" if components else "SENSORS UNAVAILABLE",
-             c.width - x, 468, c.width - x * 2 - 190, align="right")
-
-
-def _trace(c, component, metric, box, tint, ticks=False):
-    if metric is None:
-        return
-    samples = _samples(component, metric)
-    if len(samples) < 2:
-        return
-    x, y, width, height = box
-    if metric.ratio is not None:
-        low, high = 0, 100
-    else:
-        low, high = min(samples), max(samples)
-        if high == low:
-            low, high = low - 1, high + 1
-        else:
-            padding = (high - low) * .12
-            low, high = low - padding, high + padding
-    if ticks:
-        for fraction in (0, .5, 1):
-            c.line(x, y + fraction * height, x + width, y + fraction * height,
-                   c.ctx.fg, opacity=.08)
-    # Join only the real samples. No random curves, repeated fills or interpolation.
-    points = [(x + index / (len(samples) - 1) * width,
-               y + height * (1 - clip((value - low) / (high - low))))
-              for index, value in enumerate(samples)]
-    for start, end in zip(points, points[1:]):
-        c.line(*start, *end, tint, 2)
-    c.circle(*points[-1], 3, tint)
-
-
-def render(c, s, style):
-    from system_dashboard import render as render_dashboard
-    render_dashboard(c, s, style)
+def _points(component, metric):
+    series = _HISTORY.get((component.key, component.name, metric.key))
+    return list(zip(series["times"], series["samples"])) if series else []
 # VBWR E

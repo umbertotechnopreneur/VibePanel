@@ -51,58 +51,6 @@ def fixture_sensors(gpu_count=1):
     }
 
 
-def fixture_context(sensors, light=False, font_scale=1):
-    return SimpleNamespace(
-        sensors=sensors, light=light, font_scale=font_scale,
-        base="#F3F5EF" if light else "#101820",
-        fg="#20342A" if light else "#EDF4F1",
-        muted="#5E6E66" if light else "#9AAEA7", accent="#78CEB1",
-        palette=ThemePalette(("#78CEB1", "#79C8DE", "#D2C58D", "#A5ABBF"),
-                             dict(textPrimary="#EDF4F1", textSecondary="#9AAEA7",
-                                  accent="#78CEB1", warning="#FFAA00", info="#79C8DE"), {}, {}, light),
-        now=datetime.fromisoformat("2026-10-17T19:00:00+07:00"))
-
-
-class RecordingCanvas:
-    """The public Canvas signatures, recorded without allocating or rendering pixels."""
-    def __init__(self, context, compact=False):
-        self.ctx, self.compact = context, compact
-        self.width, self.height = (480 if compact else 1280), 480
-        self.calls = []
-
-    def text(self, value, x, y, size=24, tint=None, width=None, align="left", bold=False):
-        if value:
-            self.calls.append(("text", {"value": str(value), "x": x, "y": y,
-                                        "size": size, "width": width, "align": align}))
-
-    def text_size(self, role="caption"):
-        base, minimum, maximum = {"instrument": (16, 16, 18), "caption": (18, 16, 22),
-                                  "body": (20, 18, 26)}[role]
-        return max(minimum, min(maximum, base * self.ctx.font_scale)) / self.ctx.font_scale
-
-    def rect(self, x, y, width, height, tint, radius=0, opacity=1, stroke=0):
-        self.calls.append(("rect", {"x": x, "y": y, "width": width, "height": height}))
-
-    def line(self, x1, y1, x2, y2, tint, width=1, opacity=1):
-        self.calls.append(("line", {"x1": x1, "y1": y1, "x2": x2, "y2": y2}))
-
-    def circle(self, x, y, radius, tint, opacity=1, stroke=0):
-        self.calls.append(("circle", {"x": x, "y": y, "radius": radius}))
-
-    def gradient(self, x, y, width, height, colors, vertical=False, radius=0):
-        self.calls.append(("gradient", {"x": x, "y": y, "width": width, "height": height}))
-
-    def ring(self, x, y, radius, value=None, tint=None, stroke=4, marker=False):
-        self.calls.append(("ring", {"x": x, "y": y, "radius": radius, "value": value}))
-
-    def hardware_photo(self, asset, x, y, width, height, shade, opacity=.65):
-        self.calls.append(("hardware_photo", {"asset": asset, "x": x, "y": y,
-                                              "width": width, "height": height}))
-
-    def texts(self):
-        return [arguments["value"] for kind, arguments in self.calls if kind == "text"]
-
-
 class SensorNormalizationChecks(unittest.TestCase):
     def test_missing_null_and_empty_components_disappear(self):
         for raw in ({}, {"cpu": None, "gpus": None, "memory": None},
@@ -136,7 +84,7 @@ class SensorNormalizationChecks(unittest.TestCase):
                                               "clockMHz": 3200, "clockLabel": "Average core clock",
                                               "temperatureC": 51.2, "temperatureLabel": "CPU package"}})[0]
         self.assertEqual([item.key for item in cpu.metrics], ["clockMHz", "temperatureC"])
-        self.assertEqual(cpu.primary().key, "clockMHz")
+        self.assertIsNone(cpu.metric("usagePercent"))
         self.assertEqual(cpu.metric("clockMHz").label, "Average core clock")
         self.assertEqual(cpu.metric("temperatureC").label, "CPU package")
         self.assertEqual(cpu.metric("clockMHz").text, "3200 MHz")
@@ -230,27 +178,18 @@ class SensorHistoryChecks(unittest.TestCase):
 
 
 class ThemeDataContractChecks(unittest.TestCase):
-    def test_missing_fields_are_omitted_and_measured_zero_survives(self):
-        from system_dashboard import _processor_card
-        card = _processor_card({"name": "GPU", "usagePercent": 0}, "gpu", "GPU", "thermal")
-        self.assertEqual(card.value, "")
-        self.assertEqual(card.value_label, "")
-        self.assertEqual(card.frequency, "0.0% load")
-        self.assertFalse(any("unavailable" in detail.casefold() for detail in card.details))
-
     def test_multiple_gpu_power_channels_keep_names_and_watts(self):
-        from system_dashboard import _processor_card
+        from system_dashboard import power_and_fans
         raw = {"readings": [{"type": "Power", "name": "GPU Package", "value": 100},
                             {"type": "Power", "name": "GPU Rail", "value": 40}]}
-        card = _processor_card(raw, "gpu", "GPU", "thermal")
-        self.assertIn("Package: 100.0 W", card.details[0])
-        self.assertIn("Rail: 40.0 W", card.details[0])
+        powers, _ = power_and_fans([("gpu-0", "GPU", raw)], {})
+        self.assertEqual(powers, [("GPU · Package", 100, "W"), ("GPU · Rail", 40, "W")])
 
-    def test_configured_ddr_rate_is_distinct_from_measured_clock(self):
-        from system_dashboard import _memory_card
-        card = _memory_card({"type": "DDR4", "configuredSpeedMTs": 3200, "clockMHz": 1600})
-        self.assertEqual(card.frequency, "3200 MT/s configured")
-        self.assertIn("1600 MHz memory clock", card.details)
+    def test_missing_fields_are_omitted_without_losing_measured_zero(self):
+        from system_dashboard import metadata
+        self.assertEqual(metadata("cpu", {}), [])
+        self.assertEqual(metadata("cpu", {"temperatureC": 0}), [("TEMPERATURE", "0.0°C")])
+        self.assertEqual(metadata("memory", {"totalGiB": 32}), [("TOTAL", "32.0 GiB")])
 
 
 class SystemPackChecks(unittest.TestCase):

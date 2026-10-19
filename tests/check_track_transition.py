@@ -18,7 +18,7 @@ sys.path.insert(0, str(ROOT / "theme-runtime"))
 
 import skia
 import worker
-from track_transition import TrackTransition
+from frame_transition import FrameTransition
 
 
 def solid(color, width=32, height=32):
@@ -31,10 +31,10 @@ def pixel(image):
     return tuple(int(value) for value in image.toarray(colorType=skia.ColorType.kRGBA_8888_ColorType)[0, 0])
 
 
-class TrackTransitionChecks(unittest.TestCase):
+class FrameTransitionChecks(unittest.TestCase):
     def setUp(self):
         self.now = 0.0
-        self.fade = TrackTransition(clock=lambda: self.now)
+        self.fade = FrameTransition(clock=lambda: self.now)
         self.red, self.blue, self.green = (solid(color) for color in (skia.ColorRED, skia.ColorBLUE, skia.ColorGREEN))
         self.scope = ("theme", 32, 32)
 
@@ -119,7 +119,7 @@ class TrackTransitionChecks(unittest.TestCase):
         self.begin()
         self.now = 1.45
         sparse, _ = self.fade.compose(self.blue, self.scope, "B")
-        dense = TrackTransition(clock=lambda: self.now)
+        dense = FrameTransition(clock=lambda: self.now)
         self.now = 0
         dense.compose(self.red, self.scope, "A")
         self.now = 1
@@ -137,7 +137,7 @@ class TrackTransitionChecks(unittest.TestCase):
                    "width": 128, "height": 128, "colorFiltersEnabled": False,
                    "brightnessPercent": 100, "contrastPercent": 0,
                    "state": {"media": {"source": "fixture", "title": "A"}}}
-        with patch.object(worker, "load_theme", return_value=(manifest, module)), patch.object(worker, "TRACK_TRANSITION", self.fade):
+        with patch.object(worker, "load_theme", return_value=(manifest, module)), patch.object(worker, "FRAME_TRANSITION", self.fade):
             self.assertFalse(worker.render(request)["transitionActive"])
             request["state"]["media"]["title"] = "B"
             self.now = 1
@@ -157,7 +157,7 @@ class TrackTransitionChecks(unittest.TestCase):
         request = {"version": 1, "method": "render", "themePath": str(ROOT / "themes/media/themes/aurora"),
                    "width": 128, "height": 128, "colorFiltersEnabled": False,
                    "state": {"media": {"source": "fixture", "title": "A"}}}
-        with patch.object(worker, "load_theme", return_value=(manifest, module)), patch.object(worker, "TRACK_TRANSITION", self.fade):
+        with patch.object(worker, "load_theme", return_value=(manifest, module)), patch.object(worker, "FRAME_TRANSITION", self.fade):
             worker.render(request)
             request["state"]["media"].update(positionSeconds=10, playing=True)
             self.assertFalse(worker.render(request)["transitionActive"])

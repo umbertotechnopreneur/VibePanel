@@ -3,9 +3,9 @@
   "id": "system.horizon",
   "category": "system",
   "name": "Horizon",
-  "description": "Clean readings above a quiet dusk gradient and real usage traces.",
+  "description": "2 rotating pages: live activity, at a glance.",
   "entry": "render.py",
-  "version": "1.2.0",
+  "version": "2.0.0",
   "author": "Umberto Giacobbi",
   "license": "MIT",
   "canvas": {
@@ -42,5 +42,16 @@
   "branding": {
     "begin": "VBWR B",
     "end": "VBWR E"
-  }
+  },
+  "pages": [
+    {
+      "id": "activity",
+      "title": "Live activity"
+    },
+    {
+      "id": "overview",
+      "title": "At a glance"
+    }
+  ],
+  "pageSeconds": 8
 }

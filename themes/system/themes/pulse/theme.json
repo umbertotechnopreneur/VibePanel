@@ -3,9 +3,9 @@
   "id": "system.pulse",
   "category": "system",
   "name": "Pulse",
-  "description": "Cyan and magenta sensor lanes with real traces and RAM at the side.",
+  "description": "3 rotating pages: live activity, power & cooling, at a glance.",
   "entry": "render.py",
-  "version": "1.2.0",
+  "version": "2.0.0",
   "author": "Umberto Giacobbi",
   "license": "MIT",
   "canvas": {
@@ -42,5 +42,20 @@
   "branding": {
     "begin": "VBWR B",
     "end": "VBWR E"
-  }
+  },
+  "pages": [
+    {
+      "id": "activity",
+      "title": "Live activity"
+    },
+    {
+      "id": "cooling",
+      "title": "Power & cooling"
+    },
+    {
+      "id": "overview",
+      "title": "At a glance"
+    }
+  ],
+  "pageSeconds": 8
 }

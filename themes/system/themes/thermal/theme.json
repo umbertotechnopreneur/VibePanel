@@ -3,9 +3,9 @@
   "id": "system.thermal",
   "category": "system",
   "name": "Thermal Atlas",
-  "description": "Warm CPU, GPU and board photo panels with measured temperatures, fan speeds, clocks, load and small used RAM.",
+  "description": "3 rotating pages: power & cooling, live activity, at a glance.",
   "entry": "render.py",
-  "version": "1.2.0",
+  "version": "2.0.0",
   "author": "Umberto Giacobbi",
   "license": "MIT",
   "canvas": {
@@ -42,5 +42,20 @@
   "branding": {
     "begin": "VBWR B",
     "end": "VBWR E"
-  }
+  },
+  "pages": [
+    {
+      "id": "cooling",
+      "title": "Power & cooling"
+    },
+    {
+      "id": "activity",
+      "title": "Live activity"
+    },
+    {
+      "id": "overview",
+      "title": "At a glance"
+    }
+  ],
+  "pageSeconds": 8
 }
