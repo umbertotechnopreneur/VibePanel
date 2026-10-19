@@ -319,3 +319,11 @@ for their curves and window extrema. The curve preserves sampled values; no new
 sensor polling is added. Missing or stale readings clear their histories. The
 installed build does not contain this change. No renderer preview, automated tests,
 live sensor trial, USB output, build or installation was performed for this change.
+
+## 20 October 2026: local Debug 0.1.18
+
+The Windows x64 Debug payload and MSI were built from source at revision 73dca8b.
+The previous MSI was removed and 0.1.18 installed through Windows Installer; all
+1,823 installed payload files matched the fresh build. The app started afterwards.
+The MSI SHA-256 is 961645CC23E13F541FEE3EA4153A67FF3A6D41DAD7A77FE45330532CEEBF3D64.
+No automated tests, renderer previews, or agent-issued sensor or USB trials ran.
