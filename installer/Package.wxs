@@ -94,7 +94,7 @@ VBWR E -->
     </UI>
     <InstallUISequence>
       <!-- Replace WixUI's overridable success sequence, retaining its other dialogs. -->
-      <Show Dialog="ExitDialog" Sequence="0" Condition="0" />
+      <Show Dialog="ExitDialog" Sequence="1" Condition="0" />
       <Show Dialog="VibePanelComplete" OnExit="success" />
     </InstallUISequence>
     <StandardDirectory Id="LocalAppDataFolder">
