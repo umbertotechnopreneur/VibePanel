@@ -91,8 +91,8 @@ def dial(c, s, x, y, radius, value, unit, maximum, tint, style):
             c.line(x + math.cos(angle) * inner, y + math.sin(angle) * inner,
                    x + math.cos(angle) * outer, y + math.sin(angle) * outer, tint, 1, .4)
     if value is not None:
-        _text(c, f"{value:.0f}" if unit == "%" else f"{value:.1f}", x, y + 10, radius * .57, radius * 1.7, s.fg, True, "center")
-        _text(c, unit, x, y + radius * .52, 15, radius * 1.5, active, align="center")
+        _text(c, f"{value:.0f}" if unit == "%" else f"{value:.1f}", x, y + min(10, radius * .2), radius * .57, radius * 1.7, s.fg, True, "center")
+        _text(c, unit, x, y + max(24, radius * .52), 15, radius * 1.5, active, align="center")
     if sweep < 360:
         _text(c, "0", x - radius * .7, y + radius + 20, 11, 50, s.muted, align="center")
         _text(c, str(maximum), x + radius * .7, y + radius + 20, 11, 50, s.muted, align="center")
@@ -176,7 +176,8 @@ def overview(c, s, style, items):
                 half = (width - 44) / max(1, len(info))
                 xx = x + 22 + column * half
                 _text(c, title, xx, 374, 10, half - 8, s.muted)
-                _text(c, value, xx, 400, 21 if key != "memory" else 17, half - 8, tint, True)
+                value_size = 21 if key != "memory" else 15 if len(info) > 1 else 17
+                _text(c, value, xx, 400, value_size, half - 8, tint, True)
 
 
 def history(c, s, component, box, tint):
