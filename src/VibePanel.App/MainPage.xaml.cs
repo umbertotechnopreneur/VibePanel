@@ -130,6 +130,7 @@ public sealed partial class MainPage : Page
             { if (args.Key == Key.Escape) { CloseOverlay.Visibility = Visibility.Collapsed; args.Handled = true; } return; }
             if (AboutOverlay.Visibility == Visibility.Visible)
             { if (args.Key == Key.Escape) { CloseAbout(); args.Handled = true; } return; }
+            if (SensorDebugPanel.Visibility == Visibility.Visible) { return; }
             if (ProfilesBox.IsDropDownOpen || DevicesBox.IsDropDownOpen || RefreshBox.IsDropDownOpen || QualityBox.IsDropDownOpen || FontsBox.IsDropDownOpen || args.OriginalSource is TextBox) { return; }
             if (args.Key == Key.PageUp) { Navigate(-1); args.Handled = true; }
             if (args.Key == Key.PageDown) { Navigate(1); args.Handled = true; }
@@ -232,11 +233,12 @@ public sealed partial class MainPage : Page
 
     private Task RefreshAsync(bool queueIfBusy = true)
     {
-        session.PreviewVisible = preview?.IsVisible != false;
+        session.PreviewVisible = SensorDebugPanel.Visibility != Visibility.Visible && preview?.IsVisible != false;
         if (queueIfBusy) { session.Wake(); }
         if (unloaded || !ready || preview?.IsVisible == false) { lastFrame = null; return Task.CompletedTask; }
         var current = session.Snapshot;
         ApplyAppearance();
+        if (SensorDebugPanel.Visibility == Visibility.Visible) { StatusText.Text = current.Status; return Task.CompletedTask; }
         if (selectedCategory == "codex") { _ = RefreshCodexStatusAsync(); }
         ApplyDevices(current.Devices);
         var p = viewModel.Preferences;
@@ -420,6 +422,7 @@ public sealed partial class MainPage : Page
         UpdateRows();
         UpdateAppearanceButtons();
         UpdateDisplayControls();
+        ApplySensorDebugAppearance();
     }
 
     private void UpdateAppearanceButtons()
@@ -678,7 +681,7 @@ public sealed partial class MainPage : Page
     {
         if (restartingAsAdministrator || windowActions?.CanRestartAsAdministrator != true) { return; }
         restartingAsAdministrator = true;
-        AdministratorButton.IsEnabled = false;
+        AdministratorButton.IsEnabled = SensorDebugAdministrator.IsEnabled = false;
         // Keep the existing session alive until Windows accepts the elevated launch.
         try
         {
@@ -689,7 +692,7 @@ public sealed partial class MainPage : Page
             else { StatusText.Text = "Administrator restart canceled. The current session is still running."; }
         }
         catch (Exception error) { StatusText.Text = "Could not reopen as administrator: " + error.Message; }
-        finally { restartingAsAdministrator = false; AdministratorButton.IsEnabled = true; }
+        finally { restartingAsAdministrator = false; AdministratorButton.IsEnabled = SensorDebugAdministrator.IsEnabled = true; }
     }
 
     /// <summary>Flush pending choices before asking the desktop host to stop.</summary>

@@ -18,7 +18,7 @@ internal static class VibePanelCli
         try
         {
             Console.OutputEncoding = Encoding.UTF8;
-            Banner();
+            if (!string.Equals(args.FirstOrDefault(), "sensors", StringComparison.OrdinalIgnoreCase)) { Banner(); }
             return Task.FromResult(args.FirstOrDefault()?.ToLowerInvariant() switch
             {
                 "discover" => Discover(),
@@ -227,9 +227,14 @@ internal static class VibePanelCli
 
     private static int Sensors(IReadOnlyList<string> args)
     {
-        if (args.Count > 2 || args.Count == 2 && args[1] != "--diagnose")
-        { return Fail("Usage: vp sensors [--diagnose]"); }
+        if (args.Count > 2 || args.Count == 2 && args[1] is not ("--diagnose" or "--all"))
+        { return Fail("Usage: vp sensors [--diagnose|--all]"); }
         using var sensors = new WindowsMetricsService(allowHardwareAccess: true);
+        if (args.Contains("--all"))
+        {
+            Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(sensors.ReadSensorDebug(), VibePanel.Contracts.PanelContract.Json));
+            return sensors.InitializationFailureDetails is null ? 0 : 1;
+        }
         var snapshot = sensors.ReadSensors();
         Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(snapshot, VibePanel.Contracts.PanelContract.Json));
         if (snapshot.Notice is { } notice) { Console.Error.WriteLine(notice); }
@@ -534,7 +539,7 @@ internal static class VibePanelCli
         commands.AddRow("vp fonts", "List installed monospace families available to the Python/Skia renderer.");
         commands.AddRow("vp codex status|prepare", "Check or prepare my optional Codex plugin. Trust its hooks in Codex.");
         commands.AddRow("vp diagnostics status|on|off|open", "Opt-in local error log, capped at 512 KiB plus one backup.");
-        commands.AddRow("vp sensors [--diagnose]", "Read CPU, GPU and RAM once through the sensor library. No audio or USB. --diagnose prints local initialization details.");
+        commands.AddRow("vp sensors [--diagnose|--all]", "Read hardware once. --all returns the raw device/sensor tree; --diagnose prints initialization details. No audio or USB.");
         commands.AddRow("vp gui", "Open the desktop window from the portable folder.");
         commands.AddRow("vp gui --start-minimized", "Start in the Windows tray. Reuses the existing studio instance.");
         commands.AddRow("vp theme media.aurora --export frame.jpg", "Render a Python/Skia theme to a new file. No USB writes.");

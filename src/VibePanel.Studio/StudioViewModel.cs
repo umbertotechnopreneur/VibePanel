@@ -26,6 +26,7 @@ public sealed class StudioViewModel(StudioModel model, IPanelClient? client = nu
     }
     public Task<System.Text.Json.JsonElement> OpenDiagnosticsAsync() => RequestAsync<System.Text.Json.JsonElement>("diagnostics.open");
     public Task<SensorDriverDto> ReadSensorDriverAsync() => RequestAsync<SensorDriverDto>("sensors.driver.status");
+    public Task<SensorDebugDto> ReadSensorDebugAsync() => RequestAsync<SensorDebugDto>("sensors.debug");
     public Task<System.Text.Json.JsonElement> OpenSensorDriverFolderAsync() => RequestAsync<System.Text.Json.JsonElement>("sensors.driver.open");
     public async Task<FontCatalogDto> ReadFontsAsync()
     {

@@ -14,7 +14,7 @@ namespace VibePanel.Core;
 /// Reads CPU/GPU/board sensors through Libre Hardware Monitor and physical RAM through Windows.
 /// Construction opens no hardware. This adapter never installs, extracts or removes a sensor driver.
 /// </summary>
-public sealed class WindowsMetricsService(bool allowHardwareAccess = false) : IMetricsProvider
+public sealed partial class WindowsMetricsService(bool allowHardwareAccess = false) : IMetricsProvider
 {
     private const int MaximumHardware = 64;
     private const int MaximumDepth = 8;
@@ -91,6 +91,7 @@ public sealed class WindowsMetricsService(bool allowHardwareAccess = false) : IM
                 var boardTemperatures = new List<HardwareTemperatureSensors>();
                 var boardFans = new List<HardwareFanSensors>();
                 var gpus = new List<HardwareDeviceSensors>();
+                var dimms = new List<HardwareMemoryModule>();
                 var failed = false;
                 foreach (var hardware in EnumerateHardware(computer!.Hardware))
                 {
@@ -108,6 +109,9 @@ public sealed class WindowsMetricsService(bool allowHardwareAccess = false) : IM
                                 break;
                             case Lhm.HardwareType.Motherboard:
                                 motherboardName = hardware.Name;
+                                break;
+                            case Lhm.HardwareType.Memory when hardware.Identifier.ToString().StartsWith("/memory/dimm/", StringComparison.Ordinal) && dimms.Count < 16:
+                                dimms.Add(new(hardware.Name, FindValue(sensors, Lhm.SensorType.Data, "Capacity", nonnegative: true), ReadThemeValues(sensors, 64)));
                                 break;
                             case Lhm.HardwareType.SuperIO or Lhm.HardwareType.EmbeddedController when driverStatus.Available:
                                 // Only the board's own chip supplies these readings.
@@ -130,6 +134,11 @@ public sealed class WindowsMetricsService(bool allowHardwareAccess = false) : IM
                 { cpu = cpu with { Fans = (cpu.Fans ?? []).Concat(cpuFans).Take(MaximumFans).ToArray() }; }
                 var otherFans = boardFans.Where(fan => cpu is null || !fan.Name.Contains("CPU", StringComparison.OrdinalIgnoreCase)).ToArray();
                 var board = CreateMotherboard(motherboardName, boardTemperatures, otherFans);
+                if (memory is not null)
+                {
+                    var clock = cpu?.Readings?.FirstOrDefault(reading => reading.Type == "Clock" && reading.Name.Equals("Memory", StringComparison.OrdinalIgnoreCase))?.Value;
+                    memory = memory with { ClockMHz = clock, Modules = dimms.Count > 0 ? dimms : memory.Modules };
+                }
                 snapshot = new(cpu, gpus.ToArray(), memory, DateTimeOffset.UtcNow,
                     AvailabilityNotice(driverStatus, cpu, board, failed), board, driverStatus);
             }
@@ -187,13 +196,20 @@ public sealed class WindowsMetricsService(bool allowHardwareAccess = false) : IM
         try
         {
             driverStatus = ReadDriverInstallationStatus();
+            ReadMemoryConfiguration();
             candidate = new Lhm.Computer
             {
                 IsCpuEnabled = true,
                 IsGpuEnabled = true,
                 IsMotherboardEnabled = true,
-                // LHM 0.9.6's memory group attempts to load its SPD driver. Read physical RAM through Windows instead.
-                IsMemoryEnabled = false
+                // Owner-approved full readout, including the library's RAM/SPD driver path.
+                IsMemoryEnabled = true,
+                IsControllerEnabled = true,
+                IsStorageEnabled = true,
+                IsNetworkEnabled = true,
+                IsPsuEnabled = true,
+                IsBatteryEnabled = true,
+                IsPowerMonitorEnabled = true
             };
             candidate.Open();
             computer = candidate;
@@ -222,9 +238,12 @@ public sealed class WindowsMetricsService(bool allowHardwareAccess = false) : IM
     private static HardwareDeviceSensors ReadCpu(string name, Lhm.ISensor[] sensors)
     {
         var usage = FindValue(sensors, Lhm.SensorType.Load, "CPU Total", percentage: true);
+        var averageClock = FindValue(sensors, Lhm.SensorType.Clock, "Cores (Average)", nonnegative: true);
         var clocks = sensors.Where(sensor => sensor.SensorType == Lhm.SensorType.Clock
             && sensor.Name.Contains("Core", StringComparison.OrdinalIgnoreCase)
-            && !sensor.Name.Contains("Bus", StringComparison.OrdinalIgnoreCase))
+            && !sensor.Name.Contains("Bus", StringComparison.OrdinalIgnoreCase)
+            && !sensor.Name.Contains("Effective", StringComparison.OrdinalIgnoreCase)
+            && !sensor.Name.Contains("Average", StringComparison.OrdinalIgnoreCase))
             .Select(sensor => Value(sensor, nonnegative: true)).OfType<double>().ToArray();
         var temperatures = sensors.Where(sensor => sensor.SensorType == Lhm.SensorType.Temperature)
             .Select(sensor => (Sensor: sensor, Value: Value(sensor))).Where(item => item.Value is not null).ToArray();
@@ -238,14 +257,15 @@ public sealed class WindowsMetricsService(bool allowHardwareAccess = false) : IM
             temperature = temperatures.Max(item => item.Value);
             temperatureLabel = "Hottest CPU sensor";
         }
-        return new(name, usage, clocks.Length == 0 ? null : clocks.Average(), temperature,
-            clocks.Length == 0 ? null : "Average clock", temperatureLabel, ReadFans(sensors));
+        var clock = averageClock ?? (clocks.Length == 0 ? (double?)null : clocks.Average());
+        return new(name, usage, clock, temperature,
+            clock is null ? null : "Average clock", temperatureLabel, ReadFans(sensors), ReadThemeValues(sensors));
     }
 
     private static HardwareDeviceSensors ReadGpu(string name, Lhm.ISensor[] sensors) => new(name,
         FindValue(sensors, Lhm.SensorType.Load, "GPU Core", percentage: true),
         FindValue(sensors, Lhm.SensorType.Clock, "GPU Core", nonnegative: true),
-        FindValue(sensors, Lhm.SensorType.Temperature, "GPU Core"), "Core clock", "GPU core", ReadFans(sensors));
+        FindValue(sensors, Lhm.SensorType.Temperature, "GPU Core"), "Core clock", "GPU core", ReadFans(sensors), ReadThemeValues(sensors));
 
     internal static HardwareMotherboardSensors? CreateMotherboard(string? name,
         IReadOnlyList<HardwareTemperatureSensors> temperatures, IReadOnlyList<HardwareFanSensors> fans)
@@ -286,14 +306,15 @@ public sealed class WindowsMetricsService(bool allowHardwareAccess = false) : IM
         .Select(item => new HardwareFanSensors(item.Name, item.Rpm!.Value))
         .ToArray();
 
-    private static HardwareMemorySensors? ReadPhysicalMemory()
+    private HardwareMemorySensors? ReadPhysicalMemory()
     {
         var status = new MemoryStatus { Length = (uint)Marshal.SizeOf<MemoryStatus>() };
         if (!GlobalMemoryStatusEx(ref status) || status.TotalPhysical == 0 || status.AvailablePhysical > status.TotalPhysical)
         { return null; }
         const double gibibyte = 1024d * 1024 * 1024;
         return new(status.TotalPhysical / gibibyte,
-            (status.TotalPhysical - status.AvailablePhysical) / gibibyte, status.MemoryLoad);
+            (status.TotalPhysical - status.AvailablePhysical) / gibibyte, status.MemoryLoad,
+            memoryType, memoryConfiguredSpeed, Modules: memoryModules, MetadataNotice: memoryMetadataNotice);
     }
 
     [StructLayout(LayoutKind.Sequential)]

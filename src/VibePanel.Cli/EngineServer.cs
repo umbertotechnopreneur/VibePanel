@@ -13,7 +13,9 @@ using VibePanel.Core;
 /// <summary>Small allow-listed local protocol. USB writes require an explicit start request.</summary>
 internal sealed class EngineServer : IDisposable
 {
-    private readonly DashboardService dashboard = new(WindowsDashboardProviders.Create());
+    private readonly WindowsMetricsService metrics = new(allowHardwareAccess: true);
+    private readonly DashboardService dashboard;
+    public EngineServer() => dashboard = new(WindowsDashboardProviders.Create(metrics));
     private readonly DashboardRenderer renderer = new();
     private readonly PythonThemeRenderer themeRenderer = new();
     private readonly CodexProcessMonitor codexProcess = new();
@@ -145,8 +147,9 @@ internal sealed class EngineServer : IDisposable
             case "diagnostics.set": return DiagnosticLog.SetEnabled(Parameters<SetDiagnosticsOptions>(request).Enabled);
             case "diagnostics.open": return new { accepted = DiagnosticLog.Open() };
             case "sensors.driver.status": return SensorDriverStatus();
+            case "sensors.debug": return await Task.Run(metrics.ReadSensorDebug);
             case "sensors.driver.open": return new { accepted = OpenSensorDriverFolder() };
-            default: throw new ArgumentException("Unknown method. Use hello, themes, fonts, devices, state, present, levels, start, stop, media, codex.status, codex.prepare, diagnostics.*, or sensors.driver.*.");
+            default: throw new ArgumentException("Unknown method. Use hello, themes, fonts, devices, state, present, levels, start, stop, media, codex.status, codex.prepare, diagnostics.*, sensors.debug, or sensors.driver.*.");
         }
     }
 

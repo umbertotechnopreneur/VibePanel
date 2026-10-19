@@ -46,6 +46,13 @@ public sealed record DiagnosticsStatus(bool Enabled, string LogPath);
 public sealed record SetDiagnosticsOptions(bool Enabled);
 public sealed record AudioLevelDto(string Id, string Name, double VolumePercent, bool Muted, double? Peak);
 public sealed record SensorDriverDto(bool Available, string? Path, string? Notice, bool FileExists);
+public sealed record SensorReadingDto(string Id, string Name, string Type, string Unit,
+    double? Value, double? Minimum, double? Maximum, string? Notice = null, IReadOnlyList<SensorParameterDto>? Parameters = null);
+public sealed record SensorParameterDto(string Id, string Name, string Description, double? Value, double? DefaultValue);
+public sealed record HardwareDeviceDto(string Id, string? ParentId, string Name, string Type,
+    IReadOnlyList<SensorReadingDto> Sensors, string? Notice = null);
+public sealed record SensorDebugDto(string LibraryVersion, DateTimeOffset SampledAtUtc,
+    bool Administrator, IReadOnlyList<HardwareDeviceDto> Devices, IReadOnlyList<string> Notices);
 public sealed record SystemDto(double? CpuUsage, double? CpuTemperature, double? GpuUsage, double? GpuTemperature, string GpuName, string CpuTemperatureSource,
     SensorDriverDto? Driver = null);
 public sealed record NetworkDto(double? DownloadBytesPerSecond, double? UploadBytesPerSecond, long DownloadBytes, long UploadBytes, string Scope);
