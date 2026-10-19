@@ -1,8 +1,10 @@
 // VBWR B — Vibe Panel. Copyright (c) 2026 Umberto Giacobbi. MIT. VBWR E
 #include <windows.h>
 #include <msi.h>
+#include <msiquery.h>
 #include <sddl.h>
 #include <shellapi.h>
+#include <objbase.h>
 #include <string>
 #include <vector>
 
@@ -89,7 +91,10 @@ static bool OpenCompletionTarget(const std::wstring& target, const wchar_t* dire
     execute.lpFile = target.c_str();
     execute.lpDirectory = directory;
     execute.nShow = SW_SHOWNORMAL;
-    return ShellExecuteExW(&execute) != FALSE;
+    const HRESULT apartment = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+    const BOOL opened = ShellExecuteExW(&execute);
+    if (SUCCEEDED(apartment)) { CoUninitialize(); }
+    return opened != FALSE;
 }
 
 extern "C" __declspec(dllexport) UINT __stdcall StartVibePanelAfterInstall(MSIHANDLE installer) {
