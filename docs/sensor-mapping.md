@@ -14,6 +14,11 @@ dependency decoder. Generic board temperatures should not be treated as confirme
 component temperatures. Changing labels or applying guessed offsets would not recover
 the lost readings. A dependency repair needs separate source review and validation.
 
+I submitted the decoder repair and exact-board source mapping in
+[LibreHardwareMonitor PR #2590](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/pull/2590).
+The fork compiles for .NET 10 x64. The draft has not been checked on live hardware,
+and Vibe Panel 0.1.15 still uses the official package without this patch.
+
 Sources studied, without copying their implementation into the MIT application:
 
 - [0.9.6 NCT decoder](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/blob/v0.9.6/LibreHardwareMonitorLib/Hardware/Motherboard/Lpc/Nct677X.cs#L790).

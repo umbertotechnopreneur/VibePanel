@@ -233,3 +233,22 @@ sources match the current repository build inputs. Unchanged dependencies reused
 their existing first-import hashes. The guarded cleanup retained only the final MSI;
 logs, checksums and receipts are saved outside the repository. No tests or runtime
 validation were added by packaging. Installed files and settings remain unchanged.
+
+## 19 October 2026: LibreHardwareMonitor contribution
+
+The owner authorized a separate fork and upstream contribution. Fork commit
+`e5fa436eae6cb9ad5e8693d9909cd81ddf473629` routes NCT6792D through the existing
+masked-source decoder, which skips empty register entries and retains valid
+fractional samples. The exact B550M-ITX/ac mapping also exposes SMBUSMASTER0.
+Source names remain technical; physical CPU/mainboard/chipset aliases are unverified.
+[Draft PR #2590](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/pull/2590)
+contains the saved-register evidence without the owner's full hardware report.
+
+Restore and a full Release net10.0 x64 rebuild with SDK 10.0.402 completed, with no
+rebuild warnings or errors. Whitespace verification reports only existing issues
+on unchanged lines, also present in the unmodified upstream base. Targeted
+first-import Defender scans completed without detections; unchanged dependencies
+reused recorded hash evidence. No tests, application launch, live sensor reads,
+driver operations or installation were performed. Vibe Panel 0.1.15 retains the
+official library and does not yet include this fork. Upstream CI requires action
+before it can run; the contributor account cannot assign upstream labels or users.
