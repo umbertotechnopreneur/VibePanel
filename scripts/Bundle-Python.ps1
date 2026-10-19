@@ -185,7 +185,11 @@ if (Test-Path -LiteralPath $bundleMarker) {
 }
 
 $pythonStage = Join-Path $engine "python.$([guid]::NewGuid().ToString('N')).stage"
-& "$PSScriptRoot/Assert-DefenderClean.ps1" -Path $cache -Source "https://www.python.org/ftp/python/$version/ and https://pypi.org/; pinned requirements and SHA-256 manifest" -ScanNewImport:$PrepareImports
+# Scan imported archives, not the locally generated wheel cache manifest.
+& "$PSScriptRoot/Assert-DefenderClean.ps1" -Path $pythonArchive -Source "https://www.python.org/ftp/python/$version/" -ScanNewImport:$PrepareImports
+foreach ($wheel in $wheelEntries) {
+    & "$PSScriptRoot/Assert-DefenderClean.ps1" -Path (Join-Path $wheelCache $wheel.filename) -Source 'https://pypi.org/; pinned wheel' -ScanNewImport:$PrepareImports
+}
 Expand-Archive -LiteralPath $pythonArchive -DestinationPath $pythonStage
 $sitePackages = Join-Path $pythonStage 'Lib/site-packages'
 New-Item -ItemType Directory -Path $sitePackages -Force | Out-Null
