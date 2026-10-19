@@ -34,7 +34,7 @@ public sealed class StudioSession : IPanelClient, IAsyncDisposable, IDisposable
         ViewModel = new(Model, this);
         if (Model.PersistenceNotice is { } notice) { snapshot = snapshot with { Status = notice }; }
         var p = Model.Preferences;
-        if (restoreLastSession && !string.IsNullOrEmpty(p.SelectedDeviceId) && !string.IsNullOrEmpty(p.SelectedTheme))
+        if (restoreLastSession)
         {
             startupDevice = p.SelectedDeviceId; startupTheme = p.SelectedTheme;
             snapshot = snapshot with { StartupPending = true };
@@ -204,14 +204,16 @@ public sealed class StudioSession : IPanelClient, IAsyncDisposable, IDisposable
                     if (devicesAt == 0 || Environment.TickCount64 - devicesAt >= 10000) { await DiscoverAsync().ConfigureAwait(false); }
                     if (Snapshot.StartupPending)
                     {
-                        if (!Snapshot.Catalog!.Themes.Any(t => t.Id == startupTheme) || Model.Preferences.SelectedTheme != startupTheme)
+                        var startupThemeId = string.IsNullOrEmpty(startupTheme) ? Model.Preferences.SelectedTheme : startupTheme;
+                        var device = startupDevice ?? (Snapshot.Devices is { Length: 1 } choices ? choices[0].Id : null);
+                        if (!Snapshot.Catalog!.Themes.Any(t => t.Id == startupThemeId) || Model.Preferences.SelectedTheme != startupThemeId)
                         { Publish(s => s with { StartupPending = false, Status = "The saved startup theme changed or is unavailable." }); }
-                        else if (Snapshot.Devices!.Any(d => d.Id == startupDevice))
+                        else if (device is not null && Snapshot.Devices!.Any(d => d.Id == device))
                         {
                             // Consume before I/O; an ambiguous start is never replayed.
-                            if (ConsumeStartup()) { await StartCoreAsync(startupDevice!).ConfigureAwait(false); }
+                            if (ConsumeStartup()) { await StartCoreAsync(device).ConfigureAwait(false); }
                         }
-                        else { Publish(s => s with { Status = "Waiting for the saved USB display. Stop cancels startup output for this run." }); }
+                        else { Publish(s => s with { Status = "Waiting for the selected USB display. Stop cancels automatic output for this run." }); }
                     }
                     if (Volatile.Read(ref stopRequests) != 0 || Snapshot.Busy || !Snapshot.DisplayActive && Volatile.Read(ref previewVisible) == 0) { goto WaitForNext; }
                     Rotate();
