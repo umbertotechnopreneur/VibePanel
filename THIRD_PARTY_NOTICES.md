@@ -18,6 +18,8 @@ CPU, GPU and motherboard measurements use a source build of [LibreHardwareMonito
 
 The library project is adapted for .NET 10 and Vibe Panel's build paths and packaging. Sensor code and embedded modules are unchanged from the pinned fork. Required runtime dependencies keep their own licenses and NuGet notices. The monitoring GUI and driver installers are excluded.
 
+The unchanged embedded PawnIO modules come from [PawnIO.Modules 0.2.11](https://github.com/namazso/PawnIO.Modules/releases/tag/0.2.11) under LGPL-2.1. Their original `COPYING` and source reference are retained in `sources/LibreHardwareMonitor/Resources/PawnIo`.
+
 One Windows adapter collects the library's readings, including the enabled RAM/SPD group through `RAMSPDToolkit-NDD` and existing PawnIO. Windows supplies physical RAM totals, module identities, memory type and configured data rate independently of SPD. No swap data is exposed. CPU and motherboard access requires a separate PawnIO installation. Vibe Panel checks existing registration and never installs PawnIO, changes antivirus exclusions or falls back to WinRing0. Construction and driver-status queries do not open hardware; selected System themes request sensor reads lazily.
 
 This source migration replaces the earlier Open Hardware Monitor dependency and embedded WinRing0 build. Legacy installer cleanup retains the old driver names solely to remove files/services owned by older Vibe Panel installations. It does not load them. CPU and motherboard access on Windows ARM64 remains disabled pending implementation evidence. Sensor coverage and actual driver access require separate live validation. See [sensor setup](docs/sensors.md).
