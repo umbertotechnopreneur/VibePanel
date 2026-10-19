@@ -8,7 +8,9 @@ I made Vibe Panel to put music and PC information on a small USB screen. I'm [Um
 - **Your PC:** See available CPU, GPU, RAM, temperatures, power and fan readings. What you see depends on your hardware and sensor access.
 - **Codex:** Try the early Codex themes. This part still needs work.
 
-I built this for a Thermalright-compatible USB screen (`0416:5302`). Other screens and profiles have not all been checked. [Hardware details](docs/protocol-notes.md).
+I built this for my Thermalright Trofeo Vision LCD, a 6.86-inch USB screen (1280 × 480). Thermalright sells it in [black](https://www.thermalright.com/product/trofeo-vision-lcd-black/) and [white](https://www.thermalright.com/product/trofeo-vision-lcd-white/). Other models and profiles have not all been checked. [Hardware details](docs/protocol-notes.md).
+
+Vibe Panel is an independent project. It is not connected with or endorsed by Thermalright. All trademarks belong to their respective owners.
 
 ## Get it
 
@@ -18,9 +20,11 @@ Windows is the supported platform today. Linux and macOS do not yet have USB or 
 
 **Themes run Python code on your PC. For now, only download themes from [this official repository](https://github.com/umbertotechnopreneur/VibePanel).**
 
-I made this hobby project in a few days on holiday because I was unhappy with my display software. I learned from other people's public work and used AI to help write it. [Credits](docs/protocol-notes.md#sources-studied). Memory, speed and security checks are still on my list; I have not finished them.
+I made this hobby project in a few days on holiday because I wanted lighter display software that I could change to suit me. I learned from other people's public work and used AI to help write it. [Credits](docs/protocol-notes.md#sources-studied). Memory, speed and security checks are still on my list; I have not finished them.
 
 The software is open source under the [MIT license](LICENSE); the hardware is sold separately. Some included components have their own [licenses](THIRD_PARTY_NOTICES.md). This is a hobby project, with no warranty.
+
+You are welcome to try it with other screens, use the code and share what you learn. I cannot offer support because I do not have the time.
 
 ## More tools
 
