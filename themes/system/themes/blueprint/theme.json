@@ -5,7 +5,7 @@
   "name": "Blueprint",
   "description": "A blue technical grid with clear sensor values and load meters.",
   "entry": "render.py",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "author": "Umberto Giacobbi",
   "license": "MIT",
   "canvas": {

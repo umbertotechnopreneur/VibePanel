@@ -5,7 +5,7 @@
   "name": "Terminal",
   "description": "Green aligned sensor rows with measured segmented load bars.",
   "entry": "render.py",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "author": "Umberto Giacobbi",
   "license": "MIT",
   "canvas": {
