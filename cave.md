@@ -128,3 +128,9 @@ The next change adds transactional preferences/screens/palettes, versioned setti
 ## 19 October 2026: full sensor readout and System themes
 
 An elevated read-only acquisition returned 43 devices and 448 sensors (433 finite readings). All 232 unique identifiers from the supplied report sensor tree were present; this is coverage evidence, not simultaneous value agreement. The supplied RTX 4060 report and acquired tree contain no GPU Power sensors. CPU Package power is present. All ten System layouts were rendered as local previews in light/dark and wide/compact sizes using acquired hardware readings. Preview inputs combined acquisitions from different times; they are not a synchronized hardware measurement. Restore, format verification and Release compilation completed. No automated tests or USB validation were run for these changes.
+
+## 19 October 2026: paged themes and artist data
+
+Windows x64 restore, format verification, complete Release build and self-contained publication passed. Owner-approved offline checks passed: 35 studio checks and 31 Python checks, including all 44 declared System/Music pages at two sizes and two font limits, plus 180 System render scenarios. Light/dark previews and the 16–256 px icon frames were inspected. Preview graphs use explicitly synthetic inputs. A live Coldplay lookup returned an attributed Wikipedia biography and Commons photo; no qualifying worldwide album-sales record was returned. Sales coverage is not established. The artist provider keeps missing fields absent. No physical display trial or installer run was performed for these changes at this checkpoint.
+
+The eight C# scenes, their RPC/CLI fallback, old hardware background assets, unversioned-settings migration and implicit PATH interpreter lookup have been removed. The studio UI compiled; its on-screen layout has not been exercised in a running studio during this change.
