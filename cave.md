@@ -271,3 +271,17 @@ promoted to a confirmed motherboard temperature. No physical alias is guessed.
 Restore, changed C# formatting and the Core/library Release build completed.
 No tests, renderer execution or hardware validation was performed during these
 changes. Installation and package evidence are recorded separately below.
+
+Windows x64 source publication, native setup compilation and MSI 0.1.16 completed.
+The old 0.1.12 MSI was uninstalled with exit 0; the new MSI installed with exit 0
+through its visible UI. One 0.1.16 registration remains, and all 1,822 installed
+payload files match the fresh build. The installed sensor library identifies as
+`0.9.6-vibepanel.e5fa436`. The initial install invocation rejected a forward-slash
+package path before installation; retrying the resolved Windows path succeeded.
+Cleanup retained only the final MSI. Build/install logs and hashes are outside
+repository output. No automated tests or agent-issued sensor/USB trials ran.
+
+After installation, the owner reported checking the patch on this local hardware
+through Vibe Panel and seeing values matching CPUID HWMonitor. This owner-observed
+comparison is recorded in upstream PR #2590; it does not establish physical chip
+source aliases or coverage of other boards.

@@ -18,7 +18,9 @@ mapping also exposes `SMBUSMASTER0`. I submitted these changes in
 The library source remains MPL-2.0 under `third_party/LibreHardwareMonitor`, with a
 .NET 10 project adapted for Vibe Panel's build and packaging. The distribution
 includes it under `sources/LibreHardwareMonitor`. Sensor code and embedded modules
-match the pinned fork. Integration and live hardware behavior need separate validation.
+match the pinned fork. Vibe Panel 0.1.16 was installed with this library. On the
+local B550M-ITX/ac/NCT6792D system, the owner reported checking the displayed values
+against CPUID HWMonitor and seeing matching readings. No automated tests were run.
 
 Names such as `PECI 0`, `CPUTIN`, `SYSTIN`, `AUXTIN0` and `SMBUSMASTER0` identify chip
 sources. They do not establish physical locations such as Southbridge or Mainboard.
