@@ -26,7 +26,8 @@ jobs:
         with:
           global-json-file: global.json
       - run: dotnet restore VibePanel.slnx -p:Platform=${{ matrix.arch }}
-      - run: dotnet format VibePanel.slnx --verify-no-changes --no-restore
+      # The vendored LibreHardwareMonitor source follows its upstream formatting.
+      - run: dotnet format VibePanel.slnx --verify-no-changes --no-restore --exclude third_party/LibreHardwareMonitor
       - run: dotnet build VibePanel.slnx --configuration Release --no-restore --warnaserror -p:Platform=${{ matrix.arch }}
       - name: Offline state and provider checks
         if: matrix.arch == 'x64'
