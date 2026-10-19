@@ -30,7 +30,7 @@ Use an ID returned by `devices`:
 
 Only one request/frame is in flight. A slow update lowers the rate rather than creating a queue. Theme updates follow the GUI's requests; they stop when the window closes or the engine reaches EOF. `stop` closes the panel. Errors close the theme output; reconnecting requires another explicit start. An accepted submission does not prove visible pixels.
 
-Normal GUI launches start in preview. At the owner's request, Windows sign-in uses `--restore-last-session`: the studio issues one `start` for its saved device/theme, then the usual `present` requests with saved settings, while its window stays in the tray. Missing saved choices never fall back to another device or theme. A late device is checked every ten seconds; Stop cancels that startup wait. A failed start is not replayed.
+Every Windows GUI launch automatically starts the saved display and theme. With no saved display, a single connected device is selected; multiple devices require a selection. At the owner's request, Windows sign-in uses `--restore-last-session`: the studio issues one `start` for its saved device/theme, then the usual `present` requests with saved settings, while its window stays in the tray. Missing saved choices never fall back to another device or theme. A late device is checked every ten seconds; Stop cancels that startup wait. A failed start is not replayed.
 
 The studio requests `devices` every ten seconds, with one enumeration pending at most. Discovery reads Windows interface metadata and closes a missing theme session; it never sends a probe or a frame. Reconnection only updates the list, apart from the initial Windows-startup wait described above. Starting output still needs `start`. A browser preview failure leaves a successfully opened USB session active.
 
@@ -108,7 +108,7 @@ vp theme media.aurora --device 1 --interval-ms 250 --quality medium --seconds 20
 
 Export is local and never overwrites a file. Device playback stops on Ctrl+C, its optional duration or a failure. It does not reconnect automatically.
 
-`--saturation`, `--hue`, `--brightness`, `--contrast` and `--no-spectrum` work with both `theme --export` and `theme --device`. Use decimal points for numeric arguments. `--no-spectrum` hides only supported FFT bars; VU meters remain. Legacy diagnostic `preview` and C# scenes are unchanged.
+`--saturation`, `--hue`, `--brightness`, `--contrast` and `--no-spectrum` work with both `theme --export` and `theme --device`. Use decimal points for numeric arguments. `--no-spectrum` hides only supported FFT bars; VU meters remain.
 
 Legacy `start` requests without `themeId` retain the C# scene/rotation behavior. `levels` reads cached playback meters. `media` controls the current OS media session when explicitly requested; there is no volume-write method.
 

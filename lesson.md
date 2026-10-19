@@ -41,7 +41,7 @@
 - I hold the single-instance lock until the engine has finished closing. Setup blocks new launches until commit or rollback. A maximized window stays maximized when restored from the tray.
 - Themes share five named palette colors. Personal overrides belong to the theme and its light/dark appearance, outside the installed files.
 - I read named motherboard and fan sensors from the same Libre Hardware Monitor instance. I attach a board fan to CPU only when its sensor name says CPU. I never infer fan speed from load.
-- I use the official compiled LibreHardwareMonitorLib package for current sensor builds. PawnIO is an external prerequisite; I never install it from the app or weaken Windows security. Physical RAM uses Windows so the library's SPD driver group stays off.
+- I use the official compiled LibreHardwareMonitorLib package. PawnIO is an external prerequisite; I never install it from the app or weaken Windows security. Physical RAM totals use Windows. Owner-approved SPD readings use the NDD dependency and the library's existing PawnIO adapter.
 - Thermal themes put measured temperatures first and show used physical RAM over total. Missing temperatures and RPM are labelled unavailable; generic board sensors keep their names.
 
 - I commit preferences, screens and palettes together. Each rendered frame reads one detached state. A stale rotation cannot replace a newer user edit.
@@ -50,3 +50,6 @@
 - The installer owns the single Start entry. I disable unused Photino toast registration, which otherwise creates a second shortcut from the window title.
 - My local reinstall command removes the previous app, clears generated files, increments the MSI version and builds a new package. It compares installed files with that package and then keeps only the final MSI.
 - MSI cleanup removes my old script registration from the original user's registry views and verifies removal. Major upgrades remove the old MSI before installing new files. Settings and personal themes stay outside the app folder.
+- Sensor Debug exposes the library's device tree and raw sensor names, units, current/min/max values and missing readings. It refreshes on demand through the existing engine, with no sensor setters. CPU clock averages keep effective and nominal clocks separate.
+
+- System themes share one composition path; omit absent fields and remove superseded renderers. Keep CPU/GPU identity, clock and thermal data in reserved regions. The owner requested automatic output on each Windows launch; Stop still cancels the initial wait.

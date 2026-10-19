@@ -12,7 +12,10 @@ Registration is not proof that every sensor can be read.
 
 GPU readings and physical RAM can remain available without PawnIO. RAM is read with
 Windows' [GlobalMemoryStatusEx](https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-globalmemorystatusex);
-the library's memory/SPD group stays disabled to avoid loading an additional driver.
+physical totals remain independent of SPD access. Following owner approval, the
+library's RAM/SPD group is enabled. `RAMSPDToolkit-NDD` contains no default driver;
+LibreHardwareMonitor 0.9.6 supplies a PawnIO adapter that opens its embedded SMBus
+modules through the existing PawnIO installation. Vibe Panel installs no driver.
 No values are inferred from load or ACPI thermal zones. Zero RPM is a measured stop;
 an unavailable RPM is a missing reading. Generic motherboard channels retain their names.
 
@@ -20,8 +23,30 @@ Some hardware also needs administrator rights. Elevation does not install a miss
 driver or bypass a Windows security block. Windows ARM64 CPU/motherboard access remains
 disabled pending implementation evidence. Linux/macOS sensor providers are not implemented.
 
+## Sensor Debug
+
+Open **Sensor Debug** beside **Themes**, then press **Refresh readings**. The tree
+shows devices, subdevices and all reported sensor types, including RAM DIMMs and
+timings, voltages, power, temperatures, fan RPM, control percentages, storage,
+network, batteries and supported controllers. Current, minimum and maximum values
+come directly from the library. Control percentages are displayed, never changed.
+Sensor rows also expand to show available calibration parameters and defaults,
+with no editing controls. At most 512 calibration parameters are returned.
+Unknown names and unavailable values are kept. A refresh is manual, cached for one
+second, and limited to 64 devices and 2,048 sensors with an explicit truncation notice.
+
+`vp sensors --all` reads the same raw schema once without audio or USB. The
+`sensors.debug` JSON-lines request uses the engine's existing sensor reader. No
+network listener is added. Some devices need administrator rights; the header
+shows the privilege level and sample time. The existing System action can reopen
+the studio as administrator. Min/max values describe this reader's lifetime.
+
 The old Open Hardware Monitor/WinRing0 integration has been removed from the source and
 new payload. Microsoft documents the
 [WinRing0 vulnerable-driver alert](https://support.microsoft.com/en-us/windows/security/threat-malware-protection/microsoft-defender-antivirus-alert-vulnerabledriver-winnt-winring0).
 Do not treat that alert as proof that an exception is safe. Older installed versions
 still use their own files until separately updated; source changes do not modify them.
+
+## System theme layout
+
+All ten System themes use one renderer. Names, primary values, clock lines and details have separate regions in wide and compact layouts. CPU/GPU power readings use watts; GPU channels retain their names and rotate in bounded pairs. Missing fields are omitted. RAM configured data rate (MT/s) and measured memory clock (MHz) stay distinct. Generic board channels retain their reported names. Sensor Debug retains the complete bounded tree, including missing readings.
