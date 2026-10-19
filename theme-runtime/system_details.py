@@ -7,6 +7,7 @@ import re
 from canvas import clean, optional_number
 
 _INDIVIDUAL_CORE = re.compile(r"\b(?:core|thread)\s*#?\s*\d+\b", re.IGNORECASE)
+_POWER_LIMIT = re.compile(r"\b(?:limit|maximum|minimum|tdp)\b", re.IGNORECASE)
 _UNITS = {"Voltage": "V", "Current": "A", "Power": "W", "Temperature": "°C", "Clock": "MHz", "Timing": "ns"}
 HARDWARE_KINDS = ("Power", "Voltage", "Current", "Clock")
 
@@ -54,17 +55,31 @@ def sensor_groups(sensors, kinds):
 
 
 def cooling_values(sensors):
-    thermal, powers, fans = [], [], []
+    thermal, powers, electrical, fans = [], [], [], []
     for key, label, raw in hardware_devices(sensors):
         if optional_number(raw.get("temperatureC")) is not None:
             thermal.append((key, label, raw))
         prefix = "CPU " if key == "cpu" else "GPU " if key.startswith("gpu-") else ""
         for name, value, unit in reading_rows(raw, ("Power",), aggregate=key == "cpu"):
-            if key != "cpu" or name in ("Package", "CPU Package"):
+            if not _POWER_LIMIT.search(name):
                 powers.append((label + " · " + name.removeprefix(prefix), value, unit))
+        if key == "cpu":
+            for name, value, unit in reading_rows(raw, ("Voltage", "Current"), aggregate=True):
+                electrical.append((label + " · " + name.removeprefix(prefix), value, unit))
         for fan in raw.get("fans") or []:
             if isinstance(fan, dict) and (value := optional_number(fan.get("rpm"))) is not None:
                 fans.append((label + " · " + clean(fan.get("name")).removeprefix(prefix), value, "RPM"))
+    def power_priority(row):
+        label = row[0].casefold()
+        if label in ("cpu · package", "cpu · cpu package"):
+            return 0
+        if label.startswith("cpu · "):
+            return 1
+        return 2
+
+    powers.sort(key=power_priority)
+    # Keep electrical values after actual consumption; they retain their own units.
+    powers.extend(electrical)
     # A measured stop remains visible after the engine has observed this fan running.
     fans.sort(key=lambda item: item[1] == 0)
     return thermal, powers, fans

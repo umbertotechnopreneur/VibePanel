@@ -304,3 +304,10 @@ warnings or errors. The prepared C# checks also compile; no tests were executed.
 Python source and JSON manifests passed syntax parsing without importing the app
 or renderer. No rendering, live sensor trial, new MSI or installation was performed
 for this change. The installed 0.1.16 and its existing MSI do not contain this update.
+
+## 20 October 2026: cooling power card
+
+The shared System cooling card now uses aggregate CPU power readings and available
+CPU voltage and current, with their measured units. It excludes named limits and
+individual cores. The installed build has not been updated for this change. No
+renderer preview, automated tests, live sensor trial or USB output was run.

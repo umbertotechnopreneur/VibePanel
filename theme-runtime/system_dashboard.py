@@ -304,26 +304,35 @@ def fan_icon(c, x, y, radius, tint, angle):
 
 def power_instruments(c, s, style, rows, box):
     x, y, w, h = box
-    visible, start = instrument_page(rows, s.page_cycle, 1 if c.compact else 2)
-    gap = 14
-    width = (w - gap * (len(visible) - 1)) / len(visible)
+    count = 2 if c.compact else 3
+    if len(rows) > count:
+        # Keep the first reading visible while the remaining readings rotate.
+        rotating, _ = instrument_page(rows[1:], detail_step(s), count - 1)
+        visible = [rows[0], *rotating]
+    else:
+        visible = rows
+    panel(c, s, box, s.palette[0], style)
+    if not c.compact:
+        has_power = any(unit == "W" for _, _, unit in rows)
+        has_electrical = any(unit != "W" for _, _, unit in rows)
+        heading = "POWER & ELECTRICAL" if has_power and has_electrical else "POWER DRAW" if has_power else "ELECTRICAL"
+        _text(c, heading, x + 20, y + 27, 12, w - 140, s.palette[0], True)
+        if len(rows) > count:
+            _text(c, f"{len(rows)} readings", x + w - 20, y + 27, 11, 100, s.muted, align="right")
+    width = (w - 40) / len(visible)
     for index, (label, value, unit) in enumerate(visible):
-        xx = x + index * (width + gap)
-        panel(c, s, (xx, y, width, h), s.palette[0], style)
+        xx = x + 20 + index * width
+        if index:
+            c.line(xx - 8, y + (12 if c.compact else 45), xx - 8, y + h - 14,
+                   s.fg, 1, .12)
         if c.compact:
-            _text(c, label, xx + 16, y + 23, 13, width * .56, s.muted)
-            _text(c, f"{value:.0f} {unit}", xx + width - 16, y + 38, 29, width * .38, s.palette[0], True, "right")
+            _text(c, label, xx, y + 21, 11, width - 16, s.muted)
+            _text(c, value_text(value, unit), xx, y + 45, 21, width - 16, s.fg, True)
         else:
-            _text(c, "POWER DRAW", xx + 20, y + 27, 12, width - 40, s.palette[0], True)
-            _text(c, label, xx + 20, y + 53, 14, width - 40, s.muted)
-            bolt = [(8, 0), (-8, 21), (1, 21), (-5, 38), (13, 14), (4, 14), (8, 0)]
-            for a, b in zip(bolt, bolt[1:]):
-                c.line(xx + 31 + a[0], y + h - 59 + a[1], xx + 31 + b[0], y + h - 59 + b[1], s.palette[0], 1.8, .8)
-            baseline = y + (h * .63 if h > 180 else h - 18)
-            _text(c, f"{value:.0f} {unit}", xx + width - 20, baseline, 64 if h > 180 else 42, width - 100, s.fg, True, "right")
-        if len(rows) > len(visible):
-            _text(c, f"{start + index + 1}/{len(rows)}", xx + 16 if c.compact else xx + width - 16,
-                  y + h - 8 if c.compact else y + 23, 10, 45, s.muted, align="left" if c.compact else "right")
+            baseline = y + (h * .63 if h > 180 else h - 20)
+            _text(c, label, xx, baseline - 39, 13, width - 16, s.muted)
+            _text(c, value_text(value, unit), xx, baseline, 32 if h > 180 else 28,
+                  width - 16, s.fg, True)
 
 
 def fan_instruments(c, s, style, rows, box):

@@ -221,6 +221,28 @@ class ThemeDataContractChecks(unittest.TestCase):
         _, powers, _ = cooling_values({"gpus": [raw]})
         self.assertEqual(powers, [("GPU · Package", 100, "W"), ("GPU · Rail", 40, "W")])
 
+    def test_cooling_includes_real_cpu_consumption_and_electrical_readings(self):
+        from system_details import cooling_values
+        cpu = {"readings": [{"type": "Power", "name": "Cores", "value": 42},
+                            {"type": "Power", "name": "CPU Package", "value": 82},
+                            {"type": "Power", "name": "SoC", "value": 0},
+                            {"type": "Power", "name": "PPT Limit", "value": 142},
+                            {"type": "Power", "name": "Core #1", "value": 3},
+                            {"type": "Voltage", "name": "SoC (SVI2 TFN)", "value": 1.025},
+                            {"type": "Current", "name": "TDC", "value": 38.5},
+                            {"type": "Voltage", "name": "Core #2", "value": 1.2}]}
+        _, readings, _ = cooling_values({"cpu": cpu})
+        self.assertEqual(readings, [("CPU · Package", 82, "W"), ("CPU · Cores", 42, "W"),
+                                    ("CPU · SoC", 0, "W"), ("CPU · SoC (SVI2 TFN)", 1.025, "V"),
+                                    ("CPU · TDC", 38.5, "A")])
+
+    def test_cooling_does_not_invent_missing_power(self):
+        from system_details import cooling_values
+        _, readings, _ = cooling_values({"cpu": {"readings": [
+            {"type": "Voltage", "name": "SoC", "value": 1.0},
+            {"type": "Power", "name": "Package", "value": None}]}})
+        self.assertEqual(readings, [("CPU · SoC", 1.0, "V")])
+
     def test_missing_fields_are_omitted_without_losing_measured_zero(self):
         from system_dashboard import metadata
         self.assertEqual(metadata("cpu", {}), [])
