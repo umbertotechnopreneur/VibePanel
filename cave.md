@@ -311,3 +311,11 @@ The shared System cooling card now uses aggregate CPU power readings and availab
 CPU voltage and current, with their measured units. It excludes named limits and
 individual cores. The installed build has not been updated for this change. No
 renderer preview, automated tests, live sensor trial or USB output was run.
+
+## 20 October 2026: System detail trends
+
+Electrical and temperature rows use bounded, timestamp-deduplicated snapshot history
+for their curves and window extrema. The curve preserves sampled values; no new
+sensor polling is added. Missing or stale readings clear their histories. The
+installed build does not contain this change. No renderer preview, automated tests,
+live sensor trial, USB output, build or installation was performed for this change.

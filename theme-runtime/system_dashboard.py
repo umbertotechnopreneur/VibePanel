@@ -7,6 +7,7 @@ from collections import OrderedDict
 
 import skia
 from canvas import blend, clean, optional_number, clip, progress_color
+from detail_history import keyed_rows, points as detail_points, record as record_details
 from hardware import _components, _record, _points, _text
 from system_details import HARDWARE_KINDS, cooling_values, detail_rows, detail_step, memory_view, reading_rows, sensor_groups, spd_groups, value_text
 
@@ -404,24 +405,62 @@ def cooling(c, s, style):
             fan_instruments(c, s, style, fans, (x, fan_y, w, 422 - fan_y))
 
 
+def trend_extrema(low, high, unit):
+    digits = 3 if unit == "V" else 1 if unit in ("A", "°C") else 0
+    while low != high and round(low, digits) == round(high, digits) and digits < 6:
+        digits += 1
+    return f"{low:.{digits}f}", f"{high:.{digits}f}"
+
+
+def detail_trend(c, s, samples, box, tint, unit):
+    if len(samples) < 2 or samples[-1][0] <= samples[0][0]:
+        return
+    x, y, w, h = box
+    values = [value for _, value in samples]
+    low, high = min(values), max(values)
+    low_label, high_label = trend_extrema(low, high, unit)
+    _text(c, high_label, x + w, y - 3, 9, w, s.muted, align="right")
+    _text(c, low_label, x + w, y + h + 11, 9, w, s.muted, align="right")
+    pixel = 1 / c.scale
+    c.line(x, y, x, y + h, tint, pixel, .25)
+    c.line(x, y + h, x + w, y + h, tint, pixel, .25)
+    duration = samples[-1][0] - samples[0][0]
+    vertices = [(x + w * (at - samples[0][0]) / duration,
+                 y + h / 2 if high == low else y + h * (high - value) / (high - low))
+                for at, value in samples]
+    path = skia.Path()
+    path.moveTo(*vertices[0])
+    for previous, current in zip(vertices, vertices[1:]):
+        middle = (previous[0] + current[0]) / 2
+        path.cubicTo(middle, previous[1], middle, current[1], *current)
+    c.native.drawPath(path, c.paint(tint, .95, pixel))
+
+
 def detail_panel(c, s, style, group, box, tint, step):
-    _, label, name, rows = group
+    key, label, name, rows = group
     x, y, w, h = box
     panel(c, s, box, tint, style)
     _text(c, label, x + 20, y + 27, 13, w - 40, tint, True)
     _text(c, name, x + 20, y + 53, 14, w - 40, s.fg, True)
     visible, start = detail_rows(rows, step)
+    keys = [identity for identity, _ in keyed_rows(group, s.sensors)]
+    charted = not key.startswith("memory-spd-")
+    text_width = (w - 40) * .47 if charted else w - 40
     row_height = (h - 93) / max(1, len(visible))
     for index, (name, value, unit) in enumerate(visible):
         yy = y + 80 + index * row_height
-        _text(c, name, x + 20, yy, 12, w - 40, s.muted)
+        _text(c, name, x + 20, yy, 12, text_width, s.muted)
         value_tint = progress_color(tint, value / 120, s.light) if unit == "°C" else tint
-        _text(c, value_text(value, unit), x + 20, yy + 27, 25, w - 40, value_tint, True)
+        _text(c, value_text(value, unit), x + 20, yy + 27, 25, text_width, value_tint, True)
+        if charted:
+            graph_x = x + 28 + text_width
+            detail_trend(c, s, detail_points(keys[start + index]),
+                         (graph_x, yy + 2, x + w - 20 - graph_x, 25), tint, unit)
         if unit == "°C":
-            c.rect(x + 20, yy + 37, w - 40, 2, tint, opacity=.13)
-            c.rect(x + 20, yy + 37, (w - 40) * clip(value / 120), 2, value_tint)
+            c.rect(x + 20, yy + 37, text_width, 2, tint, opacity=.13)
+            c.rect(x + 20, yy + 37, text_width * clip(value / 120), 2, value_tint)
         elif index < len(visible) - 1:
-            c.line(x + 20, yy + 37, x + w - 20, yy + 37, tint, opacity=.12)
+            c.line(x + 20, yy + 47, x + w - 20, yy + 47, tint, opacity=.12)
     if any(unit == "°C" for _, _, unit in visible):
         _text(c, "SCALE 0–120°C", x + 20, y + h - 8, 10, (w - 40) / 2, s.muted)
     if len(rows) > len(visible):
@@ -522,6 +561,7 @@ def memory_outline(c, x, y, tint):
 def render(c, s, style):
     components = _components(s.sensors)
     _record(components, clean(s.sensors.get("updatedAtUtc")))
+    record_details(s.sensors)
     items = devices(s)
     background(c, s, style)
     frame(c, s, style)

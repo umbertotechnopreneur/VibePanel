@@ -177,6 +177,48 @@ class SensorHistoryChecks(unittest.TestCase):
         self.assertTrue(all(len(series["samples"]) == 1 for series in hardware._HISTORY.values()))
 
 
+class DetailHistoryChecks(unittest.TestCase):
+    def setUp(self):
+        import detail_history
+        detail_history._HISTORY.clear()
+        detail_history._last_stamp = ""
+        detail_history._last_at = 0.0
+
+    def test_duplicate_names_use_sensor_ids_and_missing_series_are_cleared(self):
+        import detail_history
+        from system_details import HARDWARE_KINDS, sensor_groups
+        cpu = {"name": "CPU", "readings": [
+            {"id": "/cpu/power/0", "name": "Power", "type": "Power", "value": 12},
+            {"id": "/cpu/power/1", "name": "Power", "type": "Power", "value": 20}]}
+        sensors = {"cpu": cpu, "updatedAtUtc": "one"}
+        with patch("detail_history.time.monotonic", return_value=1):
+            detail_history.record(sensors)
+            keys = [key for key, _ in detail_history.keyed_rows(sensor_groups(sensors, HARDWARE_KINDS)[0], sensors)]
+            self.assertNotEqual(keys[0], keys[1])
+            self.assertEqual(detail_history.points(keys[1]), [(1, 20)])
+        cpu["readings"][0]["value"] = None
+        sensors["updatedAtUtc"] = "two"
+        with patch("detail_history.time.monotonic", return_value=2):
+            detail_history.record(sensors)
+            self.assertEqual(detail_history.points(keys[0]), [])
+            self.assertEqual(detail_history.points(keys[1]), [(1, 20), (2, 20)])
+
+    def test_history_deduplicates_snapshots_and_clears_a_frozen_source(self):
+        import detail_history
+        sensors = {"cpu": {"name": "CPU", "readings": [
+            {"id": "/cpu/power/0", "name": "Package", "type": "Power", "value": 0}]},
+            "updatedAtUtc": "one"}
+        with patch("detail_history.time.monotonic", return_value=1):
+            detail_history.record(sensors)
+            key = next(iter(detail_history._HISTORY))
+        with patch("detail_history.time.monotonic", return_value=2):
+            detail_history.record(sensors)
+            self.assertEqual(detail_history.points(key), [(1, 0)])
+        with patch("detail_history.time.monotonic", return_value=12):
+            detail_history.record(sensors)
+            self.assertEqual(detail_history.points(key), [])
+
+
 class ThemeDataContractChecks(unittest.TestCase):
     def test_hardware_page_keeps_all_electrical_and_aggregate_clock_readings(self):
         from system_details import HARDWARE_KINDS, sensor_groups

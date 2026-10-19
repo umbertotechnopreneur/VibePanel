@@ -72,3 +72,4 @@
 - I contribute sensor decoder fixes upstream. Board labels keep their chip source names outside exact, owner-approved display profiles. A display profile preserves raw diagnostics and never changes calibration or filters by a guessed temperature threshold.
 - I build the pinned LibreHardwareMonitor fork with the app and ship its MPL-covered source. Each RAM module shows its reported type and configured rate alongside its own model and physical identity.
 - Cooling cards show measured aggregate CPU power alongside available CPU voltage and current. They keep the package visible while other readings rotate, without treating limits as consumption.
+- Electrical and temperature detail rows pair each reading with a thin, smoothed trend of its recent measured samples. The displayed extrema cover that same bounded window.
