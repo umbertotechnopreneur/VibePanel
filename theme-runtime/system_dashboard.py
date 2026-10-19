@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import math
+from collections import OrderedDict
+
+import skia
 from canvas import blend, clean, optional_number, clip
 from hardware import _components, _record, _points, _text
 
 NAMES = {"thermal": "THERMAL ATLAS", "orbit": "AIRFLOW", "terminal": "MATRIX"}
+_FAN_ROTATIONS = OrderedDict()
 
 
 def readings(raw, kind):
@@ -261,7 +265,7 @@ def power_and_fans(items, raw):
     for key, label, device in items:
         for name, value in readings(device, "Power"):
             if key != "cpu" or name in ("Package", "CPU Package"):
-                powers.append((label + " · " + name.removeprefix("GPU "), value, "W"))
+                powers.append((label + " · " + name.removeprefix("CPU " if key == "cpu" else "GPU "), value, "W"))
         for fan in device.get("fans", []) or []:
             if (value := optional_number(fan.get("rpm"))) is not None:
                 name = clean(fan.get("name")).removeprefix("GPU " if key.startswith("gpu-") else "CPU ")
@@ -275,22 +279,98 @@ def power_and_fans(items, raw):
     return powers, fans
 
 
-def meter_rows(c, s, rows, box, tint, cycle, maximum_rows=4):
-    if not rows:
-        return
+def instrument_page(rows, cycle, count):
+    start = (cycle % math.ceil(len(rows) / count)) * count
+    return rows[start:start + count], start
+
+
+def fan_angle(label, rpm, now):
+    previous = _FAN_ROTATIONS.get(label)
+    angle = 0
+    if previous and now >= previous[0]:
+        # A readable emblem, not a simulation of the rotor's physical speed.
+        speed = 30 + min(35, rpm / 100) if rpm > 0 else 0
+        angle = (previous[1] + min(2, now - previous[0]) * speed) % 360
+    _FAN_ROTATIONS[label] = (now, angle)
+    _FAN_ROTATIONS.move_to_end(label)
+    while len(_FAN_ROTATIONS) > 32:
+        _FAN_ROTATIONS.popitem(last=False)
+    return angle
+
+
+def fan_icon(c, x, y, radius, tint, angle):
+    c.rect(x - radius, y - radius, radius * 2, radius * 2, tint,
+           radius=radius * .22, opacity=.35, stroke=1.2)
+    c.circle(x, y, radius * .82, tint, opacity=.25, stroke=1)
+    for dx, dy in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
+        c.circle(x + dx * radius * .77, y + dy * radius * .77, radius * .035, tint, .55)
+    blade = skia.Path()
+    blade.moveTo(.16, -.12)
+    blade.cubicTo(.20, -.42, .40, -.73, .62, -.56)
+    blade.cubicTo(.85, -.35, .56, -.05, .20, .12)
+    blade.close()
+    c.native.save()
+    c.native.translate(x, y)
+    c.native.rotate(angle)
+    c.native.scale(radius, radius)
+    for _ in range(4):
+        c.native.drawPath(blade, c.paint(tint, .9, 1.6 / radius))
+        c.native.rotate(90)
+    c.native.restore()
+    c.circle(x, y, radius * .16, tint, stroke=1.6)
+
+
+def power_instruments(c, s, style, rows, box):
     x, y, w, h = box
-    page_count = math.ceil(len(rows) / maximum_rows)
-    start = (cycle % page_count) * maximum_rows
-    visible = rows[start:start + maximum_rows]
-    step = min(66, h / max(1, len(visible)))
-    limit = max(1, math.ceil(max(value for _, value, _ in rows) / 50) * 50)
+    visible, start = instrument_page(rows, s.page_cycle, 1 if c.compact else 2)
+    gap = 14
+    width = (w - gap * (len(visible) - 1)) / len(visible)
     for index, (label, value, unit) in enumerate(visible):
-        yy = y + index * step
-        _text(c, label, x, yy + 15, 12, w * .62, s.muted)
-        _text(c, f"{value:.0f} {unit}", x + w, yy + 16, 18, w * .36, tint, True, "right")
-        c.rect(x, yy + 26, w, 5, tint, radius=2, opacity=.13)
-        c.rect(x, yy + 26, w * clip(value / limit), 5, tint, radius=2)
-    _text(c, f"0–{limit:g} {rows[0][2]}" + (f" · {start + 1}–{start + len(visible)}/{len(rows)}" if page_count > 1 else ""), x, y + h + 14, 10, w, s.muted)
+        xx = x + index * (width + gap)
+        panel(c, s, (xx, y, width, h), s.palette[0], style)
+        if c.compact:
+            _text(c, label, xx + 16, y + 23, 13, width * .56, s.muted)
+            _text(c, f"{value:.0f} {unit}", xx + width - 16, y + 38, 29, width * .38, s.palette[0], True, "right")
+        else:
+            _text(c, "POWER DRAW", xx + 20, y + 27, 12, width - 40, s.palette[0], True)
+            _text(c, label, xx + 20, y + 53, 14, width - 40, s.muted)
+            bolt = [(8, 0), (-8, 21), (1, 21), (-5, 38), (13, 14), (4, 14), (8, 0)]
+            for a, b in zip(bolt, bolt[1:]):
+                c.line(xx + 31 + a[0], y + h - 59 + a[1], xx + 31 + b[0], y + h - 59 + b[1], s.palette[0], 1.8, .8)
+            baseline = y + (h * .63 if h > 180 else h - 18)
+            _text(c, f"{value:.0f} {unit}", xx + width - 20, baseline, 64 if h > 180 else 42, width - 100, s.fg, True, "right")
+        if len(rows) > len(visible):
+            _text(c, f"{start + index + 1}/{len(rows)}", xx + 16 if c.compact else xx + width - 16,
+                  y + h - 8 if c.compact else y + 23, 10, 45, s.muted, align="left" if c.compact else "right")
+
+
+def fan_instruments(c, s, style, rows, box):
+    x, y, w, h = box
+    visible, start = instrument_page(rows, s.page_cycle, 2 if c.compact else 3)
+    _text(c, "FAN SPEED", x, y + 14, 12, w * .6, s.palette[1], True)
+    _text(c, f"{start + 1}–{start + len(visible)} / {len(rows)}", x + w, y + 14, 11, w * .35, s.muted, align="right")
+    top = y + 28
+    height = h - 28
+    if c.compact:
+        step = height / len(visible)
+        for index, (label, value, unit) in enumerate(visible):
+            yy = top + index * step
+            fan_icon(c, x + 17, yy + step / 2, min(17, step / 2 - 4), s.palette[1], fan_angle(label, value, s.elapsed_seconds))
+            _text(c, label, x + 46, yy + step / 2 + 5, 12, w - 186, s.muted)
+            _text(c, f"{value:.0f} {unit}", x + w, yy + step / 2 + 6, 20, 134, s.fg, True, "right")
+        return
+    gap = 14
+    width = (w - gap * (len(visible) - 1)) / len(visible)
+    for index, (label, value, unit) in enumerate(visible):
+        xx = x + index * (width + gap)
+        center = xx + width / 2
+        source, _, name = label.partition(" · ")
+        panel(c, s, (xx, top, width, height), s.palette[1], style)
+        _text(c, source, xx + 16, top + 25, 11, width - 32, s.muted, True)
+        fan_icon(c, center, top + height * .36, min(52, height * .16), s.palette[1], fan_angle(label, value, s.elapsed_seconds))
+        _text(c, f"{value:.0f}", center, top + height - 45, 30, width - 24, s.fg, True, "center")
+        _text(c, unit, center, top + height - 27, 10, width - 24, s.palette[1], align="center")
+        _text(c, name, center, top + height - 12, 12, width - 24, s.muted, align="center")
 
 
 def cooling(c, s, style, items):
@@ -302,12 +382,11 @@ def cooling(c, s, style, items):
             _text(c, label, x, 91, 13, 180, s.palette[index], True, "center")
             dial(c, s, x, 168, 53, raw["temperatureC"], "°C", 120, s.palette[index], style)
         y = 270 if thermal else 90
-        # Power and fan rows retain their own scales and units.
         if powers:
-            meter_rows(c, s, powers, (28, y, 424, 45), s.palette[0], s.page_cycle, 1)
+            power_instruments(c, s, style, powers, (28, y, 424, 55))
             y += 69
         if fans:
-            meter_rows(c, s, fans, (28, y, 424, max(40, 413 - y)), s.palette[1], s.page_cycle, 2)
+            fan_instruments(c, s, style, fans, (28, y, 424, 426 - y))
     else:
         for index, (key, label, raw) in enumerate(thermal[:2]):
             x = 40 + index * 300
@@ -317,15 +396,13 @@ def cooling(c, s, style, items):
             dial(c, s, x + 139, 250, 72, raw["temperatureC"], "°C", 120, s.palette[index], style)
             if (clock := optional_number(raw.get("clockMHz"))) is not None:
                 _text(c, f"{clock / 1000:.2f} GHz", x + 139, 396, 23, 230, s.palette[index], True, "center")
-        x = 660 if thermal else 40
+        x = 40 + min(2, len(thermal)) * 300
         w = 1240 - x
-        _text(c, "POWER", x, 99, 13, w, s.palette[0], True) if powers else None
         if powers:
-            meter_rows(c, s, powers, (x, 117, w, 90), s.palette[0], s.page_cycle, 2)
-        fan_y = 254 if powers else 99
+            power_instruments(c, s, style, powers, (x, 77, w, 128 if fans else 345))
+        fan_y = 221 if powers else 77
         if fans:
-            _text(c, "FAN SPEED", x, fan_y, 13, w, s.palette[1], True)
-            meter_rows(c, s, fans, (x, fan_y + 18, w, 405 - fan_y - 18), s.palette[1], s.page_cycle, 3)
+            fan_instruments(c, s, style, fans, (x, fan_y, w, 422 - fan_y))
 
 
 def render(c, s, style):

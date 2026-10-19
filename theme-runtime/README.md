@@ -20,9 +20,13 @@ These example numbers are illustrative. Unknown fields are null. System themes o
 
 No driver installer or monitoring GUI is bundled. The old WinRing0 integration is removed. The owner-approved RAM/SPD group uses the NDD dependency and existing PawnIO. No driver is installed by the app. See [sensor setup](../docs/sensors.md) for prerequisites and verification limits.
 
+Cooling pages show watts as numeric readouts, without an inferred power limit. Fan instruments retain sensor names and RPM, rotating through available channels. Their outline rotors turn only for positive measured RPM and stop at zero; missing channels stay hidden. Rotor speed is a capped visual cue, not physical revolutions. Animations use the existing theme clock and selected refresh, with no extra timer or sampling. A one-second refresh still produces one frame per second. Codex status dots pulse only during received live work.
+
 ### Python packages
 
 Use CPython 3.11–3.14 with the exact package versions in `requirements.txt`. The desktop host locates the configured Python and starts `worker.py` with `-u`. A portable distribution can bundle that interpreter and the native wheels for its own platform. The dependency versions are pinned; this file is not a wheel-hash lock.
+
+Before first importing a new runtime or dependency version, scan its archive and extracted files with an explicit targeted Microsoft Windows Defender scan. Keep it staged until the scan completes without detections and record the source, hash, command and result. See the [first-import rules](../README.md).
 
 The upstream [Skia package](https://pypi.org/project/skia-python/144.0.post2/) publishes Windows x64/ARM64, Linux x64/ARM64 and macOS x64/ARM64 wheels. Linux also needs the native OpenGL/EGL/fontconfig libraries listed upstream, even though this worker uses a CPU raster surface. Those renderer packages do not implement Linux/macOS media or USB backends.
 

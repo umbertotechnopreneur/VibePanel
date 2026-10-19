@@ -56,3 +56,5 @@
 
 - I use one Python page clock and one frame compositor for page and track fades. System graphs retain only timestamped readings; artist facts need attributed sources. Missing profiles skip the artist page.
 - Small Windows icons use the simple two-color VP vector. Larger frames use a separate gradient drawing.
+- Cooling pages use watt readouts and named fan instruments. Outline rotors turn only for positive measured RPM and stay still at zero. Their visual speed is capped; it is not physical rotor speed. Animations share the theme clock and the selected frame refresh.
+- Codex work dots pulse only during received live work. Idle, stale, stopped and approval states keep their own still symbols.

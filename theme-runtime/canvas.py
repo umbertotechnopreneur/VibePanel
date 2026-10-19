@@ -906,8 +906,12 @@ class Canvas:
         elif self.ctx.stale or not self.ctx.event or self.ctx.event in ("SessionEnd", "Interrupt"):
             self.line(x - radius * .26, y, x + radius * .26, y, self.ctx.signal, 4)
         else:
-            for offset in (-.28, 0, .28):
-                self.circle(x + radius * offset, y, 4, self.ctx.signal, .8)
+            for index, offset in enumerate((-.28, 0, .28)):
+                # Pulse only for received live work; these dots are not progress.
+                opacity = .8
+                if self.ctx.is_live:
+                    opacity = .35 + .55 * (1 + math.sin(self.ctx.elapsed_seconds * 4 - index * .9)) / 2
+                self.circle(x + radius * offset, y, 4, self.ctx.signal, opacity)
 
     def activity_rows(self, x, y, width, row_height=64, limit=4):
         events = self.ctx.events()[-limit:]
