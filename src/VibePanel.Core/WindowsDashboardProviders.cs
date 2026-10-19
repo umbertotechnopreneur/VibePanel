@@ -5,5 +5,5 @@ namespace VibePanel.Core;
 public static class WindowsDashboardProviders
 {
     public static DashboardProviders Create(IMetricsProvider? metrics = null) => new(new WindowsMediaService(), new WindowsVolumeService(),
-        metrics ?? new WindowsMetricsService(allowHardwareAccess: true), new WindowsPlaybackAnalyzer(), new NetworkTrafficService());
+        metrics ?? new WindowsMetricsService(allowHardwareAccess: true), new WindowsPlaybackAnalyzer(), new NetworkTrafficService(), new OnlineArtistProvider());
 }

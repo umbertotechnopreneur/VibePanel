@@ -28,4 +28,11 @@ public sealed record PlaybackAnalysis(bool Available, string Source, int SampleR
 /// <summary>A bounded snapshot used by the UI, CLI, and USB renderer.</summary>
 public sealed record DashboardSnapshot(NowPlaying Media, IReadOnlyList<AppVolume> Volumes,
     MachineMetrics Metrics, IReadOnlyList<string> Notices, NetworkTraffic? Network = null, PlaybackAnalysis? Playback = null,
-    HardwareSensorSnapshot? Sensors = null);
+    HardwareSensorSnapshot? Sensors = null, ArtistProfile? ArtistProfile = null);
+
+/// <summary>Attributed online artist context; absent fields stay absent.</summary>
+public sealed record ArtistFact(string Label, string Value);
+public sealed record AlbumSales(string Album, double Units, string Label, string AsOf, string SourceUrl);
+public sealed record ArtistProfile(string RequestedArtist, string Name, string Biography, string SourceUrl,
+    string BiographyCredit, byte[]? Photo, string? PhotoCredit, string? PhotoSourceUrl,
+    IReadOnlyList<ArtistFact> Facts, AlbumSales? AlbumSales);
