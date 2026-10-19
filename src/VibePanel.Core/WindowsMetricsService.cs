@@ -23,6 +23,8 @@ public sealed partial class WindowsMetricsService(bool allowHardwareAccess = fal
     private const int MaximumFans = 16;
     private const string DriverUnavailableNotice = "PawnIO is not installed. CPU temperature/clock and motherboard/fan readings need it; GPU and RAM may still be available.";
     private readonly object sync = new();
+    private readonly Dictionary<string, LinkedListNode<string>> observedFans = new(StringComparer.Ordinal);
+    private readonly LinkedList<string> observedFanOrder = new();
     private Lhm.Computer? computer;
     private HardwareSensorSnapshot snapshot = HardwareSensorSnapshot.Empty;
     private HardwareDriverStatus driverStatus = new(false, null,
@@ -93,6 +95,7 @@ public sealed partial class WindowsMetricsService(bool allowHardwareAccess = fal
                 var gpus = new List<HardwareDeviceSensors>();
                 var dimms = new List<HardwareMemoryModule>();
                 var failed = false;
+                var boardFanChannelsReported = false;
                 foreach (var hardware in EnumerateHardware(computer!.Hardware))
                 {
                     try
@@ -102,6 +105,7 @@ public sealed partial class WindowsMetricsService(bool allowHardwareAccess = fal
                         switch (hardware.HardwareType)
                         {
                             case Lhm.HardwareType.Cpu when cpu is null:
+                                boardFanChannelsReported |= HasFanChannels(sensors);
                                 cpu = ReadCpu(hardware.Name, sensors);
                                 break;
                             case Lhm.HardwareType.GpuNvidia or Lhm.HardwareType.GpuAmd or Lhm.HardwareType.GpuIntel when gpus.Count < MaximumGpus:
@@ -115,6 +119,7 @@ public sealed partial class WindowsMetricsService(bool allowHardwareAccess = fal
                                 break;
                             case Lhm.HardwareType.SuperIO or Lhm.HardwareType.EmbeddedController when driverStatus.Available:
                                 // Only the board's own chip supplies these readings.
+                                boardFanChannelsReported |= HasFanChannels(sensors);
                                 foreach (var sensor in sensors.Where(item => item.SensorType == Lhm.SensorType.Temperature))
                                 {
                                     var value = Value(sensor);
@@ -140,7 +145,7 @@ public sealed partial class WindowsMetricsService(bool allowHardwareAccess = fal
                     memory = memory with { ClockMHz = clock, Modules = dimms.Count > 0 ? dimms : memory.Modules };
                 }
                 snapshot = new(cpu, gpus.ToArray(), memory, DateTimeOffset.UtcNow,
-                    AvailabilityNotice(driverStatus, cpu, board, failed), board, driverStatus);
+                    AvailabilityNotice(driverStatus, cpu, board, failed, boardFanChannelsReported), board, driverStatus);
             }
             catch (Exception error) when (IsSensorFailure(error))
             {
@@ -235,7 +240,7 @@ public sealed partial class WindowsMetricsService(bool allowHardwareAccess = fal
         }
     }
 
-    private static HardwareDeviceSensors ReadCpu(string name, Lhm.ISensor[] sensors)
+    private HardwareDeviceSensors ReadCpu(string name, Lhm.ISensor[] sensors)
     {
         var usage = FindValue(sensors, Lhm.SensorType.Load, "CPU Total", percentage: true);
         var averageClock = FindValue(sensors, Lhm.SensorType.Clock, "Cores (Average)", nonnegative: true);
@@ -262,7 +267,7 @@ public sealed partial class WindowsMetricsService(bool allowHardwareAccess = fal
             clock is null ? null : "Average clock", temperatureLabel, ReadFans(sensors), ReadThemeValues(sensors));
     }
 
-    private static HardwareDeviceSensors ReadGpu(string name, Lhm.ISensor[] sensors) => new(name,
+    private HardwareDeviceSensors ReadGpu(string name, Lhm.ISensor[] sensors) => new(name,
         FindValue(sensors, Lhm.SensorType.Load, "GPU Core", percentage: true),
         FindValue(sensors, Lhm.SensorType.Clock, "GPU Core", nonnegative: true),
         FindValue(sensors, Lhm.SensorType.Temperature, "GPU Core"), "Core clock", "GPU core", ReadFans(sensors), ReadThemeValues(sensors));
@@ -278,13 +283,13 @@ public sealed partial class WindowsMetricsService(bool allowHardwareAccess = fal
     }
 
     internal static string? AvailabilityNotice(HardwareDriverStatus driver, HardwareDeviceSensors? cpu,
-        HardwareMotherboardSensors? board, bool readFailed)
+        HardwareMotherboardSensors? board, bool readFailed, bool boardFanChannelsReported = false)
     {
         if (!driver.Available) { return driver.Notice ?? DriverUnavailableNotice; }
         var missing = new List<string>();
         if (cpu?.TemperatureC is null) { missing.Add("CPU temperature"); }
         if (board?.Temperatures is not { Count: > 0 }) { missing.Add("motherboard temperatures"); }
-        if ((cpu?.Fans?.Count ?? 0) + (board?.Fans.Count ?? 0) == 0) { missing.Add("board/CPU fan RPM"); }
+        if (!boardFanChannelsReported && (cpu?.Fans?.Count ?? 0) + (board?.Fans.Count ?? 0) == 0) { missing.Add("board/CPU fan RPM"); }
         if (missing.Count > 0)
         {
             return $"Libre Hardware Monitor did not provide {string.Join(", ", missing)}. Available readings are shown; unidentified sensor names are kept as reported.";
@@ -298,13 +303,37 @@ public sealed partial class WindowsMetricsService(bool allowHardwareAccess = fal
         || name.Equals("SYS", StringComparison.OrdinalIgnoreCase)
         || name.Equals("SYSTIN", StringComparison.OrdinalIgnoreCase);
 
-    private static HardwareFanSensors[] ReadFans(Lhm.ISensor[] sensors) => sensors
+    private static bool HasFanChannels(Lhm.ISensor[] sensors) => sensors.Any(sensor =>
+        sensor.SensorType == Lhm.SensorType.Fan && Value(sensor, nonnegative: true) is >= 0 and <= 20000);
+
+    private HardwareFanSensors[] ReadFans(Lhm.ISensor[] sensors) => sensors
         .Where(sensor => sensor.SensorType == Lhm.SensorType.Fan)
-        .Select(sensor => (sensor.Name, Rpm: Value(sensor, nonnegative: true)))
+        .Select(sensor => (Id: sensor.Identifier.ToString(), sensor.Name, Rpm: Value(sensor, nonnegative: true)))
         .Where(item => item.Rpm is >= 0 and <= 20000)
         .Take(MaximumFans)
+        .Where(item => ObserveFan(item.Id, item.Rpm!.Value))
         .Select(item => new HardwareFanSensors(item.Name, item.Rpm!.Value))
         .ToArray();
+
+    /// <summary>Remember real activity per channel for this reader's lifetime, independently of themes.</summary>
+    private bool ObserveFan(string id, double rpm)
+    {
+        if (observedFans.TryGetValue(id, out var existing))
+        {
+            observedFanOrder.Remove(existing);
+            observedFanOrder.AddLast(existing);
+            return true;
+        }
+        if (rpm <= 0) { return false; }
+        observedFans.Add(id, observedFanOrder.AddLast(id));
+        // Bound hot-plug history while retaining channels that are still being sampled.
+        if (observedFans.Count > MaximumHardware * MaximumFans)
+        {
+            observedFans.Remove(observedFanOrder.First!.Value);
+            observedFanOrder.RemoveFirst();
+        }
+        return true;
+    }
 
     private HardwareMemorySensors? ReadPhysicalMemory()
     {
@@ -369,7 +398,13 @@ public sealed partial class WindowsMetricsService(bool allowHardwareAccess = fal
             disposed = true;
             try { computer?.Close(); }
             catch (Exception error) when (IsSensorFailure(error)) { }
-            finally { computer = null; snapshot = HardwareSensorSnapshot.Empty; }
+            finally
+            {
+                computer = null;
+                snapshot = HardwareSensorSnapshot.Empty;
+                observedFans.Clear();
+                observedFanOrder.Clear();
+            }
         }
     }
 }

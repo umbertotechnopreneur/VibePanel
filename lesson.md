@@ -64,3 +64,4 @@
 - I request administrator access before starting Windows child processes. A canceled request shows a warning and leaves missing sensors unavailable. Sign-in and tray arguments survive elevation.
 - I keep one running fan visible while other named channels rotate, including measured zeroes. A stopped-only page must not make available running fans appear to have disappeared.
 - I show short status summaries and primary actions first. Setup text, paths, advanced controls and diagnostic trees open on demand without changing saved settings.
+- I hide fan channels from themes until their sensor ID has reported positive RPM in the current engine session. A later measured zero stays visible as a stopped fan. Page/theme changes and renderer restarts do not erase that observation. Sensor Debug keeps raw channels.

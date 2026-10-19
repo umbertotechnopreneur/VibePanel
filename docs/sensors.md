@@ -57,7 +57,13 @@ still use their own files until separately updated; source changes do not modify
 
 All ten System themes use one renderer. Names, primary values, clock lines and details have separate regions in wide and compact layouts. CPU/GPU power readings use watts; GPU channels retain their names and rotate in bounded pairs. Missing fields are omitted. RAM configured data rate (MT/s) and measured memory clock (MHz) stay distinct. Generic board channels retain their reported names. Sensor Debug retains the complete bounded tree, including missing readings.
 
-Fan pages keep one running channel visible while the other named channels rotate.
-This prevents a later page of stopped headers from looking like lost fan data.
-Measured zeroes remain visible and their rotors stay still. If all fans report zero,
-the page shows those stopped readings without animation.
+Themes hide a fan channel until its first positive RPM reading in the current
+engine session. Activity is remembered by sensor identifier across page and theme
+changes, including renderer restarts. A later measured zero remains visible as a
+stopped fan. Missing readings stay absent. No last-known RPM is substituted.
+Sensor Debug keeps every raw channel, including those that have always been zero;
+positive readings observed there also count for the same session.
+
+Fan pages keep one running channel visible while the other eligible channels rotate.
+Stopped fans retain their names and zero RPM, with still rotors. A page containing
+only stopped fans can appear only after those channels have actually been active.

@@ -186,3 +186,15 @@ page and both completion choices still checked by default. This does not validat
 the real UAC, studio layout or installer interaction. Build logs, hashes and metadata
 are saved outside the repository. Cleanup left only the final 0.1.13 MSI in artifacts;
 installed files and user settings were not changed.
+
+## 19 October 2026: fan channels observed running
+
+The Windows reader now filters theme fan channels by actual positive RPM history,
+keyed by the sensor library's identifier. Never-active zero channels stay hidden;
+previously active channels retain a later measured zero. Null or invalid readings
+remain absent. Raw Sensor Debug stays unfiltered and its positive observations
+also qualify a channel. The bounded history belongs to the engine session, survives
+page/theme changes and renderer restarts, and is not saved across app restarts.
+
+No tests, studio launch, sensor sampling, driver access, installation or USB trial
+has been performed for this change. Compilation does not establish live behavior.
