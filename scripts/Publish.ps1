@@ -4,7 +4,8 @@
 # VBWR E
 param(
     [ValidateSet('x64', 'ARM64')][string]$Architecture = 'x64',
-    [string]$HostPython = 'python'
+    [string]$HostPython = 'python',
+    [ValidateSet('Debug', 'Release')][string]$Configuration = 'Release'
 )
 $ErrorActionPreference = 'Stop'
 $env:MSBUILDDISABLENODEREUSE = '1'
@@ -24,7 +25,7 @@ foreach ($name in @('Cli', 'Photino')) {
 & "$PSScriptRoot/Assert-DefenderClean.ps1" -Path $env:NUGET_PACKAGES -Source 'https://api.nuget.org/v3/index.json; restored package archives and extracted dependencies'
 foreach ($target in @(@{ Project = 'Cli'; Folder = $engine }, @{ Project = 'Photino'; Folder = $destination })) {
     $project = Join-Path $repo "src/VibePanel.$($target.Project)/VibePanel.$($target.Project).csproj"
-    dotnet publish $project --no-restore --disable-build-servers --configuration Release --runtime $runtime --self-contained true -p:Platform=$Architecture --output $target.Folder --warnaserror
+    dotnet publish $project --no-restore --disable-build-servers --configuration $Configuration --runtime $runtime --self-contained true -p:Platform=$Architecture --output $target.Folder --warnaserror
     if ($LASTEXITCODE -ne 0) { throw "Publish failed: $($target.Project) / $runtime" }
 }
 & (Join-Path $PSScriptRoot 'Bundle-Python.ps1') -Architecture $Architecture -Destination $destination -HostPython $HostPython
