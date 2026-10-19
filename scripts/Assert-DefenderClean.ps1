@@ -40,6 +40,9 @@ if ($pending.Count -eq 0) {
     return
 }
 if (-not $ScanNewImport) {
+    $pending | Select-Object -First 20 | ForEach-Object {
+        Write-Host "Missing evidence: $([IO.Path]::GetRelativePath($target, $_.path)) ($($_.sha256))"
+    }
     throw "First-import evidence is missing for $($pending.Count) files in $target. Explicitly stage and scan them with Assert-DefenderClean.ps1 -ScanNewImport before building."
 }
 $status = Get-MpComputerStatus
