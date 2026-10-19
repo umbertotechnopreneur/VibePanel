@@ -7,16 +7,19 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Security.Cryptography;
-using System.Text;
 using System.Runtime.InteropServices;
 using Microsoft.Win32;
 
 namespace VibePanel.Core;
 
-/// <summary>Composes a music-first frame on a wallpaper palette cached as a JPEG, not sampled every tick.</summary>
+/// <summary>Composes a music-first frame with a bounded in-memory background cache.</summary>
 public sealed class DashboardRenderer
 {
-    private readonly Dictionary<string, string> backgrounds = [];
+    private const int MaximumBackgrounds = 12;
+    private const int MaximumBackgroundBytes = 8 * 1024 * 1024;
+    private readonly Dictionary<string, byte[]> backgrounds = [];
+    private readonly LinkedList<string> backgroundOrder = [];
+    private int backgroundBytes;
     private byte[]? lastArtwork;
     private string artworkKey = "";
     private string? wallpaper;
@@ -24,7 +27,8 @@ public sealed class DashboardRenderer
     private bool wallpaperRead;
     private Color[] artworkPalette = [];
     private readonly Dictionary<int, byte[]> shadows = [];
-    public string? BackgroundPath { get; private set; }
+    internal int CachedBackgroundCount => backgrounds.Count;
+    internal int CachedBackgroundBytes => backgroundBytes;
 
     public static string Fingerprint(DashboardSnapshot snapshot, DashboardScene scene)
     {
@@ -48,7 +52,8 @@ public sealed class DashboardRenderer
         var background = GetBackground(profile.Width, profile.Height, snapshot.Media, scene, light);
         using var bitmap = new Bitmap(profile.Width, profile.Height, PixelFormat.Format24bppRgb);
         using (var graphics = Graphics.FromImage(bitmap))
-        using (var image = Image.FromFile(background))
+        using (var backgroundStream = new MemoryStream(background, writable: false))
+        using (var image = Image.FromStream(backgroundStream))
         {
             if (driftOffset is { } offset) { graphics.DrawImage(image, -32 + offset, -32 + offset / 2, bitmap.Width + 64, bitmap.Height + 64); }
             else { graphics.DrawImage(image, 0, 0, bitmap.Width, bitmap.Height); }
@@ -114,11 +119,11 @@ public sealed class DashboardRenderer
                 try
                 {
                     using var stream = new MemoryStream(s.Media.Artwork);
-                    using var art = Image.FromStream(stream);
+                    using var art = RasterImage.Open(stream);
                     var edge = Math.Min(art.Width, art.Height);
                     g.DrawImage(art, new Rectangle(x, 76, size, size), new Rectangle((art.Width - edge) / 2, (art.Height - edge) / 2, edge, edge), GraphicsUnit.Pixel);
                 }
-                catch (ArgumentException) { g.DrawString("♪", large, accent, x + 120, 190); }
+                catch (Exception error) when (error is ArgumentException or IOException or OutOfMemoryException) { g.DrawString("♪", large, accent, x + 120, 190); }
             }
             else { g.DrawString("♪", large, accent, x + 120, 190); }
             var left = wide ? 440 : 32;
@@ -200,11 +205,11 @@ public sealed class DashboardRenderer
             try
             {
                 using var stream = new MemoryStream(s.Media.Artwork);
-                using var art = Image.FromStream(stream);
+                using var art = RasterImage.Open(stream);
                 var edge = Math.Min(art.Width, art.Height);
                 g.DrawImage(art, artworkBounds, new Rectangle((art.Width - edge) / 2, (art.Height - edge) / 2, edge, edge), GraphicsUnit.Pixel);
             }
-            catch (ArgumentException) { g.DrawString("♪", title, accent, artworkBounds.X + 70, artworkBounds.Y + 65); }
+            catch (Exception error) when (error is ArgumentException or IOException or OutOfMemoryException) { g.DrawString("♪", title, accent, artworkBounds.X + 70, artworkBounds.Y + 65); }
         }
         else { g.DrawString("♪", title, accent, artworkBounds.X + 70, artworkBounds.Y + 65); }
         var textX = wide ? 350 : 32;
@@ -260,7 +265,7 @@ public sealed class DashboardRenderer
         graphics.FillRectangle(gradient, track.X, track.Y, (float)(track.Width * AudioLevel.Fraction(peak)), track.Height);
     }
 
-    private string GetBackground(int width, int height, NowPlaying media, DashboardScene scene, bool light)
+    private byte[] GetBackground(int width, int height, NowPlaying media, DashboardScene scene, bool light)
     {
         var cover = scene is DashboardScene.Music or DashboardScene.Artwork or DashboardScene.TrackDetails ? media.Artwork : null;
         if (cover is not null && !ReferenceEquals(lastArtwork, cover))
@@ -274,48 +279,46 @@ public sealed class DashboardRenderer
             wallpaperRead = true;
         }
         var dimensions = $"{width}x{height}|{light}|{(cover is null ? wallpaperKey : artworkKey)}";
-        if (backgrounds.TryGetValue(dimensions, out var existing)) { BackgroundPath = existing; return existing; }
-        var key = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"v4|{dimensions}")))[..24];
-        var directory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VibePanel", "cache");
-        Directory.CreateDirectory(directory);
-        var path = Path.Combine(directory, $"background-{key}.jpg");
-        if (!File.Exists(path))
+        if (backgrounds.TryGetValue(dimensions, out var existing))
+        { backgroundOrder.Remove(dimensions); backgroundOrder.AddLast(dimensions); return existing; }
+        var palette = cover is null ? SamplePalette(wallpaper, null) : artworkPalette;
+        using var small = new Bitmap(256, 256);
+        using (var blobs = Graphics.FromImage(small))
         {
-            var palette = cover is null ? SamplePalette(wallpaper, null) : artworkPalette;
-            using var small = new Bitmap(256, 256);
-            using (var blobs = Graphics.FromImage(small))
+            blobs.Clear(light ? Color.FromArgb(244, 243, 248) : Color.FromArgb(17, 21, 31));
+            var centers = new[] { new PointF(35, 30), new PointF(220, 50), new PointF(45, 220), new PointF(215, 215) };
+            for (var i = 0; i < palette.Length; i++)
             {
-                blobs.Clear(light ? Color.FromArgb(244, 243, 248) : Color.FromArgb(17, 21, 31));
-                var centers = new[] { new PointF(35, 30), new PointF(220, 50), new PointF(45, 220), new PointF(215, 215) };
-                for (var i = 0; i < palette.Length; i++)
-                {
-                    var bounds = new RectangleF(centers[i].X - 180, centers[i].Y - 180, 360, 360);
-                    using var pathShape = new GraphicsPath();
-                    pathShape.AddEllipse(bounds);
-                    using var blob = new PathGradientBrush(pathShape) { CenterColor = Color.FromArgb(light ? 95 : 170, palette[i]), SurroundColors = [Color.FromArgb(0, palette[i])] };
-                    blobs.FillEllipse(blob, bounds);
-                }
+                var bounds = new RectangleF(centers[i].X - 180, centers[i].Y - 180, 360, 360);
+                using var pathShape = new GraphicsPath();
+                pathShape.AddEllipse(bounds);
+                using var blob = new PathGradientBrush(pathShape) { CenterColor = Color.FromArgb(light ? 95 : 170, palette[i]), SurroundColors = [Color.FromArgb(0, palette[i])] };
+                blobs.FillEllipse(blob, bounds);
             }
-            using var image = new Bitmap(width, height);
-            using (var g = Graphics.FromImage(image))
-            {
-                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
-                g.DrawImage(small, 0, 0, width, height);
-                using var shade = new SolidBrush(light ? Color.FromArgb(85, 250, 248, 255) : Color.FromArgb(65, 13, 17, 28));
-                g.FillRectangle(shade, 0, 0, width, height);
-            }
-            using var output = new MemoryStream();
-            image.Save(output, ImageFormat.Jpeg);
-            try
-            {
-                using var file = new FileStream(path, FileMode.CreateNew);
-                file.Write(output.ToArray());
-            }
-            catch (IOException) when (File.Exists(path)) { }
         }
-        backgrounds[dimensions] = path;
-        BackgroundPath = path;
-        return path;
+        using var image = new Bitmap(width, height);
+        using (var g = Graphics.FromImage(image))
+        {
+            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            g.DrawImage(small, 0, 0, width, height);
+            using var shade = new SolidBrush(light ? Color.FromArgb(85, 250, 248, 255) : Color.FromArgb(65, 13, 17, 28));
+            g.FillRectangle(shade, 0, 0, width, height);
+        }
+        using var output = new MemoryStream();
+        image.Save(output, ImageFormat.Jpeg);
+        var jpeg = output.ToArray();
+        if (jpeg.Length > MaximumBackgroundBytes) { return jpeg; }
+        while (backgrounds.Count >= MaximumBackgrounds || backgroundBytes + jpeg.Length > MaximumBackgroundBytes)
+        {
+            var oldest = backgroundOrder.First!.Value;
+            backgroundBytes -= backgrounds[oldest].Length;
+            backgrounds.Remove(oldest);
+            backgroundOrder.RemoveFirst();
+        }
+        backgrounds.Add(dimensions, jpeg);
+        backgroundOrder.AddLast(dimensions);
+        backgroundBytes += jpeg.Length;
+        return jpeg;
     }
 
     private static Color[] SamplePalette(string? path, byte[]? artwork)
@@ -324,8 +327,8 @@ public sealed class DashboardRenderer
         if (artwork is null && (path is null || !File.Exists(path))) { return fallback; }
         try
         {
-            using var stream = artwork is null ? null : new MemoryStream(artwork);
-            using var source = stream is null ? Image.FromFile(path!) : Image.FromStream(stream);
+            using var stream = artwork is null ? (Stream)File.OpenRead(path!) : new MemoryStream(artwork, writable: false);
+            using var source = RasterImage.Open(stream);
             using var tiny = new Bitmap(source, 64, 64);
             if (artwork is not null)
             {

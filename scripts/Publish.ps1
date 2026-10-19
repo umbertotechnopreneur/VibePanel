@@ -7,6 +7,8 @@ param(
     [string]$HostPython = 'python'
 )
 $ErrorActionPreference = 'Stop'
+$env:MSBUILDDISABLENODEREUSE = '1'
+$env:DOTNET_CLI_USE_MSBUILD_SERVER = '0'
 $repo = Split-Path $PSScriptRoot -Parent
 $runtime = 'win-' + $Architecture.ToLowerInvariant()
 $packageName = "VibePanel-$runtime-preview"
@@ -14,9 +16,15 @@ $stagingRoot = Join-Path $repo 'artifacts/staging'
 $destination = Join-Path $stagingRoot ("$packageName-" + [Guid]::NewGuid().ToString('N'))
 $engine = Join-Path $destination 'engine'
 $env:NUGET_HTTP_CACHE_PATH = Join-Path $repo 'artifacts/nuget-http'
+$env:NUGET_PACKAGES = Join-Path $repo 'artifacts/nuget-stage'
+foreach ($name in @('Cli', 'Photino')) {
+    dotnet restore (Join-Path $repo "src/VibePanel.$name/VibePanel.$name.csproj") --runtime $runtime -p:Platform=$Architecture
+    if ($LASTEXITCODE -ne 0) { throw "Restore failed: $name" }
+}
+& "$PSScriptRoot/Assert-DefenderClean.ps1" -Path $env:NUGET_PACKAGES -Source 'https://api.nuget.org/v3/index.json; restored package archives and extracted dependencies'
 foreach ($target in @(@{ Project = 'Cli'; Folder = $engine }, @{ Project = 'Photino'; Folder = $destination })) {
     $project = Join-Path $repo "src/VibePanel.$($target.Project)/VibePanel.$($target.Project).csproj"
-    dotnet publish $project --configuration Release --runtime $runtime --self-contained true -p:Platform=$Architecture --output $target.Folder --warnaserror
+    dotnet publish $project --no-restore --disable-build-servers --configuration Release --runtime $runtime --self-contained true -p:Platform=$Architecture --output $target.Folder --warnaserror
     if ($LASTEXITCODE -ne 0) { throw "Publish failed: $($target.Project) / $runtime" }
 }
 & (Join-Path $PSScriptRoot 'Bundle-Python.ps1') -Architecture $Architecture -Destination $destination -HostPython $HostPython
@@ -37,7 +45,10 @@ if (-not (Test-Path -LiteralPath (Join-Path $engine 'themes'))) {
 if (Test-Path -LiteralPath (Join-Path $destination 'themes')) {
     throw 'A stale root/themes folder duplicates engine/themes. Remove only that generated folder before repackaging.'
 }
-foreach ($folder in @('docs', 'plugins/vibepanel-codex')) {
+if (-not (Test-Path -LiteralPath (Join-Path $engine 'plugins/vibepanel-codex/install.py'))) {
+    throw 'CLI publish did not include engine/plugins/vibepanel-codex.'
+}
+foreach ($folder in @('docs')) {
     $target = Join-Path $destination $folder
     New-Item -ItemType Directory -Path $target -Force | Out-Null
     $source = Join-Path $repo ($folder + '/*')

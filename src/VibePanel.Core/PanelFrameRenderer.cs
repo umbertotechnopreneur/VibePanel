@@ -14,6 +14,14 @@ namespace VibePanel.Core;
 /// <summary>Renders local images and a diagnostic chart using Windows GDI+.</summary>
 public static class PanelFrameRenderer
 {
+    /// <summary>A black frame clears an inactive screen without closing or reopening its USB session.</summary>
+    public static byte[] Blank(DisplayProfile profile, int jpegQuality = 90)
+    {
+        using var bitmap = new Bitmap(profile.Width, profile.Height, PixelFormat.Format24bppRgb);
+        using (var graphics = Graphics.FromImage(bitmap)) { graphics.Clear(Color.Black); }
+        return Encode(bitmap, profile, jpegQuality);
+    }
+
     /// <summary>Produces a labelled picture for orientation, RGB order, and edge visibility checks.</summary>
     public static byte[] Pattern(DisplayProfile profile)
     {

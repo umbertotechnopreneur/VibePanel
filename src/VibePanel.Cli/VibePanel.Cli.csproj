@@ -21,5 +21,6 @@ VBWR E -->
   <ItemGroup>
     <Content Include="../../themes/**/*" Exclude="../../themes/**/__pycache__/**;../../themes/**/*.pyc" Link="themes/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="../../theme-runtime/**/*" Exclude="../../theme-runtime/**/__pycache__/**;../../theme-runtime/**/*.pyc" Link="theme-runtime/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../../plugins/**/*" Exclude="../../plugins/**/__pycache__/**;../../plugins/**/*.pyc" Link="plugins/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

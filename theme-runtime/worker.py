@@ -8,10 +8,15 @@ import hashlib
 import importlib.util
 import json
 import math
+import os
 import pathlib
 import sys
 
 sys.dont_write_bytecode = True
+# Tiny palette arrays do not need NumPy's large default native thread pool.
+# Set this before canvas imports NumPy; it applies only to this worker process.
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["OMP_NUM_THREADS"] = "1"
 # Windows embeddable Python may omit the script folder from its isolated path.
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 MAX_LINE = 20_000_000
@@ -24,6 +29,8 @@ try:
         from canvas import Canvas, ThemeContext
         from color_adjustments import apply_color_adjustments
         from font_catalog import list_monospace_fonts
+        from track_transition import TrackTransition
+        TRACK_TRANSITION = TrackTransition()
 except ImportError as exc:
     IMPORT_ERROR = str(exc)
 
@@ -57,6 +64,8 @@ def render(request: dict) -> dict:
         raise RuntimeError("Python theme dependencies are missing. Install theme-runtime/requirements.txt in the configured Python runtime. " + IMPORT_ERROR)
     if request.get("version", 1) != 1 or request.get("method", "render") != "render":
         raise ValueError("Unsupported theme worker request.")
+    if request.get("paletteVersion", 1) != 1:
+        raise ValueError("Unsupported palette version.")
     # Reject invalid controls before importing a theme. The resolved theme overrides
     # are checked again by the native filter helper after render/finish.
     for name, default, minimum, maximum in (
@@ -104,6 +113,14 @@ def render(request: dict) -> dict:
     # A fresh context starts from the UI/CLI controls on each frame. Themes may
     # override context.colors; those values do not change the host's controls.
     snapshot = surface.makeImageSnapshot()
+    transition_active = False
+    if context.category == "multimedia":
+        scope = (str(folder), manifest.get("id"), width, height, context.light,
+                 context.font_family, context.font_scale, tuple(context.palette.to_json().items()))
+        track = (context.source, context.title, context.artist, context.album, context.cover_key)
+        snapshot, transition_active = TRACK_TRANSITION.compose(snapshot, scope, track)
+    else:
+        TRACK_TRANSITION.reset()
     # Off means no color surface, matrix or raster pass, including theme overrides.
     # Keep the saved settings in the context so enabling filters restores them.
     if filters_enabled:
@@ -117,7 +134,7 @@ def render(request: dict) -> dict:
         if data is not None and data.size() <= MAX_JPEG:
             return {"version": 1, "id": request.get("id"), "ok": True,
                     "jpegBase64": base64.b64encode(bytes(data)).decode("ascii"),
-                    "accentColor": context.accent}
+                    "accentColor": context.accent, "transitionActive": transition_active}
     raise ValueError("Rendered frame exceeds the panel's 450,000-byte JPEG limit.")
 
 

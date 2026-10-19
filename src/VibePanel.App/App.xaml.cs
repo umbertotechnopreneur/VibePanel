@@ -5,6 +5,7 @@
 
 using System.Windows;
 using VibePanel.Contracts;
+using VibePanel.Studio;
 
 namespace VibePanel.App;
 
@@ -12,10 +13,10 @@ public sealed partial class App : Application
 {
     private readonly MainPage page;
 
-    public App(IPanelClient client, IStudioWindowActions? windowActions = null, bool restoreLastSession = false)
+    public App(IPanelClient client, IStudioWindowActions? windowActions = null, string? presentationSettingsPath = null, IStudioPreview? preview = null, bool restoreLastSession = false, StudioSession? session = null)
     {
         InitializeComponent();
-        page = new MainPage(client, windowActions, restoreLastSession);
+        page = new MainPage(client, windowActions, presentationSettingsPath, preview, restoreLastSession, session);
         RootVisual = page;
     }
 

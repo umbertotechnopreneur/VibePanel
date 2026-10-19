@@ -24,8 +24,10 @@ public static class ThemePlayback
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         if (duration is { } limit) { stop.CancelAfter(limit); }
         var token = stop.Token;
-        using var service = new DashboardService();
+        using var service = new DashboardService(WindowsDashboardProviders.Create());
         using var renderer = new PythonThemeRenderer();
+        var codexProcess = new CodexProcessMonitor();
+        byte[]? inactiveFrame = null;
         try
         {
             progress?.Report($"Reading the selected panel's profile: {device.Id}.");
@@ -35,8 +37,16 @@ public static class ThemePlayback
             while (!token.IsCancellationRequested)
             {
                 var started = Environment.TickCount64;
-                var snapshot = await service.ReadAsync(includeSystem: false, includeMedia: theme.Category != "codex",
-                    analyzePlayback: theme.Category == "multimedia");
+                if (theme.Category == "codex" && !codexProcess.IsRunning())
+                {
+                    inactiveFrame ??= PanelFrameRenderer.Blank(profile with { Encoding = PanelPixelEncoding.Jpeg, WireRotation = 0 });
+                    if (await output.SendAsync(inactiveFrame, jpegQuality, token))
+                    { progress?.Report("Codex is closed. Its screen is hidden until its process is running."); }
+                    await Task.Delay(1000, token);
+                    continue;
+                }
+                var snapshot = await service.ReadAsync(includeSystem: false, includeMedia: theme.Category == "multimedia",
+                    analyzePlayback: theme.Category == "multimedia", includeSensors: theme.Category == "system");
                 token.ThrowIfCancellationRequested();
                 var jpeg = await renderer.RenderAsync(theme, snapshot, profile with { Encoding = PanelPixelEncoding.Jpeg, WireRotation = 0 },
                     light, ambientDrift, fontFamily, fontScale, jpegQuality, token, saturationPercent, hueDegrees, showSpectrum,
@@ -44,7 +54,8 @@ public static class ThemePlayback
                 if (await output.SendAsync(jpeg, jpegQuality, token))
                 { progress?.Report($"{theme.Name} · frame {output.SubmittedFrames} submitted · {profile.Width} × {profile.Height}"); }
                 // One in-flight frame only. Slow rendering/USB reduces the rate instead of building a queue.
-                await Task.Delay((int)Math.Max(1, refreshIntervalMilliseconds - (Environment.TickCount64 - started)), token);
+                var interval = renderer.FrameIntervalMilliseconds(refreshIntervalMilliseconds);
+                await Task.Delay((int)Math.Max(1, interval - (Environment.TickCount64 - started)), token);
             }
         }
         catch (OperationCanceledException) when (stop.IsCancellationRequested) { }

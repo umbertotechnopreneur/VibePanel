@@ -39,6 +39,7 @@ internal static class VibePanelCli
                 "theme" => Theme(args),
                 "codex" => Codex(args),
                 "diagnostics" => Diagnostics(args),
+                "sensors" => Sensors(args),
                 "gui" => Gui(args),
                 "help" or "--help" or "-h" or null => Help(),
                 _ => Fail("I do not know that command. Run 'vp help'.")
@@ -75,7 +76,7 @@ internal static class VibePanelCli
                     sceneOption is null ? null : DashboardScenes.Parse(sceneOption)).GetAwaiter().GetResult();
                 return 0;
             }
-            using var service = new DashboardService();
+            using var service = new DashboardService(WindowsDashboardProviders.Create());
             var renderer = new DashboardRenderer();
             var export = GetOption(args, "--export");
             do
@@ -89,7 +90,7 @@ internal static class VibePanelCli
                     using var output = new FileStream(Path.GetFullPath(export), FileMode.CreateNew);
                     output.Write(renderer.Render(snapshot, profile with { WireRotation = 0 }, DashboardScenes.Parse(GetOption(args, "--scene") ?? "Music")));
                     AnsiConsole.WriteLine($"Preview saved: {Path.GetFullPath(export)}");
-                    AnsiConsole.WriteLine($"Cached background: {renderer.BackgroundPath}");
+                    AnsiConsole.WriteLine("Background cached in memory.");
                     break;
                 }
                 if (!args.Contains("--watch")) { break; }
@@ -224,6 +225,19 @@ internal static class VibePanelCli
         return 0;
     }
 
+    private static int Sensors(IReadOnlyList<string> args)
+    {
+        if (args.Count > 2 || args.Count == 2 && args[1] != "--diagnose")
+        { return Fail("Usage: vp sensors [--diagnose]"); }
+        using var sensors = new WindowsMetricsService(allowHardwareAccess: true);
+        var snapshot = sensors.ReadSensors();
+        Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(snapshot, VibePanel.Contracts.PanelContract.Json));
+        if (snapshot.Notice is { } notice) { Console.Error.WriteLine(notice); }
+        if (args.Contains("--diagnose") && sensors.InitializationFailureDetails is { } details)
+        { Console.Error.WriteLine(details); }
+        return sensors.InitializationFailureDetails is null ? 0 : 1;
+    }
+
     private static int Theme(IReadOnlyList<string> args)
     {
         var export = GetOption(args, "--export");
@@ -277,9 +291,10 @@ internal static class VibePanelCli
         var profile = DisplayProfileCatalog.GetRequired(GetOption(args, "--profile") ?? "wide-1280x480") with { Encoding = PanelPixelEncoding.Jpeg, WireRotation = 0 };
         var path = Path.GetFullPath(export!);
         if (File.Exists(path)) { throw new IOException("The export file already exists. Choose a new path."); }
-        using var service = new DashboardService();
+        using var service = new DashboardService(WindowsDashboardProviders.Create());
         using var renderer = new PythonThemeRenderer();
-        var snapshot = service.ReadAsync(includeSystem: false, includeMedia: theme.Category != "codex").GetAwaiter().GetResult();
+        var snapshot = service.ReadAsync(includeSystem: false, includeMedia: theme.Category == "multimedia",
+            includeSensors: theme.Category == "system").GetAwaiter().GetResult();
         var frame = renderer.RenderAsync(theme, snapshot, profile, args.Contains("--light"), args.Contains("--ambient-drift"), font, scale, quality,
             saturationPercent: saturation, hueDegrees: hue, showSpectrum: showSpectrum,
             brightnessPercent: brightness, contrastPercent: contrast).GetAwaiter().GetResult();
@@ -519,6 +534,7 @@ internal static class VibePanelCli
         commands.AddRow("vp fonts", "List installed monospace families available to the Python/Skia renderer.");
         commands.AddRow("vp codex status|prepare", "Check or prepare my optional Codex plugin. Trust its hooks in Codex.");
         commands.AddRow("vp diagnostics status|on|off|open", "Opt-in local error log, capped at 512 KiB plus one backup.");
+        commands.AddRow("vp sensors [--diagnose]", "Read CPU, GPU and RAM once through the sensor library. No audio or USB. --diagnose prints local initialization details.");
         commands.AddRow("vp gui", "Open the desktop window from the portable folder.");
         commands.AddRow("vp gui --start-minimized", "Start in the Windows tray. Reuses the existing studio instance.");
         commands.AddRow("vp theme media.aurora --export frame.jpg", "Render a Python/Skia theme to a new file. No USB writes.");

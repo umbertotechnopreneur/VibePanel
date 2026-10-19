@@ -28,6 +28,8 @@ internal sealed class WindowsTrayService : IDisposable
     private const uint IconKeySelectMessage = 0x0401;
     private const uint ContextMenuMessage = 0x007B;
     private const uint NonClientDestroyMessage = 0x0082;
+    private const uint QueryEndSessionMessage = 0x0011;
+    private const uint EndSessionMessage = 0x0016;
     private const uint SystemCommandMessage = 0x0112;
     private const uint MinimizeCommand = 0xF020;
     private const uint LoadFromFile = 0x0010;
@@ -54,6 +56,11 @@ internal sealed class WindowsTrayService : IDisposable
     private bool _subclassInstalled;
     private bool _iconRegistered;
     private bool _disposed;
+
+    public bool IsMaximized => IsZoomed(_windowHandle);
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsZoomed(IntPtr window);
 
     public bool Ready => !_disposed && _iconRegistered;
     public event Action<Exception>? Error;
@@ -268,6 +275,8 @@ internal sealed class WindowsTrayService : IDisposable
             }
             try
             {
+                if (message == QueryEndSessionMessage) { return new IntPtr(1); }
+                if (message == EndSessionMessage && wParam != UIntPtr.Zero) { service._closeRequested(); return IntPtr.Zero; }
                 if (message == service._taskbarCreatedMessage)
                 {
                     service._iconRegistered = false;

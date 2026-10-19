@@ -27,4 +27,5 @@ public sealed record PlaybackAnalysis(bool Available, string Source, int SampleR
 
 /// <summary>A bounded snapshot used by the UI, CLI, and USB renderer.</summary>
 public sealed record DashboardSnapshot(NowPlaying Media, IReadOnlyList<AppVolume> Volumes,
-    MachineMetrics Metrics, IReadOnlyList<string> Notices, NetworkTraffic? Network = null, PlaybackAnalysis? Playback = null);
+    MachineMetrics Metrics, IReadOnlyList<string> Notices, NetworkTraffic? Network = null, PlaybackAnalysis? Playback = null,
+    HardwareSensorSnapshot? Sensors = null);

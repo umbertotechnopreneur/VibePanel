@@ -30,7 +30,11 @@ Use an ID returned by `devices`:
 
 Only one request/frame is in flight. A slow update lowers the rate rather than creating a queue. Theme updates follow the GUI's requests; they stop when the window closes or the engine reaches EOF. `stop` closes the panel. Errors close the theme output; reconnecting requires another explicit start. An accepted submission does not prove visible pixels.
 
-The GUI starts in preview mode each time. It never restores an active USB session automatically.
+Normal GUI launches start in preview. At the owner's request, Windows sign-in uses `--restore-last-session`: the studio issues one `start` for its saved device/theme, then the usual `present` requests with saved settings, while its window stays in the tray. Missing saved choices never fall back to another device or theme. A late device is checked every ten seconds; Stop cancels that startup wait. A failed start is not replayed.
+
+The studio requests `devices` every ten seconds, with one enumeration pending at most. Discovery reads Windows interface metadata and closes a missing theme session; it never sends a probe or a frame. Reconnection only updates the list, apart from the initial Windows-startup wait described above. Starting output still needs `start`. A browser preview failure leaves a successfully opened USB session active.
+
+During explicit `present` requests, an identical JPEG is sent again after ten seconds. This detects a stale handle after an unplug/replug between enumerations. It uses the existing session and never reopens it. An I/O failure closes output and requires a new explicit start. Legacy `vp play` also stops on a disconnect rather than retrying.
 
 `colorFiltersEnabled: false` skips the final color pass, including theme overrides. It keeps the slider values. The studio saves this switch and starts with it off; omitted engine values default to true for CLI color requests. Replies include `accentColor`, the theme's cached accent, for the preview shadow and slider guides.
 
@@ -41,6 +45,8 @@ The GUI starts in preview mode each time. It never restores an active USB sessio
 `jpegQuality` is `poor`, `low`, `medium` or `high`, default high. Encoder targets are 20, 50, 75 and 90. Poor uses very strong compression. Encoding falls back to lower quality if needed to stay under 450,000 bytes. Rotated JPEG profiles also honor the selected target. Other pixel formats require conversion.
 
 `PanelState` adds `frameMilliseconds` (server-side data/render/send duration) and `submittedFrames`. These are not measurements of physical display latency. `displayRunning` and `status` report the session.
+
+`nextFrameMilliseconds` is normally null. During a 600 ms track/cover crossfade it requests updates at up to 40 ms, or the user's faster interval. The studio returns to the selected interval when it becomes null. The worker blends before the single color pass and JPEG encoding, so preview and USB receive the same image. Slow rendering or USB can reduce the fade steps; no frames are queued.
 
 ## Other settings
 

@@ -8,11 +8,13 @@ import math
 import time
 from collections import OrderedDict
 from datetime import datetime
+from pathlib import Path
 
 import numpy as np
 import skia
 
 from color_adjustments import ColorAdjustments
+from palette import ThemePalette
 
 _CACHE = OrderedDict()
 _COVERS = OrderedDict()
@@ -34,6 +36,18 @@ CODEX_IDENTITIES = {
     "quiet": ("#102521", "#F1F7F2", ("#8BBDA8", "#75A6A4", "#D1CCAA", "#94A0C1")),
     "dispatch": ("#10242F", "#F0F5F4", ("#63A4B8", "#CF9270", "#597BA5", "#99C1B2")),
     "chronicle": ("#2B241E", "#FCF5E9", ("#C3A070", "#A9B797", "#C69079", "#869D9B")),
+}
+SYSTEM_IDENTITIES = {
+    "signal": ("#0D161C", "#F1F6F2", ("#7BE5C0", "#76D5E9", "#B6CF94", "#92A5B7")),
+    "ledger": ("#25221D", "#F6F2E8", ("#DA986D", "#98B699", "#B4A290", "#D2B98B")),
+    "orbit": ("#091D26", "#EEF7F4", ("#73DCE0", "#A7E0B5", "#D8B88B", "#93B8C2")),
+    "terminal": ("#07150D", "#F0F6E9", ("#91DD8B", "#B4DCA0", "#69BDA0", "#94B584")),
+    "thermal": ("#25150F", "#FFF0E6", ("#FF9F67", "#F7C16E", "#CB9680", "#C6C399")),
+    "blueprint": ("#092849", "#EDF5FB", ("#8EDAF2", "#A8C9F9", "#90D8C4", "#A8BBD1")),
+    "horizon": ("#211D2D", "#F8F1EA", ("#E6AEA1", "#9BC6BA", "#C7B5D8", "#D5BE9F")),
+    "blocks": ("#111B38", "#F5F1E7", ("#7191FF", "#F4CF4D", "#A0CBB8", "#C3BDDD")),
+    "quiet": ("#18231F", "#F3F5EF", ("#A6C3AE", "#9CBAB9", "#C6C8AF", "#ADB6B0")),
+    "pulse": ("#090D15", "#F5F3F8", ("#63D8EA", "#EC97D4", "#B6C59B", "#A8AFC6")),
 }
 MEDIA_TREATMENTS = {
     "aurora": {"photo": True, "blur": 21, "dark": .24, "light": .48, "blob": .18},
@@ -242,6 +256,7 @@ class ThemeContext:
         self.media = state.get("media") or {}
         self.audio = state.get("audio") or {}
         self.codex = state.get("codex") or {}
+        self.sensors = state.get("sensors") if isinstance(state.get("sensors"), dict) else {}
         self.desktop = state.get("desktop") or {}
         self.clock = state.get("clock") or {}
         self.light = bool(request.get("light"))
@@ -284,9 +299,23 @@ class ThemeContext:
             self.base = light_base if self.light else dark_base
             self.fg = blend("#172035" if self.light else "#F9F8FD", anchors[0], .10)
             self.muted = blend("#626471" if self.light else "#B9BBCD", anchors[2], .18)
+        elif self.category == "system":
+            dark_base, light_base, anchors = SYSTEM_IDENTITIES.get(self.style, SYSTEM_IDENTITIES["signal"])
+            self.palette = tuple(blend(anchor, "#263D41", .42) if self.light else anchor for anchor in anchors)
+            self.base = light_base if self.light else dark_base
+            self.fg = "#25332E" if self.light else "#EDF4F1"
+            self.muted = "#5E6E66" if self.light else "#9AAEA7"
         elif self.style in ("editorial", "orbit", "duotone"):
             self.base = "#FFF7ED" if self.light else blend("#101924", self.dominant, .18)
         self.accent = blend(self.palette[0], "#193B68" if self.light else "#CBEAFF", .42)
+        self.palette = ThemePalette(self.palette, {
+            "textPrimary": self.fg, "textSecondary": self.muted, "accent": self.accent,
+            "warning": "#9E5218" if self.light else "#FFC16E",
+            "info": self.accent,
+        }, manifest, request.get("palette"), self.light)
+        self.fg = self.palette.textPrimary
+        self.muted = self.palette.textSecondary
+        self.accent = self.palette.accent
         self.title = clean(self.media.get("title"), "Nothing playing")
         self.artist = clean(self.media.get("artist"), "Waiting for a media session")
         self.album = clean(self.media.get("album"))
@@ -325,7 +354,7 @@ class ThemeContext:
         self.approval = self.event == "PermissionRequest" and self.is_live and not self.stale
         self.ready = self.event == "Stop" and not self.stale
         if self.approval:
-            self.signal = "#9E5218" if self.light else "#FFC16E"
+            self.signal = self.palette.warning
         elif self.ready:
             self.signal = "#26754D" if self.light else "#8DE2AE"
         elif self.event == "Interrupt" and not self.stale:
@@ -333,7 +362,7 @@ class ThemeContext:
         elif not self.event or self.stale or self.event == "SessionEnd":
             self.signal = self.muted
         else:
-            self.signal = self.accent
+            self.signal = self.palette.info
         try:
             self.now = datetime.fromisoformat(str(self.clock.get("iso", "")).replace("Z", "+00:00"))
         except ValueError:
@@ -400,6 +429,38 @@ class Canvas:
             self.native.drawRoundRect(rect, radius, radius, paint)
         else:
             self.native.drawRect(rect, paint)
+
+    def hardware_photo(self, asset, x, y, width, height, shade, opacity=.65):
+        """Draw a cached, softly blurred hardware photo beneath live readings."""
+        if asset not in ("cpu", "gpu", "board") or width <= 0 or height <= 0:
+            return
+        target_width, target_height = max(1, round(width)), max(1, round(height))
+
+        def prepare():
+            path = Path(__file__).resolve().parent / "assets" / f"{asset}.png"
+            if not path.is_file():
+                return None
+            source = skia.Image.MakeFromEncoded(skia.Data.MakeWithCopy(path.read_bytes()))
+            if source is None:
+                return None
+            surface = skia.Surface.MakeRasterN32Premul(target_width, target_height)
+            if surface is None:
+                return None
+            scale = max(target_width / source.width(), target_height / source.height())
+            source_width, source_height = target_width / scale, target_height / scale
+            source_rect = skia.Rect.MakeXYWH((source.width() - source_width) / 2,
+                                             (source.height() - source_height) / 2,
+                                             source_width, source_height)
+            paint = skia.Paint(AntiAlias=True)
+            paint.setImageFilter(skia.ImageFilters.Blur(2, 2))
+            surface.getCanvas().drawImageRect(source, source_rect,
+                                              skia.Rect.MakeWH(target_width, target_height), SAMPLING, paint)
+            return surface.makeImageSnapshot()
+
+        image = cached(("hardware-photo", asset, target_width, target_height), prepare)
+        if image is not None:
+            self.native.drawImageRect(image, skia.Rect.MakeXYWH(x, y, width, height), SAMPLING)
+        self.rect(x, y, width, height, shade, opacity=opacity)
 
     def line(self, x1, y1, x2, y2, tint, width=1, opacity=1):
         self.native.drawLine(x1, y1, x2, y2, self.paint(tint, opacity, width))
@@ -584,7 +645,7 @@ class Canvas:
                 for row in range(0, full_height, 60):
                     native.drawLine(0, row, full_width, row, self.paint(ctx.palette[0], .06, 1))
             if ctx.category == "codex" and (ctx.approval or ctx.ready):
-                glow_color = "#FFA83D" if ctx.approval else "#57C88D"
+                glow_color = ctx.palette.warning if ctx.approval else "#57C88D"
                 for left, top, radius in ((1.03, .24, .44), (-.10, .93, .35)):
                     shader = skia.GradientShader.MakeRadial((left * self.width, top * self.height), self.width * radius,
                         [color(glow_color, .58 if ctx.light else .72), color(glow_color, 0)])

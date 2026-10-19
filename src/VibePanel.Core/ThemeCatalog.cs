@@ -15,15 +15,14 @@ public static class ThemeCatalog
 {
     public static string UserThemesPath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VibePanel", "themes");
 
-    public static string? FindContentDirectory(string name)
+    public static string? FindContentDirectory(string name) => FindContentDirectory(name, AppContext.BaseDirectory);
+
+    internal static string? FindContentDirectory(string name, string baseDirectory)
     {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        for (var depth = 0; directory is not null && depth < 9; depth++, directory = directory.Parent)
-        {
-            var candidate = Path.Combine(directory.FullName, name);
-            if (Directory.Exists(candidate)) { return candidate; }
-        }
-        return null;
+        if (string.IsNullOrWhiteSpace(name) || name is "." or ".." || Path.GetFileName(name) != name || Path.IsPathRooted(name))
+        { throw new ArgumentException("Content must name one folder beside the engine.", nameof(name)); }
+        var candidate = Path.Combine(Path.GetFullPath(baseDirectory), name);
+        return Directory.Exists(candidate) && (File.GetAttributes(candidate) & FileAttributes.ReparsePoint) == 0 ? candidate : null;
     }
 
     public static ThemeCatalogSnapshot Read()
@@ -73,7 +72,7 @@ public static class ThemeCatalog
                             var description = Text(entry, "description");
                             if (id.Length is 0 or > 100 || !id.All(character => char.IsAsciiLetterOrDigit(character) || character is '.' or '-' or '_'))
                             { throw new ArgumentException("Theme ID must contain 1–100 letters, digits, dots, hyphens or underscores."); }
-                            if (category is not ("multimedia" or "codex")) { throw new ArgumentException("Category must be multimedia or codex."); }
+                            if (category is not ("multimedia" or "codex" or "system")) { throw new ArgumentException("Category must be multimedia, codex or system."); }
                             if (string.IsNullOrWhiteSpace(name) || name.Length > 160) { throw new ArgumentException("Theme name must contain 1–160 characters."); }
                             if (description.Length > 1200) { throw new ArgumentException("Theme description exceeds 1200 characters."); }
                             var script = Text(entry, "entry", "render.py");

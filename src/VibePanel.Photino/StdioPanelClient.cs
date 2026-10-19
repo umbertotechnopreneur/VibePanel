@@ -113,7 +113,11 @@ internal sealed class StdioPanelClient : IPanelClient, IDisposable
             try
             {
                 process.StandardInput.Close();
-                if (!process.WaitForExit(2000)) { process.Kill(entireProcessTree: true); }
+                if (!process.WaitForExit(10_000))
+                {
+                    process.Kill(entireProcessTree: true);
+                    if (!process.WaitForExit(5000)) { Console.Error.WriteLine("Vibe Panel: engine shutdown did not finish; driver cleanup may still be required."); }
+                }
             }
             catch (Exception error) when (error is IOException or InvalidOperationException or System.ComponentModel.Win32Exception) { }
             process.Dispose();

@@ -7,6 +7,7 @@ using System.Drawing;
 using OpenSilver.Photino;
 using Photino.NET;
 using VibePanel.Contracts;
+using VibePanel.Studio;
 
 namespace VibePanel.Photino;
 
@@ -17,10 +18,18 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        if (OperatingSystem.IsWindows() && args.FirstOrDefault() == WindowsMemoryGuard.Argument)
+        { return WindowsMemoryGuard.Run(args); }
+        if (args.FirstOrDefault() == WindowsElevation.Argument)
+        {
+            if (!OperatingSystem.IsWindows() || !WindowsElevation.WaitForPreviousStudio(args)) { return 2; }
+            args = []; // An explicit administrator restart never restores USB output or tray startup.
+        }
         if (args.Any(argument => argument is not "--start-minimized" and not "--restore-last-session"))
         { Console.Error.WriteLine("Usage: VibePanel.exe [--start-minimized] [--restore-last-session]"); return 2; }
-        var restoreLastSession = args.Contains("--restore-last-session");
+        var restoreLastSession = OperatingSystem.IsWindows() && args.Contains("--restore-last-session");
         var startMinimized = args.Contains("--start-minimized") || restoreLastSession;
+        if (OperatingSystem.IsWindows() && WindowsSetupGate.IsInstalling()) { if (!startMinimized) { WindowsSetupGate.ShowBusy(); } return 3; }
         using var instance = new SingleInstanceService();
         if (!instance.IsPrimary)
         {
@@ -28,18 +37,26 @@ internal static class Program
             return 0;
         }
 
+        using var memoryGuard = StartMemoryGuard();
+        if (OperatingSystem.IsWindows() && memoryGuard is null) { return 1; }
         using var client = new StdioPanelClient();
+        using var session = new StudioSession(client, Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VibePanel", "presentation.json"), restoreLastSession);
         PhotinoWindow? window = null;
         WindowsTrayService? tray = null;
+        WindowsSetupShutdown? setupShutdown = null;
         App.App? application = null;
+        PhotinoPreview? preview = null;
         var exiting = 0;
         var actions = new StudioWindowActions(
             () => OperatingSystem.IsWindows() && tray is { Ready: true },
+            () => OperatingSystem.IsWindows() && memoryGuard is not null && !WindowsElevation.IsAdministrator,
+            () => OperatingSystem.IsWindows() && memoryGuard is not null
+                ? memoryGuard.RestartAsAdministratorAsync() : Task.FromResult(false),
             () => window?.Invoke(() => { if (OperatingSystem.IsWindows()) { tray?.HideWindow(); } }),
             () => window?.Invoke(() =>
             {
                 if (Interlocked.Exchange(ref exiting, 1) != 0) { return; }
-                instance.Dispose();
+                session.Save();
                 if (OperatingSystem.IsWindows()) { tray?.Dispose(); }
                 window?.Close();
             }));
@@ -50,15 +67,20 @@ internal static class Program
             window.Invoke(() =>
             {
                 if (Volatile.Read(ref exiting) != 0) { return; }
-                if (OperatingSystem.IsWindows()) { tray?.ShowWindow(); }
-                window.SetMinimized(false);
-                CenterOnWorkArea(window);
+                if (OperatingSystem.IsWindows() && tray is { Ready: true })
+                {
+                    tray.ShowWindow();
+                    if (!tray.IsMaximized) { CenterOnWorkArea(window); }
+                }
+                else { window.SetMinimized(false); CenterOnWorkArea(window); }
             });
         }
 
         var page = Path.Combine(AppContext.BaseDirectory, "wwwroot", "index.html");
         window = new PhotinoWindow()
-            .SetTitle("Vibe Panel — theme studio")
+            .SetTitle("Vibe Panel")
+            // The installer owns the Start entry; Photino toasts create another one.
+            .SetNotificationsEnabled(false)
             .SetUseOsDefaultSize(false)
             .SetUseOsDefaultLocation(false)
             .SetSize(1400, 940)
@@ -67,7 +89,7 @@ internal static class Program
             .SetLogVerbosity(0)
             .SetIconFile(Path.Combine(AppContext.BaseDirectory, "Assets", OperatingSystem.IsWindows() ? "vibepanel.ico" : "vibepanel-icon.png"))
             .Center()
-            .ConfigureOpenSilver(() => application = new App.App(client, actions, restoreLastSession))
+            .ConfigureOpenSilver(() => application = new App.App(client, actions, preview: preview = new PhotinoPreview(window!), restoreLastSession: restoreLastSession, session: session))
             .RegisterWindowClosingHandler((_, _) =>
             {
                 if (Volatile.Read(ref exiting) != 0 || application is null) { return false; }
@@ -85,7 +107,7 @@ internal static class Program
                     {
                         tray = new WindowsTrayService(created.WindowHandle, Path.Combine(AppContext.BaseDirectory, "Assets", "vibepanel.ico"),
                             ShowStudio,
-                            () => { if (application is not null) { application.RequestExit(); } else { actions.CloseApplication(); } },
+                            () => actions.CloseApplication(),
                             showAbout: () => { ShowStudio(); application?.RequestAbout(); },
                             openManifesto: () => OpenWebsite("https://umbertogiacobbi.biz/vibeware/manifesto"),
                             openWebsite: () => OpenWebsite("https://umbertogiacobbi.biz"),
@@ -95,6 +117,19 @@ internal static class Program
                     }
                     catch (Exception error) when (error is System.ComponentModel.Win32Exception or IOException or InvalidOperationException)
                     { Console.Error.WriteLine("Vibe Panel tray: " + error.Message); created.SetMinimized(false); }
+                    try
+                    {
+                        setupShutdown = new WindowsSetupShutdown(action =>
+                        {
+                            if (Volatile.Read(ref exiting) == 0) { created.Invoke(action); }
+                        }, () =>
+                        {
+                            if (Volatile.Read(ref exiting) != 0) { return; }
+                            actions.CloseApplication();
+                        });
+                    }
+                    catch (Exception error) when (error is System.ComponentModel.Win32Exception or IOException or InvalidOperationException or UnauthorizedAccessException or WaitHandleCannotBeOpenedException)
+                    { Console.Error.WriteLine("Vibe Panel setup: shutdown listener unavailable: " + error.Message); }
                 }
                 instance.Listen(action =>
                 {
@@ -102,13 +137,24 @@ internal static class Program
                 }, ShowStudio);
             })
             .Load(page);
+        // Native visibility is advisory only. The session never waits for the UI.
+        using var visibility = new System.Threading.Timer(_ => session.PreviewVisible = preview?.IsVisible == true, null, 0, 250);
         try { window.WaitForClose(); }
         finally
         {
             Interlocked.Exchange(ref exiting, 1);
-            if (OperatingSystem.IsWindows()) { tray?.Dispose(); }
+            preview?.Dispose();
+            if (OperatingSystem.IsWindows()) { setupShutdown?.Dispose(); tray?.Dispose(); }
         }
         return 0;
+    }
+
+    private static WindowsMemoryGuard.Session? StartMemoryGuard()
+    {
+        if (!OperatingSystem.IsWindows()) { return null; }
+        try { return WindowsMemoryGuard.Start(); }
+        catch (Exception error) when (error is System.ComponentModel.Win32Exception or IOException or InvalidOperationException or OperationCanceledException)
+        { WindowsMemoryGuard.ShowUnavailable(); return null; }
     }
 
     /// <summary>Reopen an existing studio centered without discarding its chosen size.</summary>
@@ -128,9 +174,11 @@ internal static class Program
             area.Top + Math.Max(0, (area.Height - window.Size.Height) / 2)));
     }
 
-    private sealed class StudioWindowActions(Func<bool> canMinimize, Action minimize, Action close) : IStudioWindowActions
+    private sealed class StudioWindowActions(Func<bool> canMinimize, Func<bool> canRestart, Func<Task<bool>> restart, Action minimize, Action close) : IStudioWindowActions
     {
         public bool CanMinimizeToTray => canMinimize();
+        public bool CanRestartAsAdministrator => canRestart();
+        public Task<bool> RestartAsAdministratorAsync() => restart();
         public void MinimizeToTray() => minimize();
         public void CloseApplication() => close();
     }

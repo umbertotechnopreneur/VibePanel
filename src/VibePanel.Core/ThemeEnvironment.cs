@@ -30,7 +30,8 @@ internal sealed class ThemeEnvironment
             var file = new FileInfo(path);
             var key = path + "|" + file.LastWriteTimeUtc.Ticks;
             if (key == wallpaperKey || file.Length > 30 * 1024 * 1024) { return palette; }
-            using var source = Image.FromFile(path);
+            using var stream = File.OpenRead(path);
+            using var source = RasterImage.Open(stream);
             using var tiny = new Bitmap(source, 64, 64);
             var result = new List<string>();
             foreach (var point in new[] { new Point(8, 8), new Point(40, 8), new Point(8, 40), new Point(40, 40) })

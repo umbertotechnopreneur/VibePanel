@@ -213,7 +213,7 @@ try {
     Write-Host "Vibe Panel is installed at: $releasePath"
     Write-Host "Stable launcher: $launcherPath"
     Write-Host "Open it from Start: $startShortcut"
-    Write-Host 'At Windows sign-in, it starts in the tray and resumes the last display session only after you have started one with Show on display.'
+    Write-Host 'At Windows sign-in, it starts in the tray and starts the saved USB display and theme. Stop cancels output for the current run.'
 }
 finally {
     if ($null -ne $shell -and [System.Runtime.InteropServices.Marshal]::IsComObject($shell)) {

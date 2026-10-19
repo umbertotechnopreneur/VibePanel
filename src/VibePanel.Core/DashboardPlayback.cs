@@ -11,7 +11,7 @@ public static class DashboardPlayback
     public static Task RunAsync(DisplayDevice device, string profileId, IProgress<string>? progress, CancellationToken cancellationToken,
         DashboardScene? fixedScene = null) => Task.Run(async () =>
     {
-        using var service = new DashboardService();
+        using var service = new DashboardService(WindowsDashboardProviders.Create());
         using var session = PanelSession.Open(device);
         var probe = await session.ProbeAsync(cancellationToken);
         if (!probe.IsCompatible) { throw new IOException(probe.Message); }

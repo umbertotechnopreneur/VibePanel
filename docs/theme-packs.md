@@ -1,8 +1,8 @@
 # Make a theme
 
-A theme is a small Python file that draws a screen. I include 10 music themes and 10 Codex themes. A music pack does not need Codex.
+A theme is a small Python file that draws a screen. I include 10 Music themes, 10 Codex themes and 10 System themes. Music and System packs do not need Codex.
 
-Start by copying a theme from `themes/media` or `themes/codex`. Give it a new ID and name in `theme.json`.
+Start by copying a theme from `themes/media`, `themes/codex` or `themes/system`. Give it a new ID and name in `theme.json`. Category IDs are `multimedia`, `codex` and `system`.
 
 Keep this folder shape:
 
@@ -44,6 +44,8 @@ Use `s.show_spectrum` to respect the sound-bars checkbox. `c.spectrum(...)` alre
 
 ## CLI
 
+System themes receive CPU, GPU, motherboard and physical RAM in `s.sensors`. CPU and GPU objects may include named `fans` with measured `rpm`; motherboard readings include the original sensor names and optional `temperatures`. A CPU fan named by the board can appear under CPU; generic channels retain their names. Keep measured zeroes. Show unavailable temperatures/fans explicitly and display the provider notice when present. There is no swap field. Thermal Atlas and Airflow separate device names, temperatures, load and fan readings into distinct bands. Long groups of readings page as complete lines. Their blurred hardware photos are illustrative backgrounds, not pictures of installed hardware. The shared `hardware.py` helper applies this to all ten System themes. [Snapshot format](../theme-runtime/README.md#system-snapshots).
+
 ```powershell
 vp fonts
 vp themes
@@ -53,5 +55,32 @@ vp theme media.aurora --export new-picture.jpg --saturation 120
 Export makes a new picture on the PC. It does not open USB. Only use `--device N` when you want to send pictures to a screen.
 
 **Themes run code on your PC. For now, only get them from the official repo.**
+
+## Theme palette
+
+Every theme receives palette v1: `s.palette.textPrimary`, `textSecondary`,
+`accent`, `warning` and `info`. Existing numeric series such as `s.palette[0]`
+still work. `s.fg`, `s.muted` and `s.accent` use the resolved semantic colors.
+Use `s.palette.to_json()` for the five named values.
+
+Optional manifest defaults use `paletteVersion: 1` and `palette`:
+
+```json
+{
+  "paletteVersion": 1,
+  "palette": {
+    "accent": "#C9AEF3",
+    "dark": { "textPrimary": "#F5F5FC", "warning": "#FFC16E" },
+    "light": { "textPrimary": "#182133", "info": "#245C91" }
+  }
+}
+```
+
+Colors must be `#RRGGBB`. Omitted or null values inherit the defaults.
+The order is shared defaults, manifest defaults, light/dark defaults, then
+personal overrides. In the gallery, **Theme colors** edits the selected theme
+and appearance. Reset removes that override. Installed theme files stay intact.
+Palette colors are drawing inputs; the separate Color filters switch controls
+the final whole-image saturation, hue, brightness and contrast pass.
 
 [Full drawing API](https://github.com/umbertotechnopreneur/VibePanel/blob/codex/usb-transport/theme-runtime/README.md) · [Engine commands](engine-protocol.md). In the ZIP, the full API guide is in `engine/theme-runtime/README.md`.

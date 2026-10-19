@@ -1,18 +1,52 @@
 # My choices
 
 - I'm Umberto Giacobbi. I made Vibe Panel. VibeWare is my initiative.
-- Music and Codex come first. Other screens can wait.
+- I offer a real per-user Windows MSI as well as the portable ZIP. After a requested build, I keep only its final MSI and remove generated build folders from the repository.
+- I choose which Music, Codex and System screens may appear on the display.
 - I use the music details Windows already has. No Spotify login.
 - People can make their own themes.
 - I reuse pictures and backgrounds to save work.
 - I can turn color filters off to skip that extra work. My slider values stay saved.
-- Color guides and the preview shadow use the theme's existing accent.
+- Color guides use the theme's existing accent. The preview stays flat, without elevation or shadow.
 - I use type and space to organize the UI, not cards inside cards.
 - I keep my name and About under the title, with VibeWare at the top right.
 - I open a larger, centered window. The preview fits the space; only the theme list scrolls.
 - If a detail is missing, I don't make it up.
+- System themes hide missing fields and empty CPU, GPU or RAM sections. Zero remains a real value. I leave swap out.
+- I use the original Open Hardware Monitor as my only Windows sensor source, at most once a second. I approved its own WinRing0 driver lifecycle on 17 October 2026.
+- I rebuild its pinned source for .NET 10. A successful build of an old DLL did not prove it could read sensors. I include the changed library sources with the portable ZIP.
+- System offers an explicit administrator restart on Windows. I save the choices and reopen in preview. Canceling leaves the current studio running. I do not change future launches to require administrator rights.
+- Codex screens skip a closed Codex process. If no screen is eligible, I send a black frame within the active display session.
 - I use the PC's sound for the bars. I don't record it or use the microphone.
 - Preparing the Codex plugin does not install it or trust its hooks. That choice stays inside Codex.
 - A picture on my PC does not prove it works on the USB screen.
 - I ask before each test, hardware trial or new branch or workspace.
+- On Windows, a separate guard stops the app and its children above 1 GB of private memory. It shows an alert first and does not wait for a click.
+- I free native message strings after use and send preview JPEGs as data, outside the JavaScript eval bridge.
+- I wait for each preview to be drawn, then close its decoded bitmap. The UI keeps two canvases for theme fades.
+- I keep the web view's visibility in sync when the studio hides, minimizes or reopens.
+- Track and cover changes blend for 600 ms in the renderer. Preview and USB share each blended JPEG. I keep no queue of old tracks.
+- A drawn canvas can still have no visible height. I check its on-screen bounds and a captured image as well.
+- The Python worker uses one native NumPy thread. Tiny palette arrays do not need a large thread pool.
+- I refresh the USB list every ten seconds. Reconnecting a screen does not start output.
+- At Windows sign-in I start the saved screen and theme in the tray. Opening the studio normally keeps the preview. Stop cancels a startup wait.
+- I keep one current setup. Closing saves its theme and settings, including pending slider changes. Reopening restores them in the preview.
+- I keep legacy backgrounds in a small memory cache. I check image dimensions before decoding them.
+- I load bundled scripts only from the engine folder, including in local builds.
 - I still need to check memory, speed and security. [My list](cave.md).
+- My MSI shows progress and closes verified app processes before replacing files. I check that my sensor driver has stopped, its service is gone, and its generated file is removed. A successful file read does not prove that a loaded driver can be deleted.
+- I use the selected Visual Studio installation's default toolset for Photino. New Windows runners may omit older ARM64 compilers.
+- I never wait for a browser preview before requesting the next display frame. A hidden or minimized WebView can delay image callbacks. I keep one preview decode with no queue and skip hidden previews while active display output continues.
+- I keep preferences, startup and the display loop in a UI-independent studio model. Views send commands and read the latest snapshot; hiding or blocking a view does not own the output lifetime.
+- I hold the single-instance lock until the engine has finished closing. Setup blocks new launches until commit or rollback. A maximized window stays maximized when restored from the tray.
+- Themes share five named palette colors. Personal overrides belong to the theme and its light/dark appearance, outside the installed files.
+- I read named motherboard and fan sensors from the same Libre Hardware Monitor instance. I attach a board fan to CPU only when its sensor name says CPU. I never infer fan speed from load.
+- I use the official compiled LibreHardwareMonitorLib package for current sensor builds. PawnIO is an external prerequisite; I never install it from the app or weaken Windows security. Physical RAM uses Windows so the library's SPD driver group stays off.
+- Thermal themes put measured temperatures first and show used physical RAM over total. Missing temperatures and RPM are labelled unavailable; generic board sensors keep their names.
+
+- I commit preferences, screens and palettes together. Each rendered frame reads one detached state. A stale rotation cannot replace a newer user edit.
+- I keep settings storage separate from the model, with a version, an atomic replacement and a last-good backup. Unknown formats stay untouched.
+- I keep data records and provider interfaces in plain .NET. The Windows host supplies its implementations; offline checks supply fakes. [Architecture](docs/studio-architecture.md).
+- The installer owns the single Start entry. I disable unused Photino toast registration, which otherwise creates a second shortcut from the window title.
+- My local reinstall command removes the previous app, clears generated files, increments the MSI version and builds a new package. It compares installed files with that package and then keeps only the final MSI.
+- MSI cleanup removes my old script registration from the original user's registry views and verifies removal. Major upgrades remove the old MSI before installing new files. Settings and personal themes stay outside the app folder.
