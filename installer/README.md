@@ -40,7 +40,7 @@ create its driver again on a later owner-requested sensor read.
 Publish with `scripts/Publish.ps1`, then pass its staging folder to:
 
 ```powershell
-./scripts/Build-Msi.ps1 -PayloadPath artifacts/staging/<published-folder> -Architecture x64 -Version 0.1.11
+./scripts/Build-Msi.ps1 -PayloadPath artifacts/staging/<published-folder> -Architecture x64
 ```
 
 Build from the current repository source with the existing Visual Studio C++

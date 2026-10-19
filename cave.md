@@ -156,3 +156,9 @@ MSI 0.1.11 compiled successfully from that fresh payload. The guarded cleanup co
 Circular and linear progress now share a theme-to-amber-to-red scale across System meters, playback and audio. Colors use the shown range, not guessed hardware alarm thresholds. The successful MSI completion page has two independent checked choices: start the app and open GitHub Releases with fixed installer UTM tags. Finish dispatches them after commit, with matching guards in the native actions. Silent setup, repair, removal, failure and cancellation do not dispatch them.
 
 These changes have not been exercised through a real installer. No automated tests, app launch, browser launch, sensor read or USB trial is authorized by this implementation checkpoint. Compilation and local synthetic design previews are separate evidence, not installer or hardware validation.
+
+Windows x64 Release source publication, both native setup targets and MSI 0.1.12 compilation completed. All unchanged dependency inputs reused saved first-import hashes without a scan. I rendered 108 page previews for all 30 themes in light/dark plus four compact frames at font scale 1.5, and inspected the System progress and Multimedia playback galleries. Compact units and the wide RAM readout now fit their reserved slots.
+
+Read-only MSI table inspection confirmed version 0.1.12, both option properties set to 1, independent guarded Finish events, and one active success dialog. No installer or custom action was executed. This does not verify the displayed Windows dialog, default-browser behavior or actual app startup after installation.
+
+Output cleanup completed. The repository keeps only the final 0.1.12 MSI; its SHA-256, build logs, MSI table snapshot and design previews are saved outside the repository. Installed files and user settings were left intact.
