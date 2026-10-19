@@ -178,3 +178,11 @@ choices on refresh and initially leaves devices and groups collapsed.
 
 No automated tests, UAC dialog, real studio launch, installation, sensor read or USB
 trial has been run for these changes. Compilation is separate from runtime validation.
+
+Windows x64 restore, source format verification, Release publication and native/MSI
+compilation completed for 0.1.13. Unchanged dependencies reused their saved first-import
+hashes. Read-only MSI metadata confirms the administrator notice on the completion
+page and both completion choices still checked by default. This does not validate
+the real UAC, studio layout or installer interaction. Build logs, hashes and metadata
+are saved outside the repository. Cleanup left only the final 0.1.13 MSI in artifacts;
+installed files and user settings were not changed.
