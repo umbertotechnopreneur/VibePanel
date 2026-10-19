@@ -22,8 +22,10 @@ No driver installer or monitoring GUI is bundled. The old WinRing0 integration i
 
 Cooling pages show watts as numeric readouts, without an inferred power limit. Fan instruments retain sensor names and RPM, rotating through available channels. Their outline rotors turn only for positive measured RPM and stop at zero; missing channels stay hidden. Rotor speed is a capped visual cue, not physical revolutions. Animations use the existing theme clock and selected refresh, with no extra timer or sampling. A one-second refresh still produces one frame per second. Codex status dots pulse only during received live work.
 
-Circular and linear progress indicators use `progress_color(tint, fraction, light)`:
-the theme color at zero, amber in the middle, and red at the end of the shown scale.
+In every current and future theme, circular and linear progress indicators use
+`progress_color(tint, fraction, light)`: the theme color at zero, amber in the
+middle, and red at the end of the shown scale. This rule covers every pack,
+category, layout and light/dark appearance, including custom progress drawings.
 System load/temperature dials, core bars, RAM/VRAM segments, playback bars/rings and
 audio levels share this rule. Audio meters keep their full-range color ramp;
 missing measurements remain absent. These colors follow the displayed scale,

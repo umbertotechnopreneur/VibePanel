@@ -96,4 +96,24 @@ and appearance. Reset removes that override. Installed theme files stay intact.
 Palette colors are drawing inputs; the separate Color filters switch controls
 the final whole-image saturation, hue, brightness and contrast pass.
 
+## Progress colors
+
+Every circular and linear progress indicator must move from the theme's accent
+through amber to red as its value rises. This rule applies to all current and
+future themes, in every category, layout and light/dark appearance.
+
+The shared progress, ring and audio drawing methods already apply this scale.
+For custom meters, use the same helper with the displayed value divided by its
+maximum:
+
+```python
+from canvas import progress_color
+
+tint = progress_color(s.accent, value / maximum, s.light)
+```
+
+Use a positive maximum and keep missing measurements absent. Colors follow the
+displayed range; they are not hardware alarm thresholds. Decorative rings and
+status symbols keep their own meaning.
+
 [Full drawing API](https://github.com/umbertotechnopreneur/VibePanel/blob/codex/usb-transport/theme-runtime/README.md) · [Engine commands](engine-protocol.md). In the ZIP, the full API guide is in `engine/theme-runtime/README.md`.

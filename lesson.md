@@ -59,5 +59,5 @@
 - Cooling pages use watt readouts and named fan instruments. Outline rotors turn only for positive measured RPM and stay still at zero. Their visual speed is capped; it is not physical rotor speed. Animations share the theme clock and the selected frame refresh.
 - Codex work dots pulse only during received live work. Idle, stale, stopped and approval states keep their own still symbols.
 - I build each package from the current source. First-import scans are explicit preparation; builds only verify saved hashes. Scan evidence survives output cleanup. Generated app files and installers are not external imports.
-- I use one theme-to-amber-to-red scale for circular and linear progress, including playback and audio. Colors follow each displayed range; decorative rings keep their own meaning.
+- I use one theme-to-amber-to-red scale for every circular and linear progress indicator in all current and future themes, in every category, layout and appearance. Custom meters use the same shared helper. Colors follow each displayed range; decorative rings keep their own meaning.
 - Setup's successful Finish page has two checked choices for starting the app and opening release news. They are independent and run only after interactive installation completes. Release links use fixed UTM campaign tags.
