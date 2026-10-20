@@ -2,6 +2,7 @@ artifacts/
 bin/
 obj/
 .vs/
+desktop.ini
 *.user
 *.suo
 *.cache
