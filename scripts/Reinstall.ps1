@@ -31,7 +31,7 @@ $version = '{0}.{1}.{2}' -f $previous.Major, $previous.Minor, ($previous.Build +
 # Reserve the version before building. Retries never reuse an installed version.
 Set-Content -LiteralPath $versionFile -Value $version -Encoding ascii
 Write-Host "Building Vibe Panel $version from clean output folders."
-& "$PSScriptRoot/Publish.ps1" -Architecture $Architecture
+& "$PSScriptRoot/Publish.ps1" -Architecture $Architecture -Configuration Debug
 $payloads = @(Get-ChildItem -LiteralPath (Join-Path $repo 'artifacts/staging') -Directory)
 if ($payloads.Count -ne 1) { throw 'Expected exactly one fresh payload.' }
 $payload = $payloads[0].FullName
