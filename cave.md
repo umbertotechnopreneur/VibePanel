@@ -367,3 +367,17 @@ the build had no warnings or errors. Whole-solution format verification still
 reports pre-existing whitespace/import differences in the pinned LibreHardwareMonitor
 fork, which was left unchanged. No live studio visual check, sensor trial,
 installation or USB output was performed for this change.
+
+## 21 October 2026: mandatory local reinstall and Debug 0.1.22
+
+The repository now treats every local compilation as a Debug reinstall unless the
+owner explicitly asks for an exception. The standing rule authorizes removal of the
+installed version and installation through the normal visible MSI UI while keeping
+settings and user data. Tests and publication remain separately authorized work.
+
+The previous 0.1.21 MSI was removed and Debug 0.1.22 was built from current source.
+The visible installer completed with optional app launch and release-news actions
+turned off. One 0.1.22 MSI registration remains, and all 1,825 installed payload
+files match the fresh build. The app was left closed, so no sensor or USB trial ran.
+Cleanup retained only `artifacts/packages/VibePanel-win-x64-0.1.22.msi`; its SHA-256
+is `C1E9DAE16DFC2D3C55B235EA4E9BF0C9452AA999E221D68434BFDCB1A5F524BE`.

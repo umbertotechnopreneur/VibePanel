@@ -34,11 +34,15 @@ The sensor library is compiled from the pinned MPL-2.0 source in
 source under `sources/LibreHardwareMonitor`; no local checkout outside this
 repository or previously built sensor DLL is needed.
 
-For build-only work (no installation):
+CI packaging and an owner-approved exception to the local reinstall rule may call
+the publishing script directly:
 
 ```powershell
 ./scripts/Publish.ps1 -Architecture x64
 ```
+
+Do not use that command for an ordinary local compilation. Every local compilation
+uses the Debug reinstall flow above unless the owner explicitly says otherwise.
 
 The ZIP is written to `artifacts/packages/VibePanel-win-x64-preview.zip`. Each
 build first uses a unique ignored staging folder, so packaging does not overwrite
