@@ -24,9 +24,28 @@ class PageChecks(unittest.TestCase):
         context=SimpleNamespace(elapsed_seconds=12,category='multimedia',artist='Current artist',artist_profile={'requestedArtist':'Previous artist'})
         self.assertEqual(select_page(context,{'pages':[{'id':'playback'},{'id':'artist'}],'pageSeconds':12}),'playback')
         self.assertEqual(context.page_count,1)
+    def test_page_duration_override_and_cycle_progress(self):
+        manifest={'pages':[{'id':'overview','seconds':15},{'id':'activity'}], 'pageSeconds':8}
+        for seconds, expected, index, cycle, progress in (
+            (0,'overview',0,0,0), (14.5,'overview',0,0,14.5/15),
+            (15,'activity',1,0,0), (19,'activity',1,0,.5),
+            (23,'overview',0,1,0), (38,'activity',1,1,0),
+        ):
+            context=self.context(seconds)
+            self.assertEqual(select_page(context,manifest),expected)
+            self.assertEqual((context.page_index,context.page_cycle,context.page_count),(index,cycle,2))
+            self.assertAlmostEqual(context.page_progress,progress)
+    def test_unavailable_page_duration_is_not_part_of_cycle(self):
+        manifest={'pages':[{'id':'overview','seconds':15},{'id':'temperatures','seconds':30},{'id':'activity'}], 'pageSeconds':8}
+        context=self.context(23)
+        self.assertEqual(select_page(context,manifest),'overview')
+        self.assertEqual((context.page_count,context.page_cycle,context.page_progress),(2,1,0))
     def test_page_limits_are_validated(self):
         for manifest in ({'pages':[{'id':'x'},{'id':'x'}]}, {'pages':[{'id':'x'}]*9}, {'pageSeconds':float('nan')}, {'pageSeconds':0}):
             with self.assertRaises(ValueError):select_page(self.context(),manifest)
+        for seconds in (True,0,3,121,8.5,'15',None,float('nan')):
+            with self.assertRaises(ValueError):
+                select_page(self.context(),{'pages':[{'id':'overview','seconds':seconds}]})
 
 @unittest.skipUnless(os.environ.get('VIBEPANEL_OFFLINE_RENDER_CHECKS') == '1', 'Explicit offscreen opt-in required')
 class PageRenderingChecks(unittest.TestCase):
@@ -53,7 +72,8 @@ class PageRenderingChecks(unittest.TestCase):
                     request={'version':1,'method':'render','themePath':str(folder),'width':width,'height':480,'light':scale>1,'fontScale':scale,'colorFiltersEnabled':False,'state':state}
                     with patch('canvas.time.monotonic',return_value=0): worker.render(request)
                     worker.FRAME_TRANSITION.reset()
-                    with patch('canvas.time.monotonic',return_value=index*manifest['pageSeconds']+.1): result=worker.render(request)
+                    page_start=sum(item.get('seconds',manifest['pageSeconds']) for item in manifest['pages'][:index])
+                    with patch('canvas.time.monotonic',return_value=page_start+.1): result=worker.render(request)
                     raw=base64.b64decode(result['jpegBase64'])
                     image=skia.Image.MakeFromEncoded(skia.Data.MakeWithCopy(raw))
                     self.assertEqual((image.width(),image.height()),(width,480))

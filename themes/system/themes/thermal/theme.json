@@ -3,7 +3,7 @@
   "id": "system.thermal",
   "category": "system",
   "name": "Thermal Atlas",
-  "description": "Up to six pages for CPU, GPU, board and RAM, with related readings together.",
+  "description": "Up to five pages for CPU, GPU, board and RAM, starting with live activity.",
   "entry": "render.py",
   "version": "2.1.2",
   "author": "Umberto Giacobbi",
@@ -45,12 +45,9 @@
   },
   "pages": [
     {
-      "id": "cooling",
-      "title": "Power & cooling"
-    },
-    {
       "id": "activity",
-      "title": "Live activity"
+      "title": "Live activity",
+      "seconds": 15
     },
     {
       "id": "overview",

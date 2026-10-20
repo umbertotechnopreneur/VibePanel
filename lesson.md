@@ -73,3 +73,4 @@
 - I build the pinned LibreHardwareMonitor fork with the app and ship its MPL-covered source. Each RAM module shows its reported type and configured rate alongside its own model and physical identity.
 - Cooling cards show measured aggregate CPU power alongside available CPU voltage and current. They keep the package visible while other readings rotate, without treating limits as consumption.
 - Electrical and temperature detail rows pair each reading with a thin, smoothed trend of its recent measured samples. The displayed extrema cover that same bounded window.
+- Thermal Atlas omits Power & cooling and holds Live activity first for fifteen seconds, with eight seconds for later pages. Per-page durations share the existing clock; unavailable pages add no time to the cycle.

@@ -327,3 +327,12 @@ The previous MSI was removed and 0.1.18 installed through Windows Installer; all
 1,823 installed payload files matched the fresh build. The app started afterwards.
 The MSI SHA-256 is 961645CC23E13F541FEE3EA4153A67FF3A6D41DAD7A77FE45330532CEEBF3D64.
 No automated tests, renderer previews, or agent-issued sensor or USB trials ran.
+
+## 20 October 2026: Thermal Atlas page timing
+
+Thermal Atlas omits Power & cooling and declares fifteen seconds for Live activity
+as its first page, followed by eight seconds per page. The shared page clock supports
+individual durations and retains the default for other themes.
+Boundary and skipped-page checks were added but not executed. No build, renderer
+preview, installation, live sensor trial or USB output was run for this change.
+The installed app has not been updated.

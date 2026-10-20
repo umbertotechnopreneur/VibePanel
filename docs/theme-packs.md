@@ -28,7 +28,9 @@ Declare pages and their interval in the manifest:
 
 Inside `render`, draw the page named by `s.page_id`. The worker also supplies `page_title`, `page_index`, `page_count`, `page_cycle` and `page_progress`. It owns one monotonic timer and a 600 ms crossfade. Page fades work with color filters off. A manifest may declare one to eight unique page IDs and an integer interval from 4 to 120 seconds. Omitting pages gives one static page.
 
-The ten System themes declare six pages at eight seconds each, skipping detail pages without readings. Power, voltage, current and aggregate clocks share one hardware page; RAM identity and SPD timing details share the memory page. Music themes use playback and an optional [artist page](artist-pages.md) at twelve seconds each. This page rotation is separate from the studio's twenty-second theme cycling.
+An individual page can set `"seconds": 15` to override `pageSeconds`, using the same 4–120 second range. Skipped pages contribute no time to the cycle.
+
+System themes default to eight seconds per page, skipping detail pages without readings. Thermal Atlas omits Power & cooling and starts with fifteen seconds of Live activity, followed by eight seconds per page. Power, voltage, current and aggregate clocks share one hardware page; RAM identity and SPD timing details share the memory page. Music themes use playback and an optional [artist page](artist-pages.md) at twelve seconds each. This page rotation is separate from the studio's twenty-second theme cycling.
 
 ## Color adjustments
 
