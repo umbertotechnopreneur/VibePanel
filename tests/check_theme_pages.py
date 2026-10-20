@@ -64,7 +64,8 @@ class PageRenderingChecks(unittest.TestCase):
                     worker.FRAME_TRANSITION.reset(); canvas._ACTIVE_THEME_TIMING=None
                     sensors=fixture_sensors()
                     sensors['cpu']['readings']=[{'type':'Power','name':'CPU Package','value':65,'unit':'W'},
-                                                {'type':'Clock','name':'Cores (Average)','value':4200,'unit':'MHz'}]
+                                                {'type':'Clock','name':'Cores (Average)','value':4200,'unit':'MHz'},
+                                                *sensors['cpu']['readings']]
                     sensors['memory']['spdModules']=[{'name':'OFFLINE SPD source (#0)',
                                                      'readings':[{'type':'Timing','name':'tAA (CAS Latency Time)','value':14,'unit':'ns'}]}]
                     state={'sensors':sensors,'media':{'source':'Offline fixture','artist':'Fixture artist','title':'Fixture track'},
@@ -90,8 +91,10 @@ class PageRenderingChecks(unittest.TestCase):
             with patch('canvas.time.monotonic',return_value=0.): self.assertFalse(worker.render(request)['transitionActive'])
             clock[0]=8.
             with patch('canvas.time.monotonic',return_value=8.): self.assertTrue(worker.render(request)['transitionActive'])
-            clock[0]=8.7
-            with patch('canvas.time.monotonic',return_value=8.7): self.assertFalse(worker.render(request)['transitionActive'])
+            clock[0]=9.9
+            with patch('canvas.time.monotonic',return_value=9.9): self.assertTrue(worker.render(request)['transitionActive'])
+            clock[0]=10.1
+            with patch('canvas.time.monotonic',return_value=10.1): self.assertFalse(worker.render(request)['transitionActive'])
 
 if __name__=='__main__':unittest.main()
 # VBWR E

@@ -9,7 +9,7 @@ import skia
 from canvas import blend, clean, optional_number, clip, progress_color
 from detail_history import keyed_rows, points as detail_points, record as record_details
 from hardware import _components, _record, _points, _text
-from system_details import HARDWARE_KINDS, cooling_values, detail_rows, detail_step, memory_view, reading_rows, sensor_groups, spd_groups, value_text
+from system_details import HARDWARE_KINDS, cooling_values, core_heatmap_values, detail_rows, detail_step, memory_view, reading_rows, sensor_groups, spd_groups, value_text
 
 NAMES = {"thermal": "THERMAL ATLAS", "orbit": "AIRFLOW", "terminal": "MATRIX"}
 _FAN_ROTATIONS = OrderedDict()
@@ -260,6 +260,81 @@ def activity(c, s, style, items, components):
                 used, total = measured(raw, "SmallData", "GPU Memory Used"), measured(raw, "SmallData", "GPU Memory Total")
                 occupancy(c, s, used / 1024 if used is not None else None, total / 1024 if total is not None else None,
                           (x + 20, 320, w - 40, 80), tint, "VRAM")
+
+
+def heat_color(value, low, high, light=False):
+    cold = "#286EDB" if light else "#2388FF"
+    hot = "#D63B4C" if light else "#FF4D5E"
+    fraction = 0 if high <= low else clip((value - low) / (high - low))
+    return blend(cold, hot, fraction)
+
+
+def heatmap_grid(c, s, rows, value_index, box, low, high, formatter, outline=None):
+    x, y, size, _ = box
+    count = len(rows)
+    columns = math.ceil(math.sqrt(count))
+    row_count = math.ceil(count / columns)
+    gap = 3 if size < 230 else 5
+    inset = 7
+    cell = min((size - inset * 2 - gap * (columns - 1)) / columns,
+               (size - inset * 2 - gap * (row_count - 1)) / row_count)
+    grid_width = columns * cell + (columns - 1) * gap
+    grid_height = row_count * cell + (row_count - 1) * gap
+    start_x = x + (size - grid_width) / 2
+    start_y = y + (size - grid_height) / 2
+    if outline is not None:
+        c.rect(x - 3, y - 3, size + 6, size + 6, outline, radius=10, stroke=3)
+    for index, row in enumerate(rows):
+        column, line = index % columns, index // columns
+        xx = start_x + column * (cell + gap)
+        yy = start_y + line * (cell + gap)
+        value = row[value_index]
+        tint = heat_color(value, low, high, s.light)
+        c.rect(xx, yy, cell, cell, tint, radius=max(2, min(7, cell * .11)), opacity=.92)
+        number_size = max(7, min(11, cell * .18))
+        value_size = max(7, min(17, cell * .27))
+        _text(c, f"{row[0]:02d}", xx + cell / 2, yy + cell * .32,
+              number_size, cell - 4, "#FFFFFF", True, "center")
+        _text(c, formatter(value), xx + cell / 2, yy + cell * .70,
+              value_size, cell - 4, "#FFFFFF", True, "center")
+
+
+def core_page(c, s, style):
+    rows = core_heatmap_values(s.sensors)
+    if len(rows) < 8:
+        return
+    cpu = s.sensors.get("cpu") or {}
+    temperature = optional_number(cpu.get("temperatureC"))
+    outline = heat_color(temperature, 20, 100, s.light) if temperature is not None else s.muted
+    margin, gap = ((24, 12) if c.compact else (40, 28))
+    width = (c.width - margin * 2 - gap) / 2
+    top, height = 77, 345
+    size = min(198 if c.compact else 270, width - 16)
+    grid_y = 125 if c.compact else 132
+    powers = [row[1] for row in rows]
+    power_low, power_high = min(powers), max(powers)
+    if power_high - power_low < .1:
+        power_high = power_low + 1
+    power_subtitle = "WATTS · CPU TEMP OUTLINE" if c.compact else f"{len(rows)} CORES · WATTS · CPU TEMP OUTLINE"
+    load_subtitle = "LOAD · SMT AVERAGED" if c.compact else "THREADS AVERAGED PER PHYSICAL CORE"
+    for index, (title, subtitle) in enumerate((("CORE POWER", power_subtitle),
+                                                ("CORE LOAD", load_subtitle))):
+        x = margin + index * (width + gap)
+        panel(c, s, (x, top, width, height), s.palette[index], style)
+        _text(c, title, x + 18, 101, 13, width - 36, s.palette[index], True)
+        _text(c, subtitle, x + 18, 121, 9 if c.compact else 10, width - 36, s.muted)
+    temperature_text = f"{temperature:.1f}°C" if temperature is not None else "NO CPU TEMP"
+    _text(c, temperature_text, margin + width - 18, 101, 10, 84, outline, True, "right")
+    left_x = margin + (width - size) / 2
+    right_x = margin + width + gap + (width - size) / 2
+    heatmap_grid(c, s, rows, 1, (left_x, grid_y, size, size), power_low, power_high,
+                 lambda value: f"{value:.1f}W", outline)
+    heatmap_grid(c, s, rows, 2, (right_x, grid_y, size, size), 0, 100,
+                 lambda value: f"{value:.0f}%")
+    _text(c, f"{power_low:.1f}W  COLD", margin + 18, 416, 9, width / 2 - 18, s.muted)
+    _text(c, f"HOT  {max(powers):.1f}W", margin + width - 18, 416, 9, width / 2 - 18, s.muted, align="right")
+    _text(c, "0%  COLD", margin + width + gap + 18, 416, 9, width / 2 - 18, s.muted)
+    _text(c, "HOT  100%", c.width - margin - 18, 416, 9, width / 2 - 18, s.muted, align="right")
 
 
 def instrument_page(rows, cycle, count):
@@ -569,6 +644,8 @@ def render(c, s, style):
         overview(c, s, style, items)
     elif s.page_id == "activity":
         activity(c, s, style, items, components)
+    elif s.page_id == "cores":
+        core_page(c, s, style)
     elif s.page_id == "cooling":
         cooling(c, s, style)
     elif s.page_id == "electrical":

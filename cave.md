@@ -47,7 +47,7 @@ The new playback spectrum, stereo VU and Codex setup controls are not checked in
 
 The color controls, monospace font list, theme fades and 25 ms/Poor settings also need a live check.
 
-Track and cover changes blend in the renderer for 600 ms. All 10 approved offline checks passed on 17 October: mixed pixels, timing, rapid skips and color filters. They used synthetic images and metadata, with no app, audio or USB. Real playback and USB output still need checking.
+Page, track and cover changes now blend in the renderer for two seconds. The approved offline checks from 17 October covered the earlier 600 ms duration, so the new timing still needs an owner-approved run. They used synthetic images and metadata, with no app, audio or USB. Real playback and USB output still need checking.
 
 The new studio layout builds for Windows x64 with no errors or warnings. Its dropdowns, filter switch and color guides still need my visual check. CPU savings have not been measured. No tests, app or USB trial were run for this change.
 
@@ -339,3 +339,16 @@ Debug 0.1.21 MSI was built from current source and installed through its visible
 Windows Installer UI. All 1,825 installed payload files matched the fresh build.
 The MSI SHA-256 is C68D156DC0357E90F9AC8BB07C0800EFA3544C8C7746275F3A43E09EBEA9390F.
 No renderer preview, automated test, live sensor trial or USB output was run.
+
+## 20 October 2026: per-core heatmaps and longer fades
+
+System pack 2.2.0 adds the same optional core page to all ten themes. It matches
+named per-core power and load readings, averages multiple load threads for each
+physical core, requires at least eight matched cores and displays at most 32.
+Power colors are relative to the currently visible core range; load uses 0–100%.
+The power grid outline uses the reported general CPU temperature when available.
+Missing or unmatched readings keep the page out of rotation.
+
+Page and Multimedia track/cover crossfades now last two seconds. Checks were
+updated for the new contracts but not executed. No renderer preview, live sensor
+trial, build, installation or USB output was performed for this change.

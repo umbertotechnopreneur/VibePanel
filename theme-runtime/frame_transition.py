@@ -8,7 +8,7 @@ import skia
 
 
 class FrameTransition:
-    DURATION_SECONDS = .6
+    DURATION_SECONDS = 2.0
 
     def __init__(self, clock=time.monotonic):
         self.clock = clock

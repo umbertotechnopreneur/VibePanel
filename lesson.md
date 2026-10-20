@@ -25,7 +25,7 @@
 - I free native message strings after use and send preview JPEGs as data, outside the JavaScript eval bridge.
 - I wait for each preview to be drawn, then close its decoded bitmap. The UI keeps two canvases for theme fades.
 - I keep the web view's visibility in sync when the studio hides, minimizes or reopens.
-- Track and cover changes blend for 600 ms in the renderer. Preview and USB share each blended JPEG. I keep no queue of old tracks.
+- Page, track and cover changes blend for two seconds in the renderer. Preview and USB share each blended JPEG. I keep no queue of old tracks.
 - A drawn canvas can still have no visible height. I check its on-screen bounds and a captured image as well.
 - The Python worker uses one native NumPy thread. Tiny palette arrays do not need a large thread pool.
 - I refresh the USB list every ten seconds. Reconnecting a screen does not start output.
@@ -66,7 +66,7 @@
 - I show short status summaries and primary actions first. Setup text, paths, advanced controls and diagnostic trees open on demand without changing saved settings.
 - I hide fan channels from themes until their sensor ID has reported positive RPM in the current engine session. A later measured zero stays visible as a stopped fan. Page/theme changes and renderer restarts do not erase that observation. Sensor Debug keeps raw channels.
 - I group System details into CPU, GPU, board and RAM pages, with at most four readings per detail card. I show aggregate clocks and omit individual cores. Empty detail pages stay hidden.
-- I keep six System pages. Power, voltage, current and aggregate clocks share one hardware page; RAM identities and SPD timing limits share the memory page without inventing a DIMM-to-SPD assignment.
+- I keep up to seven System pages. A core heatmap appears only with matched power and load for at least eight cores, averages thread load by physical core and stops at 32. Power, voltage, current and aggregate clocks share one hardware page; RAM identities and SPD timing limits share the memory page without inventing a DIMM-to-SPD assignment.
 - I put each RAM model code first and an available serial below in smaller type. Physical slot/bank labels come from firmware; an SPD index is not a slot. Identical modules keep their SPD timing limits separate.
 - I disable storage collection and keep only verified physical Ethernet/Wi-Fi in network diagnostics. Filtering happens before updates and device limits. I visit child sensor chips before later devices fill the budget.
 - I contribute sensor decoder fixes upstream. Board labels keep their chip source names outside exact, owner-approved display profiles. A display profile preserves raw diagnostics and never changes calibration or filters by a guessed temperature threshold.

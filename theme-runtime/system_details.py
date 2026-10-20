@@ -3,13 +3,38 @@
 from __future__ import annotations
 
 import re
+from collections import defaultdict
 
 from canvas import clean, optional_number
 
 _INDIVIDUAL_CORE = re.compile(r"\b(?:core|thread)\s*#?\s*\d+\b", re.IGNORECASE)
 _POWER_LIMIT = re.compile(r"\b(?:limit|maximum|minimum|tdp)\b", re.IGNORECASE)
+_CORE_READING = re.compile(r"\b(?:cpu\s+)?core\s*#\s*(\d+)\b", re.IGNORECASE)
 _UNITS = {"Voltage": "V", "Current": "A", "Power": "W", "Temperature": "°C", "Clock": "MHz", "Timing": "ns"}
 HARDWARE_KINDS = ("Power", "Voltage", "Current", "Clock")
+
+
+def core_heatmap_values(sensors, maximum=32):
+    """Return matched physical-core power/load values; average SMT load rows."""
+    cpu = sensors.get("cpu") or {}
+    grouped = {"Power": defaultdict(list), "Load": defaultdict(list)}
+    for item in (cpu.get("readings") or [])[:256]:
+        if not isinstance(item, dict) or item.get("type") not in grouped:
+            continue
+        match = _CORE_READING.search(clean(item.get("name")))
+        value = optional_number(item.get("value"))
+        if match is None or value is None:
+            continue
+        core = int(match.group(1))
+        if core < 1:
+            continue
+        kind = item["type"]
+        grouped[kind][core].append(max(0, min(100, value)) if kind == "Load" else max(0, value))
+    common = sorted(set(grouped["Power"]) & set(grouped["Load"]))[:maximum]
+    return [(core,
+             sum(grouped["Power"][core]) / len(grouped["Power"][core]),
+             sum(grouped["Load"][core]) / len(grouped["Load"][core]))
+            for core in common]
 
 
 def reading_rows(raw, kinds, aggregate=False):
@@ -105,6 +130,8 @@ def page_available(page_id, sensors):
         return bool(memory_sections(sensors))
     if page_id == "cooling":
         return any(cooling_values(sensors))
+    if page_id == "cores":
+        return len(core_heatmap_values(sensors)) >= 8
     return True
 
 
