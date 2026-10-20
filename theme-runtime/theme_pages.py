@@ -31,8 +31,10 @@ def select_page(context, manifest):
     count = max(1, len(pages))
     durations = [page.get("seconds", seconds) for page in pages] or [seconds]
     cycle_seconds = sum(durations)
-    context.page_cycle = int(context.elapsed_seconds // cycle_seconds)
-    position = context.elapsed_seconds % cycle_seconds
+    start_index = context.page_start_index % count
+    elapsed = context.elapsed_seconds + sum(durations[:start_index])
+    context.page_cycle = int(elapsed // cycle_seconds)
+    position = elapsed % cycle_seconds
     context.page_index = 0
     for index, duration in enumerate(durations):
         context.page_index = index

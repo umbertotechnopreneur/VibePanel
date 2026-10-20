@@ -64,11 +64,11 @@ var rejected = false;
 try { Thermalright04165302Protocol.CreatePicturePacket(profile, new byte[] { 1, 2, 3 }); }
 catch (ArgumentException) { rejected = true; }
 Check(rejected, "reject invalid JPEG before transport");
-var previewOptions = new PreviewOptions(Light: true, AmbientDrift: true);
+var previewOptions = new PreviewOptions(Light: true, AmbientDrift: true, PageIndex: 2, PageRevision: 7);
 var requestJson = JsonSerializer.Serialize(new EngineRequest("fixture", "state", JsonSerializer.SerializeToElement(previewOptions, PanelContract.Json)), PanelContract.Json);
 var parsedRequest = JsonSerializer.Deserialize<EngineRequest>(requestJson, PanelContract.Json)!;
 Check(parsedRequest.Version == 1 && parsedRequest.Id == "fixture", "JSON Lines version and correlation survive serialization");
-Check(parsedRequest.Parameters!.Value.Deserialize<PreviewOptions>(PanelContract.Json) is { Light: true, AmbientDrift: true, IncludeDevices: false }, "preview options cannot implicitly enumerate USB");
+Check(parsedRequest.Parameters!.Value.Deserialize<PreviewOptions>(PanelContract.Json) is { Light: true, AmbientDrift: true, IncludeDevices: false, PageIndex: 2, PageRevision: 7 }, "preview and page options survive without implicitly enumerating USB");
 Check(AudioLevel.Fraction(0) == 0 && AudioLevel.Fraction(1) == 1, "VU scale covers silence through digital full scale");
 using (var stream = new MemoryStream(PanelFrameRenderer.PrepareJpeg(image, profile)))
 using (var bitmap = new Bitmap(stream))

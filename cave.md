@@ -352,3 +352,18 @@ Missing or unmatched readings keep the page out of rotation.
 Page and Multimedia track/cover crossfades now last two seconds. Checks were
 updated for the new contracts but not executed. No renderer preview, live sensor
 trial, build, installation or USB output was performed for this change.
+
+## 20 October 2026: studio page navigation
+
+The preview area now has separate theme and page arrow groups. The engine returns
+the title and position of the page it actually rendered, including after unavailable
+pages are filtered out. A manual page choice restarts that page's interval and then
+normal rotation continues. The selection is session-only; a theme change starts its
+first available page.
+
+Contract and offline checks were updated but not executed. Static Python parsing,
+changed-file C# format verification and the full ARM64 Release build completed;
+the build had no warnings or errors. Whole-solution format verification still
+reports pre-existing whitespace/import differences in the pinned LibreHardwareMonitor
+fork, which was left unchanged. No live studio visual check, sensor trial,
+installation or USB output was performed for this change.

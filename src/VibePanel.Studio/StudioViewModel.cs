@@ -63,7 +63,9 @@ public sealed class StudioViewModel(StudioModel model, IPanelClient? client = nu
     });
     internal static void Select(StudioState state, string category, string theme)
     {
+        var changed = state.Preferences.SelectedCategory != category || state.Preferences.SelectedTheme != theme;
         state.Preferences.SelectedCategory = category; state.Preferences.SelectedTheme = theme;
+        if (changed) { state.Preferences.SelectedPageIndex = 0; state.Preferences.PageRevision++; }
         state.Preferences.LastChange = Environment.TickCount64; state.ScreenThemes[category] = theme;
     }
     public void SetScreens(bool multimedia, bool codex, bool system) => model.Update(s =>

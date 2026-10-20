@@ -74,3 +74,4 @@
 - Cooling cards show measured aggregate CPU power alongside available CPU voltage and current. They keep the package visible while other readings rotate, without treating limits as consumption.
 - Electrical and temperature detail rows pair each reading with a thin, smoothed trend of its recent measured samples. The displayed extrema cover that same bounded window.
 - Thermal Atlas omits Power & cooling, holds Live activity first for fifteen seconds and Temperature channels second for twenty seconds. Later pages use eight seconds. Per-page durations share the existing clock; unavailable pages add no time to the cycle.
+- I show separate THEME and PAGE navigation under the preview. Each names the rendered item and shows its own position. A manual page choice restarts that page's interval, then automatic page rotation continues; changing theme returns to its first available page.

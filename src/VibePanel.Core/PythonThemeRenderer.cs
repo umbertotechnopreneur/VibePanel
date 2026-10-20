@@ -31,13 +31,19 @@ public sealed class PythonThemeRenderer : IDisposable
     /// <summary>Track and page changes temporarily request frames faster than the user's normal refresh.</summary>
     public bool IsTransitioning { get; private set; }
 
+    public string? ActivePageId { get; private set; }
+    public string? ActivePageTitle { get; private set; }
+    public int ActivePageIndex { get; private set; }
+    public int ActivePageCount { get; private set; } = 1;
+
     public int FrameIntervalMilliseconds(int requestedMilliseconds) => IsTransitioning ? Math.Min(requestedMilliseconds, 40) : requestedMilliseconds;
 
     public async Task<byte[]> RenderAsync(ThemeDefinition theme, DashboardSnapshot snapshot, DisplayProfile profile,
         bool light = false, bool ambientDrift = false, string fontFamily = "Cascadia Mono", double fontScale = 1,
         string jpegQuality = "high", CancellationToken cancellationToken = default,
         double saturationPercent = 100, double hueDegrees = 0, bool showSpectrum = true,
-        double brightnessPercent = 0, double contrastPercent = 100, bool colorFiltersEnabled = true, ThemePalette? palette = null)
+        double brightnessPercent = 0, double contrastPercent = 100, bool colorFiltersEnabled = true, ThemePalette? palette = null,
+        int pageIndex = 0, long pageRevision = 0)
     {
         if (string.IsNullOrWhiteSpace(fontFamily) || fontFamily.Length > 128 || fontFamily.Any(char.IsControl)) { throw new ArgumentException("Choose a font family of 1–128 printable characters."); }
         if (!double.IsFinite(fontScale) || fontScale is < 0.65 or > 1.6) { throw new ArgumentException("Font scale must be between 0.65 and 1.6."); }
@@ -94,6 +100,8 @@ public sealed class PythonThemeRenderer : IDisposable
                 brightnessPercent,
                 contrastPercent,
                 colorFiltersEnabled,
+                pageIndex,
+                pageRevision,
                 paletteVersion = 1,
                 palette,
                 state = new
@@ -125,6 +133,10 @@ public sealed class PythonThemeRenderer : IDisposable
                     ? accentValue.GetString() : null;
                 AccentColor = accent is { Length: 7 } && accent[0] == '#' && accent[1..].All(Uri.IsHexDigit) ? accent : null;
                 IsTransitioning = root.TryGetProperty("transitionActive", out var transition) && transition.GetBoolean();
+                ActivePageId = root.TryGetProperty("pageId", out var pageId) ? pageId.GetString() : null;
+                ActivePageTitle = root.TryGetProperty("pageTitle", out var pageTitle) ? pageTitle.GetString() : null;
+                ActivePageIndex = root.TryGetProperty("pageIndex", out var activePageIndex) ? activePageIndex.GetInt32() : 0;
+                ActivePageCount = root.TryGetProperty("pageCount", out var pageCount) ? pageCount.GetInt32() : 1;
                 sentArtworkKey = artworkKey;
                 return jpeg;
             }

@@ -273,6 +273,8 @@ class ThemeContext:
         self.font_scale = clip(request.get("fontScale", 1), .65, 1.6)
         self.ambient_drift = bool(request.get("ambientDrift"))
         self.show_spectrum = request.get("showSpectrum", True)
+        self.page_start_index = request.get("pageIndex", 0)
+        self.page_revision = request.get("pageRevision", 0)
         self.color_filters_enabled = request.get("colorFiltersEnabled", True)
         # A fresh object for each frame: theme overrides cannot mutate UI input
         # or leak into another theme/frame through the static backdrop caches.
@@ -285,7 +287,7 @@ class ThemeContext:
         self.category = manifest.get("category", "multimedia")
         self.style = str(manifest.get("id", "")).rsplit(".", 1)[-1]
         self.theme_directory = str(request.get("themePath", ""))
-        theme_key = (self.category, str(manifest.get("id", "")), self.theme_directory)
+        theme_key = (self.category, str(manifest.get("id", "")), self.theme_directory, self.page_revision)
         frame_time = time.monotonic()
         previous = _ACTIVE_THEME_TIMING
         same_theme = previous and previous[0] == theme_key and frame_time >= previous[2]

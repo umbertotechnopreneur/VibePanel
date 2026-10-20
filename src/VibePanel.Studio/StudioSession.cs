@@ -228,7 +228,8 @@ public sealed class StudioSession : IPanelClient, IAsyncDisposable, IDisposable
                         JpegQuality: p.JpegQuality, SaturationPercent: p.SaturationPercent, HueDegrees: p.HueDegrees,
                         ShowSpectrum: p.ShowSpectrum, BrightnessPercent: p.BrightnessPercent, ContrastPercent: p.ContrastPercent,
                         ColorFiltersEnabled: p.ColorFiltersEnabled, Screens: screens, Palettes: state.Palettes.Where(pair => new[] { theme }.Concat(screens.Select(screen => screen.ThemeId))
-                            .Any(id => pair.Key == id || pair.Key == id + (light ? "@light" : "@dark"))).ToDictionary());
+                            .Any(id => pair.Key == id || pair.Key == id + (light ? "@light" : "@dark"))).ToDictionary(),
+                        PageIndex: p.SelectedPageIndex, PageRevision: p.PageRevision);
                     var active = Snapshot.DisplayActive;
                     var frame = await client.RequestAsync<PanelState>(active ? "present" : "state", options, lifetime.Token).ConfigureAwait(false);
                     delay = frame.NextFrameMilliseconds is >= 25 and <= 1000 ? Math.Min(delay, frame.NextFrameMilliseconds.Value) : delay;

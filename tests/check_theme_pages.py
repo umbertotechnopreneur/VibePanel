@@ -15,13 +15,14 @@ from theme_pages import select_page
 class PageChecks(unittest.TestCase):
     def context(self, elapsed=0, **values):
         values.setdefault('sensors', {})
+        values.setdefault('page_start_index', 0)
         return SimpleNamespace(elapsed_seconds=elapsed, category='system', **values)
     def test_rotation_starts_on_first_page_and_wraps(self):
         manifest={'pages':[{'id':'overview'},{'id':'activity'},{'id':'cooling'}], 'pageSeconds':8}
         for seconds, expected in ((0,'overview'), (7.99,'overview'), (8,'activity'), (16,'cooling'), (24,'overview')):
             self.assertEqual(select_page(self.context(seconds,sensors={'cpu':{'temperatureC':50}}),manifest),expected)
     def test_artist_page_never_borrows_a_different_artist(self):
-        context=SimpleNamespace(elapsed_seconds=12,category='multimedia',artist='Current artist',artist_profile={'requestedArtist':'Previous artist'})
+        context=SimpleNamespace(elapsed_seconds=12,category='multimedia',artist='Current artist',artist_profile={'requestedArtist':'Previous artist'},page_start_index=0)
         self.assertEqual(select_page(context,{'pages':[{'id':'playback'},{'id':'artist'}],'pageSeconds':12}),'playback')
         self.assertEqual(context.page_count,1)
     def test_page_duration_override_and_cycle_progress(self):
@@ -40,6 +41,12 @@ class PageChecks(unittest.TestCase):
         context=self.context(23)
         self.assertEqual(select_page(context,manifest),'overview')
         self.assertEqual((context.page_count,context.page_cycle,context.page_progress),(2,1,0))
+    def test_manual_page_starts_at_zero_then_resumes_rotation(self):
+        manifest={'pages':[{'id':'overview','seconds':15},{'id':'activity'},{'id':'temperatures','seconds':20}],'pageSeconds':8}
+        for seconds, expected, progress in ((0,'activity',0), (7.5,'activity',7.5/8), (8,'temperatures',0), (28,'overview',0)):
+            context=self.context(seconds,page_start_index=1,sensors={'cpu':{'temperatureC':50}})
+            self.assertEqual(select_page(context,manifest),expected)
+            self.assertAlmostEqual(context.page_progress,progress)
     def test_page_limits_are_validated(self):
         for manifest in ({'pages':[{'id':'x'},{'id':'x'}]}, {'pages':[{'id':'x'}]*9}, {'pageSeconds':float('nan')}, {'pageSeconds':0}):
             with self.assertRaises(ValueError):select_page(self.context(),manifest)
