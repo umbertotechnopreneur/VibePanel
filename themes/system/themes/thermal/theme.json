@@ -50,16 +50,17 @@
       "seconds": 15
     },
     {
+      "title": "Temperature channels",
+      "id": "temperatures",
+      "seconds": 20
+    },
+    {
       "id": "overview",
       "title": "At a glance"
     },
     {
       "title": "Hardware readings",
       "id": "electrical"
-    },
-    {
-      "title": "Temperature channels",
-      "id": "temperatures"
     },
     {
       "title": "Memory modules & timings",

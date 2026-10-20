@@ -331,8 +331,9 @@ No automated tests, renderer previews, or agent-issued sensor or USB trials ran.
 ## 20 October 2026: Thermal Atlas page timing
 
 Thermal Atlas omits Power & cooling and declares fifteen seconds for Live activity
-as its first page, followed by eight seconds per page. The shared page clock supports
-individual durations and retains the default for other themes.
+as its first page. Temperature channels is second for twenty seconds, followed by
+eight seconds per page. The shared page clock supports individual durations and
+retains the default for other themes.
 Boundary and skipped-page checks were added but not executed. No build, renderer
 preview, installation, live sensor trial or USB output was run for this change.
 The installed app has not been updated.

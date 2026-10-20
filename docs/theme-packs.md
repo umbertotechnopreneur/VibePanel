@@ -30,7 +30,7 @@ Inside `render`, draw the page named by `s.page_id`. The worker also supplies `p
 
 An individual page can set `"seconds": 15` to override `pageSeconds`, using the same 4–120 second range. Skipped pages contribute no time to the cycle.
 
-System themes default to eight seconds per page, skipping detail pages without readings. Thermal Atlas omits Power & cooling and starts with fifteen seconds of Live activity, followed by eight seconds per page. Power, voltage, current and aggregate clocks share one hardware page; RAM identity and SPD timing details share the memory page. Music themes use playback and an optional [artist page](artist-pages.md) at twelve seconds each. This page rotation is separate from the studio's twenty-second theme cycling.
+System themes default to eight seconds per page, skipping detail pages without readings. Thermal Atlas omits Power & cooling, starts with fifteen seconds of Live activity, then shows Temperature channels for twenty seconds. Its later pages use eight seconds each. Power, voltage, current and aggregate clocks share one hardware page; RAM identity and SPD timing details share the memory page. Music themes use playback and an optional [artist page](artist-pages.md) at twelve seconds each. This page rotation is separate from the studio's twenty-second theme cycling.
 
 ## Color adjustments
 
