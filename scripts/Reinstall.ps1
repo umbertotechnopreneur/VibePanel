@@ -37,8 +37,6 @@ if ($payloads.Count -ne 1) { throw 'Expected exactly one fresh payload.' }
 $payload = $payloads[0].FullName
 & "$PSScriptRoot/Build-Msi.ps1" -PayloadPath $payload -Architecture $Architecture -Version $version
 $msi = Join-Path $repo "artifacts/packages/VibePanel-win-$($Architecture.ToLowerInvariant())-$version.msi"
-& "$PSScriptRoot/Assert-DefenderClean.ps1" -Path $payload -Source "Vibe Panel $version fresh payload"
-& "$PSScriptRoot/Assert-DefenderClean.ps1" -Path $msi -Source "Vibe Panel $version local MSI"
 $process = Start-Process msiexec.exe -ArgumentList @('/i', ('"' + $msi + '"'), '/norestart') -PassThru -Wait
 if ($process.ExitCode -ne 0) { throw "Install failed or cancelled (exit $($process.ExitCode)). MSI retained." }
 $installed = Join-Path $env:LOCALAPPDATA 'Umberto Giacobbi.biz/Apps/VibePanel/MSI'
@@ -67,4 +65,4 @@ finally { [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($instal
 Write-Host "Installed $version; $checked installed files match the fresh payload."
 Get-FileHash -LiteralPath $msi -Algorithm SHA256 | Format-List
 & "$PSScriptRoot/Clean-BuildOutputs.ps1" -KeepMsiPath $msi
-Write-Host "Finished. Kept only $msi. No app launch, tests or USB commands executed."
+Write-Host "Finished. Kept only $msi. Installer completion choices control app launch and release news. No tests or USB commands executed by this script."

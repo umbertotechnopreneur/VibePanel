@@ -4,25 +4,58 @@ I use a persistent Python worker and Skia's offscreen raster canvas. The engine 
 
 The three independent packs in `themes/media`, `themes/codex` and `themes/system` contain ten themes each. A pack is a folder with `pack.json`; each theme has its own `theme.json` and `render.py`. Multimedia and System packs do not need Codex or its hooks. Categories come from the manifest's `category`, not translated folder names. Installing a theme never installs or enables a data provider.
 
-System themes declare two or three pages at eight-second intervals. Music themes alternate playback and an attributed artist page every twelve seconds when a matching profile exists. The worker exposes `page_id`, `page_title`, `page_index`, `page_count`, `page_cycle` and `page_progress`; page changes share the track compositor's 600 ms crossfade. See [page manifests](../docs/theme-packs.md#pages) and [online artist data](../docs/artist-pages.md).
+System themes declare six pages at eight-second intervals, skipping detail pages without readings. Hardware readings combine power, voltage, current and aggregate clocks; memory identities and SPD timing limits share one page. Music themes alternate playback and an attributed artist page every twelve seconds when a matching profile exists. The worker exposes `page_id`, `page_title`, `page_index`, `page_count`, `page_cycle` and `page_progress`; page changes share the track compositor's 600 ms crossfade. See [page manifests](../docs/theme-packs.md#pages) and [online artist data](../docs/artist-pages.md).
 
 ## Runtime
 
 ### System snapshots
 
-The engine sends `state.sensors` only when collecting System data. One Windows adapter uses the official compiled LibreHardwareMonitorLib 0.9.6 for CPU, GPU and motherboard readings, and Windows' physical-memory API for RAM. It caches one snapshot for a second independently of frame refresh. CPU/motherboard access requires separately installed PawnIO; its registration does not prove sensor access. Linux, macOS and Windows ARM64 CPU/motherboard readers are not implemented.
+The engine sends `state.sensors` only when collecting System data. One Windows adapter uses the source-built LibreHardwareMonitor fork `e5fa436eae6cb9ad5e8693d9909cd81ddf473629` for CPU, GPU and motherboard readings, and Windows APIs for physical RAM totals and identities. The MPL-2.0 library is under `third_party/LibreHardwareMonitor` in the repository and `sources/LibreHardwareMonitor` in the distribution. It caches one snapshot for a second independently of frame refresh. CPU/motherboard access requires separately installed PawnIO; its registration does not prove sensor access. Linux, macOS and Windows ARM64 CPU/motherboard readers are not implemented.
 
 ```json
 {"cpu":{"name":"CPU","usagePercent":38,"clockMHz":4250,"temperatureC":62,"clockLabel":"Average clock","temperatureLabel":"CPU package","fans":[{"name":"CPU Fan","rpm":1250}]},"gpus":[{"name":"GPU","usagePercent":67,"clockMHz":1850,"temperatureC":58,"clockLabel":"Core clock","temperatureLabel":"GPU core","fans":[{"name":"GPU","rpm":1450}]}],"motherboard":{"name":"Board","temperatureC":37,"temperatureLabel":"System","fans":[{"name":"Chassis Fan #1","rpm":880}]},"memory":{"totalGiB":32,"usedGiB":12.4,"usagePercent":38.75},"updatedAtUtc":"2026-10-17T07:32:00Z","notice":null}
 ```
 
-These example numbers are illustrative. Unknown fields are null. System themes omit absent fields, reflow available content and preserve measured zeroes. Provider notices remain visible in the studio. `motherboard.temperatures` can contain additional `{name, temperatureC}` channels with their original labels. Optional `driver` contains `{available, path, notice}` for existing PawnIO registration; `available` means installation found, not validated sensor access. RAM uses GiB (2^30 bytes). Swap is excluded. History keeps at most 60 real samples per metric, deduplicated by snapshot timestamp, with a maximum of 64 series. A missing measurement clears its trace. No synthetic graph appears while history is empty.
+These example numbers are illustrative. Unknown fields are null. System themes omit absent fields, reflow available content and preserve measured zeroes. Provider notices remain visible in the studio. `motherboard.temperatures` can contain additional `{name, temperatureC}` channels with their original labels. Optional `driver` contains `{available, path, notice}` for existing PawnIO registration; `available` means installation found, not validated sensor access. RAM uses GiB (2^30 bytes). Swap is excluded. Activity history keeps at most 60 real samples per metric and 64 series. The electrical and temperature detail graphs retain up to 60 samples for each of 256 series, use the observed minimum and maximum of that window and need at least two samples. Both histories deduplicate snapshot timestamps and clear missing or stale measurements. No synthetic graph appears while history is empty.
 
 No driver installer or monitoring GUI is bundled. The old WinRing0 integration is removed. The owner-approved RAM/SPD group uses the NDD dependency and existing PawnIO. No driver is installed by the app. See [sensor setup](../docs/sensors.md) for prerequisites and verification limits.
+
+CPU, GPU and motherboard `readings` contain `{id, name, type, value, unit}` entries.
+RAM `modules` contain physical identities with optional `manufacturer`, `partNumber`,
+`serialNumber`, `deviceLocator`, `bankLabel`, `capacityGiB`, `type` and
+`configuredSpeedMTs`. The last two describe each module's Windows-reported RAM type
+and configured data rate; they are not measured clocks or SPD timing limits. Keep
+model and serial separate, with an available serial below the model in smaller type.
+`spdModules` retain the library's SPD identities and timing limits. Only an
+unambiguous model/capacity match adds SPD readings to a physical module; list indexes
+never establish a slot. System detail pages omit individual core/thread rows and
+rotate bounded groups of real readings. Storage collection is disabled; only verified
+physical Ethernet/Wi-Fi remain in network diagnostics, outside System theme pages.
+
+The NCT6792D decoder retains its original chip source names. Vibe Panel's exact
+ASRock B550M-ITX/ac + NCT6792D instance 0 display profile presents CPUTIN as Mainboard,
+AUXTIN0 as Southbridge and SMBUSMASTER0 as CPU, following the owner's local comparison.
+Only those temperature channels from this chip instance enter theme snapshots; Sensor Debug keeps
+all raw channels. Values are unchanged, and other hardware retains its reported names.
+See [sensor mapping](../docs/sensor-mapping.md) for the profile's scope and evidence limits.
+
+Cooling pages show watts as numeric readouts, without an inferred power limit. Fan instruments retain sensor names and RPM, rotating through available channels. The Windows reader omits a fan from theme snapshots until that sensor reports positive RPM once in the current engine session. A later measured zero stays visible as a stopped fan. This history survives page/theme changes and Python worker restarts; raw Sensor Debug channels remain unfiltered. Their outline rotors turn only for positive measured RPM and stop at zero; missing channels stay hidden. Rotor speed is a capped visual cue, not physical revolutions. Animations use the existing theme clock and selected refresh, with no extra timer or sampling. A one-second refresh still produces one frame per second. Codex status dots pulse only during received live work.
+
+In every current and future theme, circular and linear progress indicators use
+`progress_color(tint, fraction, light)`: the theme color at zero, amber in the
+middle, and red at the end of the shown scale. This rule covers every pack,
+category, layout and light/dark appearance, including custom progress drawings.
+System load/temperature dials, RAM/VRAM segments, playback bars/rings and
+audio levels share this rule. Audio meters keep their full-range color ramp;
+missing measurements remain absent. These colors follow the displayed scale,
+not hardware-specific alarm thresholds. Decorative rings and Codex status symbols
+retain their existing colors.
 
 ### Python packages
 
 Use CPython 3.11–3.14 with the exact package versions in `requirements.txt`. The desktop host locates the configured Python and starts `worker.py` with `-u`. A portable distribution can bundle that interpreter and the native wheels for its own platform. The dependency versions are pinned; this file is not a wheel-hash lock.
+
+Before first importing a new runtime or dependency version, scan its archive and extracted files with an explicit targeted Microsoft Windows Defender scan. Keep it staged until the scan completes without detections and record the source, hash, command and result. See the [first-import rules](../README.md).
 
 The upstream [Skia package](https://pypi.org/project/skia-python/144.0.post2/) publishes Windows x64/ARM64, Linux x64/ARM64 and macOS x64/ARM64 wheels. Linux also needs the native OpenGL/EGL/fontconfig libraries listed upstream, even though this worker uses a CPU raster surface. Those renderer packages do not implement Linux/macOS media or USB backends.
 

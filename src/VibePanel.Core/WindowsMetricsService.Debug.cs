@@ -43,12 +43,15 @@ public sealed partial class WindowsMetricsService
                             count++;
                             try
                             {
+                                var value = Finite(sensor.Value);
+                                if (sensor.SensorType == Lhm.SensorType.Fan && value is >= 0 and <= 20000)
+                                { _ = ObserveFan(sensor.Identifier.ToString(), value.Value); }
                                 var parameters = sensor.Parameters.Take(Math.Min(16, 512 - parameterCount)).Select(parameter =>
                                     new SensorParameterDto(Limit(parameter.Identifier.ToString()), Limit(parameter.Name), Limit(parameter.Description),
                                         Finite(parameter.Value), Finite(parameter.DefaultValue))).ToArray();
                                 parameterCount += parameters.Length;
                                 readings.Add(new(Limit(sensor.Identifier.ToString()), Limit(sensor.Name), sensor.SensorType.ToString(),
-                                    SensorUnit(sensor.SensorType), Finite(sensor.Value), Finite(sensor.Min), Finite(sensor.Max),
+                                    SensorUnit(sensor.SensorType), value, Finite(sensor.Min), Finite(sensor.Max),
                                     sensor.Parameters.Count > parameters.Length ? "Calibration parameter list is truncated." : null, parameters));
                             }
                             catch (Exception error) when (IsSensorFailure(error))
@@ -62,6 +65,7 @@ public sealed partial class WindowsMetricsService
                 if (devices.Count >= MaximumHardware) { notices.Add("Hardware list reached the debug limit."); }
                 if (count >= MaximumDebugSensors) { notices.Add("Sensor list is truncated at 2,048 readings."); }
                 if (parameterCount >= 512) { notices.Add("Calibration parameter list reached the debug limit of 512."); }
+                if (networkMetadataNotice is not null) { notices.Add(networkMetadataNotice); }
                 if (devices.Count == 0) { notices.Add("The library returned no hardware devices."); }
                 if (!devices.Any(device => device.Id.StartsWith("/memory/dimm/", StringComparison.Ordinal)))
                 { notices.Add("RAM/SPD was requested, but no DIMM devices were returned. Physical RAM totals remain separate."); }

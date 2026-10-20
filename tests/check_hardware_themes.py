@@ -177,13 +177,113 @@ class SensorHistoryChecks(unittest.TestCase):
         self.assertTrue(all(len(series["samples"]) == 1 for series in hardware._HISTORY.values()))
 
 
+class DetailHistoryChecks(unittest.TestCase):
+    def setUp(self):
+        import detail_history
+        detail_history._HISTORY.clear()
+        detail_history._last_stamp = ""
+        detail_history._last_at = 0.0
+
+    def test_duplicate_names_use_sensor_ids_and_missing_series_are_cleared(self):
+        import detail_history
+        from system_details import HARDWARE_KINDS, sensor_groups
+        cpu = {"name": "CPU", "readings": [
+            {"id": "/cpu/power/0", "name": "Power", "type": "Power", "value": 12},
+            {"id": "/cpu/power/1", "name": "Power", "type": "Power", "value": 20}]}
+        sensors = {"cpu": cpu, "updatedAtUtc": "one"}
+        with patch("detail_history.time.monotonic", return_value=1):
+            detail_history.record(sensors)
+            keys = [key for key, _ in detail_history.keyed_rows(sensor_groups(sensors, HARDWARE_KINDS)[0], sensors)]
+            self.assertNotEqual(keys[0], keys[1])
+            self.assertEqual(detail_history.points(keys[1]), [(1, 20)])
+        cpu["readings"][0]["value"] = None
+        sensors["updatedAtUtc"] = "two"
+        with patch("detail_history.time.monotonic", return_value=2):
+            detail_history.record(sensors)
+            self.assertEqual(detail_history.points(keys[0]), [])
+            self.assertEqual(detail_history.points(keys[1]), [(1, 20), (2, 20)])
+
+    def test_history_deduplicates_snapshots_and_clears_a_frozen_source(self):
+        import detail_history
+        sensors = {"cpu": {"name": "CPU", "readings": [
+            {"id": "/cpu/power/0", "name": "Package", "type": "Power", "value": 0}]},
+            "updatedAtUtc": "one"}
+        with patch("detail_history.time.monotonic", return_value=1):
+            detail_history.record(sensors)
+            key = next(iter(detail_history._HISTORY))
+        with patch("detail_history.time.monotonic", return_value=2):
+            detail_history.record(sensors)
+            self.assertEqual(detail_history.points(key), [(1, 0)])
+        with patch("detail_history.time.monotonic", return_value=12):
+            detail_history.record(sensors)
+            self.assertEqual(detail_history.points(key), [])
+
+
 class ThemeDataContractChecks(unittest.TestCase):
+    def test_hardware_page_keeps_all_electrical_and_aggregate_clock_readings(self):
+        from system_details import HARDWARE_KINDS, sensor_groups
+        cpu = {"readings": [{"name": "Memory", "type": "Clock", "value": 1600},
+                            {"name": "Core #1", "type": "Clock", "value": 4200},
+                            {"name": "SoC", "type": "Voltage", "value": 1.025},
+                            {"name": "Package", "type": "Power", "value": 0},
+                            {"name": "TDC", "type": "Current", "value": 38.5}]}
+        groups = sensor_groups({"cpu": cpu, "gpus": [{"readings": []}]}, HARDWARE_KINDS)
+        self.assertEqual(len(groups), 1)
+        self.assertEqual(groups[0][3], [("Package", 0, "W"), ("SoC", 1.025, "V"),
+                                        ("TDC", 38.5, "A"), ("Memory", 1600, "MHz")])
+
+    def test_detail_banks_are_balanced_and_keep_every_reading_once(self):
+        from system_details import detail_rows
+        for count in range(1, 41):
+            rows = list(range(count))
+            banks = (count + 3) // 4
+            pages = [detail_rows(rows, step)[0] for step in range(banks)]
+            self.assertEqual([row for page in pages for row in page], rows)
+            self.assertLessEqual(max(map(len, pages)), 4)
+            self.assertLessEqual(max(map(len, pages)) - min(map(len, pages)), 1)
+            self.assertEqual(detail_rows(rows, banks), detail_rows(rows, 0))
+        self.assertEqual([len(detail_rows(list(range(5)), step)[0]) for step in range(2)], [3, 2])
+
+    def test_memory_sections_have_independent_counters_and_skip_missing_sections(self):
+        from system_details import memory_view, page_available
+        spd = {"spdModules": [{"name": "OFFLINE SPD source (#0)",
+                               "readings": [{"type": "Timing", "name": "tAA", "value": 14}]}]}
+        combined = {"memory": {"modules": [{"partNumber": "OFFLINE model"}], **spd}}
+        self.assertEqual([memory_view(combined, step) for step in range(8)],
+                         [("modules", 0), ("spd", 0), ("modules", 1), ("spd", 1),
+                          ("modules", 2), ("spd", 2), ("modules", 3), ("spd", 3)])
+        self.assertEqual(memory_view({"memory": spd}, 3), ("spd", 3))
+        self.assertEqual(memory_view({"memory": {"totalGiB": 32}}, 3), ("modules", 3))
+        self.assertFalse(page_available("memory", {"memory": {"notice": "Missing"}}))
+
     def test_multiple_gpu_power_channels_keep_names_and_watts(self):
-        from system_dashboard import power_and_fans
+        from system_details import cooling_values
         raw = {"readings": [{"type": "Power", "name": "GPU Package", "value": 100},
                             {"type": "Power", "name": "GPU Rail", "value": 40}]}
-        powers, _ = power_and_fans([("gpu-0", "GPU", raw)], {})
+        _, powers, _ = cooling_values({"gpus": [raw]})
         self.assertEqual(powers, [("GPU · Package", 100, "W"), ("GPU · Rail", 40, "W")])
+
+    def test_cooling_includes_real_cpu_consumption_and_electrical_readings(self):
+        from system_details import cooling_values
+        cpu = {"readings": [{"type": "Power", "name": "Cores", "value": 42},
+                            {"type": "Power", "name": "CPU Package", "value": 82},
+                            {"type": "Power", "name": "SoC", "value": 0},
+                            {"type": "Power", "name": "PPT Limit", "value": 142},
+                            {"type": "Power", "name": "Core #1", "value": 3},
+                            {"type": "Voltage", "name": "SoC (SVI2 TFN)", "value": 1.025},
+                            {"type": "Current", "name": "TDC", "value": 38.5},
+                            {"type": "Voltage", "name": "Core #2", "value": 1.2}]}
+        _, readings, _ = cooling_values({"cpu": cpu})
+        self.assertEqual(readings, [("CPU · Package", 82, "W"), ("CPU · Cores", 42, "W"),
+                                    ("CPU · SoC", 0, "W"), ("CPU · SoC (SVI2 TFN)", 1.025, "V"),
+                                    ("CPU · TDC", 38.5, "A")])
+
+    def test_cooling_does_not_invent_missing_power(self):
+        from system_details import cooling_values
+        _, readings, _ = cooling_values({"cpu": {"readings": [
+            {"type": "Voltage", "name": "SoC", "value": 1.0},
+            {"type": "Power", "name": "Package", "value": None}]}})
+        self.assertEqual(readings, [("CPU · SoC", 1.0, "V")])
 
     def test_missing_fields_are_omitted_without_losing_measured_zero(self):
         from system_dashboard import metadata
@@ -206,6 +306,9 @@ class SystemPackChecks(unittest.TestCase):
             self.assertEqual(manifest["category"], "system")
             self.assertIn("sensors", manifest["optional"])
             self.assertNotIn("showSpectrum", manifest["settings"])
+            self.assertEqual({page["id"] for page in manifest["pages"]},
+                             {"overview", "activity", "cooling", "electrical", "temperatures", "memory"})
+            self.assertEqual(len(manifest["pages"]), 6)
             self.assertTrue((folder / manifest["entry"]).is_file())
             identities.add(manifest["id"])
         self.assertEqual(identities, {"system." + style for style in STYLES})

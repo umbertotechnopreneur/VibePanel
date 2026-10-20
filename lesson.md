@@ -56,3 +56,20 @@
 
 - I use one Python page clock and one frame compositor for page and track fades. System graphs retain only timestamped readings; artist facts need attributed sources. Missing profiles skip the artist page.
 - Small Windows icons use the simple two-color VP vector. Larger frames use a separate gradient drawing.
+- Cooling pages use watt readouts and named fan instruments. Outline rotors turn only for positive measured RPM and stay still at zero. Their visual speed is capped; it is not physical rotor speed. Animations share the theme clock and the selected frame refresh.
+- Codex work dots pulse only during received live work. Idle, stale, stopped and approval states keep their own still symbols.
+- I build each package from the current source. First-import scans are explicit preparation; builds only verify saved hashes. Scan evidence survives output cleanup. Generated app files and installers are not external imports.
+- I use one theme-to-amber-to-red scale for every circular and linear progress indicator in all current and future themes, in every category, layout and appearance. Custom meters use the same shared helper. Colors follow each displayed range; decorative rings keep their own meaning.
+- Setup's successful Finish page has two checked choices for starting the app and opening release news. They are independent and run only after interactive installation completes. Release links use fixed UTM campaign tags.
+- I request administrator access before starting Windows child processes. A canceled request shows a warning and leaves missing sensors unavailable. Sign-in and tray arguments survive elevation.
+- I keep one running fan visible while other named channels rotate, including measured zeroes. A stopped-only page must not make available running fans appear to have disappeared.
+- I show short status summaries and primary actions first. Setup text, paths, advanced controls and diagnostic trees open on demand without changing saved settings.
+- I hide fan channels from themes until their sensor ID has reported positive RPM in the current engine session. A later measured zero stays visible as a stopped fan. Page/theme changes and renderer restarts do not erase that observation. Sensor Debug keeps raw channels.
+- I group System details into CPU, GPU, board and RAM pages, with at most four readings per detail card. I show aggregate clocks and omit individual cores. Empty detail pages stay hidden.
+- I keep six System pages. Power, voltage, current and aggregate clocks share one hardware page; RAM identities and SPD timing limits share the memory page without inventing a DIMM-to-SPD assignment.
+- I put each RAM model code first and an available serial below in smaller type. Physical slot/bank labels come from firmware; an SPD index is not a slot. Identical modules keep their SPD timing limits separate.
+- I disable storage collection and keep only verified physical Ethernet/Wi-Fi in network diagnostics. Filtering happens before updates and device limits. I visit child sensor chips before later devices fill the budget.
+- I contribute sensor decoder fixes upstream. Board labels keep their chip source names outside exact, owner-approved display profiles. A display profile preserves raw diagnostics and never changes calibration or filters by a guessed temperature threshold.
+- I build the pinned LibreHardwareMonitor fork with the app and ship its MPL-covered source. Each RAM module shows its reported type and configured rate alongside its own model and physical identity.
+- Cooling cards show measured aggregate CPU power alongside available CPU voltage and current. They keep the package visible while other readings rotate, without treating limits as consumption.
+- Electrical and temperature detail rows pair each reading with a thin, smoothed trend of its recent measured samples. The displayed extrema cover that same bounded window.

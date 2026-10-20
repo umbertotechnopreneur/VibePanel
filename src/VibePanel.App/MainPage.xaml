@@ -79,7 +79,7 @@ VBWR E -->
                                     <TextBlock Text="{Binding Number}" Foreground="{Binding Accent}" FontSize="11" Margin="0,3,0,0"/>
                                     <StackPanel Grid.Column="1">
                                         <TextBlock Text="{Binding Name}" Foreground="{Binding Ink}" FontSize="14" FontWeight="{Binding Weight}"/>
-                                        <TextBlock Text="{Binding Description}" Foreground="{Binding Muted}" FontSize="10" TextWrapping="Wrap" MaxHeight="30" Margin="0,6,0,0"/>
+                                        <TextBlock Text="{Binding Description}" Visibility="{Binding DescriptionVisibility}" Foreground="{Binding Muted}" FontSize="10" TextWrapping="Wrap" MaxHeight="30" Margin="0,6,0,0"/>
                                     </StackPanel>
                                 </Grid>
                             </Border>
@@ -88,34 +88,49 @@ VBWR E -->
                     <TextBlock x:Name="CatalogText" Grid.Row="3" FontSize="10" Margin="14,16,0,0" Text="Discovering local themes…" TextWrapping="Wrap"/>
                     <Grid x:Name="ScreensFrame" Grid.Row="4" Margin="14,16,8,0">
                         <StackPanel>
-                            <TextBlock x:Name="ScreensHeading" Text="SCREENS ON DISPLAY" FontSize="9"/>
+                            <Button x:Name="ScreensDetailsButton" Content="› Screens on display" Click="Disclosure_Click" HorizontalContentAlignment="Left" Padding="0,5" FontSize="11"/>
+                            <StackPanel x:Name="ScreensDetails" Visibility="Collapsed">
+                            <TextBlock x:Name="ScreensHeading" Text="Allow these screens" FontSize="9" Margin="0,6,0,0"/>
                             <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                                 <CheckBox x:Name="MusicScreenBox" Content="Music" FontSize="10" Margin="0,0,9,0" Checked="Screen_Changed" Unchecked="Screen_Changed" ToolTipService.ToolTip="Allow the selected Music theme on the display"/>
                                 <CheckBox x:Name="CodexScreenBox" Content="Codex" FontSize="10" Margin="0,0,9,0" Checked="Screen_Changed" Unchecked="Screen_Changed" ToolTipService.ToolTip="Allow the selected Codex theme while Codex is running"/>
                                 <CheckBox x:Name="SystemScreenBox" Content="System" FontSize="10" Checked="Screen_Changed" Unchecked="Screen_Changed" ToolTipService.ToolTip="Allow the selected System theme on the display"/>
                             </StackPanel>
                             <TextBlock x:Name="ScreensHelpText" Text="Codex hides when its process is closed. You can preview every theme." FontSize="9" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                            </StackPanel>
                         </StackPanel>
                     </Grid>
                     <Grid x:Name="CodexSetupFrame" Grid.Row="5" Margin="14,20,8,0" Visibility="Collapsed">
                         <StackPanel>
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                <TextBlock x:Name="CodexSetupHeading" Text="CODEX CONNECTION" FontSize="9" VerticalAlignment="Center"/>
+                                <Button x:Name="CodexDetailsButton" Content="› Codex connection" Click="Disclosure_Click" HorizontalContentAlignment="Left" Padding="0,5" FontSize="11"/>
                                 <Button x:Name="CodexRefreshButton" Grid.Column="1" Content="↻" Click="CodexRefresh_Click" Width="26" Height="24" ToolTipService.ToolTip="Check plugin and incoming events"/>
                             </Grid>
+                            <TextBlock x:Name="CodexSummaryText" Text="Checking connection…" FontSize="10" TextTrimming="CharacterEllipsis" Margin="0,5,0,0"/>
+                            <StackPanel x:Name="CodexDetails" Visibility="Collapsed">
+                            <TextBlock x:Name="CodexSetupHeading" Text="Local plugin" FontSize="9" Margin="0,8,0,0"/>
                             <TextBlock x:Name="CodexStatusText" Text="Checking the local plugin…" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0"/>
                             <TextBlock x:Name="CodexEventText" FontSize="9" TextWrapping="Wrap" Margin="0,5,0,0"/>
                             <Button x:Name="CodexPrepareButton" Content="Prepare Codex plugin" Click="CodexPrepare_Click" Height="30" FontSize="11" Margin="0,10,0,0" ToolTipService.ToolTip="Copy the plugin locally. Finish installation and review its hooks in Codex."/>
                             <TextBlock x:Name="CodexHelpText" Text="Prepare here. Then install the plugin and review its hooks inside Codex." FontSize="9" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                            </StackPanel>
                         </StackPanel>
                     </Grid>
                     <StackPanel x:Name="SensorSetupFrame" Grid.Row="5" Margin="14,16,8,0" Visibility="Collapsed">
-                        <TextBlock x:Name="SensorSetupHeading" Text="SYSTEM SENSOR ACCESS" FontSize="9"/>
+                        <Button x:Name="SensorDetailsButton" Content="› Sensor access" Click="Disclosure_Click" HorizontalContentAlignment="Left" Padding="0,5" FontSize="11"/>
+                        <TextBlock x:Name="SensorSummaryText" Text="Checking access…" FontSize="10" TextWrapping="Wrap" Margin="0,5,0,0"/>
+                        <StackPanel x:Name="SensorDetails" Visibility="Collapsed">
+                        <TextBlock x:Name="SensorSetupHeading" Text="Driver details" FontSize="9" Margin="0,8,0,0"/>
                         <TextBlock x:Name="SensorDriverText" Text="CPU and motherboard temperatures and fan RPM need the PawnIO driver. Checking its installation…" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0"/>
                         <TextBox x:Name="SensorDriverPath" IsReadOnly="True" TextWrapping="Wrap" FontSize="9" Margin="0,8,0,0" MaxHeight="62" BorderThickness="0" Background="Transparent" Visibility="Collapsed"/>
                         <Button x:Name="SensorDriverFolderButton" Content="Open driver folder" Click="SensorDriverFolder_Click" Height="30" FontSize="11" Margin="0,10,0,0" IsEnabled="False" ToolTipService.ToolTip="Select the driver in File Explorer. This does not install or allow it."/>
-                        <TextBlock x:Name="SensorDriverHelp" Text="LibreHardwareMonitor reads the sensors. Install PawnIO separately, then restart this app. This app does not install drivers or change Windows security." FontSize="9" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                        <TextBlock x:Name="SensorDriverHelp" Text="Install PawnIO separately, then restart. Vibe Panel does not install drivers." FontSize="9" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                        <StackPanel x:Name="AdministratorPanel" Visibility="Collapsed" Margin="0,10,0,0">
+                            <TextBlock x:Name="AdministratorHelp" Text="Running without administrator access." FontSize="10" TextWrapping="Wrap"/>
+                            <Button x:Name="AdministratorButton" Content="Reopen as administrator" Click="Administrator_Click" Height="30" Padding="10,0" FontSize="11" Margin="0,8,0,0" ToolTipService.ToolTip="Save your choices and reopen. Themes also run as administrator."/>
+                        </StackPanel>
+                        </StackPanel>
                     </StackPanel>
                 </Grid>
             </Grid>
@@ -158,7 +173,9 @@ VBWR E -->
                     <CheckBox x:Name="SpectrumBox" Grid.Column="4" Content="Spectrum" IsChecked="True" IsEnabled="False" FontSize="11" VerticalAlignment="Center" Checked="Spectrum_Changed" Unchecked="Spectrum_Changed" Margin="0,0,12,0" ToolTipService.ToolTip="Show frequency bars where the theme supports them. VU meters stay visible."/>
                     <CheckBox x:Name="CycleBox" Grid.Column="5" Content="Auto-cycle · 20s" VerticalAlignment="Center" FontSize="11" Checked="Cycle_Changed" Unchecked="Cycle_Changed" ToolTipService.ToolTip="Rotate enabled screens every 20 seconds. With one screen, rotate its themes."/>
                 </Grid>
-                <Grid x:Name="OptionsFrame" Grid.Row="3" Margin="0,6,0,16">
+                <StackPanel Grid.Row="3">
+                <Button x:Name="AppearanceDetailsButton" Content="› Appearance" Click="Disclosure_Click" HorizontalAlignment="Left" Padding="0,5" FontSize="11"/>
+                <Grid x:Name="OptionsFrame" Visibility="Collapsed" Margin="0,6,0,16">
                     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
@@ -229,30 +246,29 @@ VBWR E -->
                             </Grid>
                         </StackPanel>
                     </Border>
-                    <Grid x:Name="AdministratorPanel" Grid.Row="2" Visibility="Collapsed" Margin="0,10,0,0">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                        <TextBlock x:Name="AdministratorHelp" Text="Some sensors also need administrator rights. Elevation does not install PawnIO or bypass a Windows security block." FontSize="11" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                        <Button x:Name="AdministratorButton" Grid.Column="1" Content="Reopen as administrator" Click="Administrator_Click" Height="30" Padding="10,0" FontSize="11" ToolTipService.ToolTip="Save your choices, stop output and reopen in preview. Themes will also run as administrator."/>
-                    </Grid>
                 </Grid>
+                </StackPanel>
                 <Grid x:Name="DisplayFrame" Grid.Row="4">
                     <Border x:Name="DisplayDivider" BorderThickness="0,1,0,0" VerticalAlignment="Top"/>
                     <Grid x:Name="DisplayControls" Margin="0,16,0,0">
-                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel x:Name="DeviceField" Margin="0,0,6,0">
                             <TextBlock x:Name="DeviceLabel" Text="USB DISPLAY" FontSize="9" Margin="0,0,0,6"/>
                             <ComboBox x:Name="DevicesBox" Height="32" MinWidth="100" DisplayMemberPath="Name" SelectionChanged="Device_Changed"/>
                         </StackPanel>
                         <Button x:Name="RefreshDevicesButton" Grid.Column="1" Content="↻" Click="RefreshDevices_Click" Width="30" Height="32" Margin="0,0,12,0" VerticalAlignment="Bottom" ToolTipService.ToolTip="Find connected displays"/>
-                        <StackPanel x:Name="RefreshField" Grid.Column="2" Margin="0,0,12,0" HorizontalAlignment="Left">
+                        <StackPanel x:Name="DisplayOptionsPanel" Grid.Row="2" Grid.ColumnSpan="6" Orientation="Horizontal" Visibility="Collapsed" Margin="0,8,0,0">
+                        <StackPanel x:Name="RefreshField" Margin="0,0,12,0" HorizontalAlignment="Left">
                             <TextBlock x:Name="RefreshLabel" Text="UPDATE" FontSize="9" Margin="0,0,0,6"/>
                             <ComboBox x:Name="RefreshBox" Width="94" Height="32" DisplayMemberPath="Name" SelectionChanged="Refresh_Changed" ToolTipService.ToolTip="Requested interval. 25 ms is aggressive; actual updates depend on rendering and USB."/>
                         </StackPanel>
-                        <StackPanel x:Name="QualityField" Grid.Column="3" Margin="0,0,12,0" HorizontalAlignment="Left">
+                        <StackPanel x:Name="QualityField" Margin="0,0,12,0" HorizontalAlignment="Left">
                             <TextBlock x:Name="QualityLabel" Text="JPEG QUALITY" FontSize="9" Margin="0,0,0,6"/>
                             <ComboBox x:Name="QualityBox" Width="94" Height="32" DisplayMemberPath="Name" SelectionChanged="Quality_Changed" ToolTipService.ToolTip="Poor uses very strong JPEG compression."/>
                         </StackPanel>
+                        </StackPanel>
+                        <Button x:Name="DisplayOptionsButton" Grid.Row="1" Grid.ColumnSpan="6" Content="› Display options" Click="Disclosure_Click" HorizontalAlignment="Left" Padding="0,5" FontSize="11" Margin="0,6,0,0"/>
                         <Button x:Name="StartDisplayButton" Grid.Column="4" Content="Show on display" Click="StartDisplay_Click" Height="32" Padding="12,0" Margin="0,0,6,0" VerticalAlignment="Bottom"/>
                         <Button x:Name="StopDisplayButton" Grid.Column="5" Content="Stop" Click="StopDisplay_Click" Height="32" Padding="12,0" VerticalAlignment="Bottom" IsEnabled="False"/>
                     </Grid>
@@ -279,9 +295,15 @@ VBWR E -->
         <Grid x:Name="FooterArea" Grid.Row="3" Margin="28,12,28,8">
             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-            <TextBlock x:Name="StatusText" Text="Local preview" FontSize="10" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-            <CheckBox x:Name="LogErrorsBox" Grid.Column="1" Content="Log errors" FontSize="10" VerticalAlignment="Center" Margin="12,0" Checked="Diagnostics_Changed" Unchecked="Diagnostics_Changed" ToolTipService.ToolTip="Local technical events only. No song titles, prompts, audio or transcripts."/>
-            <Button x:Name="OpenLogButton" Grid.Column="2" Content="Open log" Click="OpenLog_Click" FontSize="10" Padding="8,4" IsEnabled="False"/>
+            <TextBlock x:Name="StatusText" Text="Local preview" FontSize="10" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" ToolTipService.ToolTip="{Binding Text, ElementName=StatusText}"/>
+            <Button x:Name="DiagnosticsDetailsButton" Grid.Column="2" Content="› Diagnostics" Click="Disclosure_Click" FontSize="10" Padding="8,4"/>
+            <StackPanel x:Name="DiagnosticsDetails" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Visibility="Collapsed" MaxWidth="420">
+                <TextBlock x:Name="TimingDetailsText" FontSize="10" TextWrapping="Wrap" Margin="12,4,0,6"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <CheckBox x:Name="LogErrorsBox" Content="Log errors" FontSize="10" VerticalAlignment="Center" Margin="12,0" Checked="Diagnostics_Changed" Unchecked="Diagnostics_Changed" ToolTipService.ToolTip="Local technical events only. No song titles, prompts, audio or transcripts."/>
+                <Button x:Name="OpenLogButton" Content="Open log" Click="OpenLog_Click" FontSize="10" Padding="8,4" IsEnabled="False"/>
+                </StackPanel>
+            </StackPanel>
             <StackPanel x:Name="FooterLinks" Grid.Row="1" Grid.ColumnSpan="3" Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,8,0,0">
                     <HyperlinkButton x:Name="TermsLink" Content="Terms" NavigateUri="https://umbertogiacobbi.biz/terms/" TargetName="_blank" FontSize="10"/>
                     <TextBlock x:Name="FooterDot2" Text=" · " FontSize="10" VerticalAlignment="Center" Margin="6,0"/>

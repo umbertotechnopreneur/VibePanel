@@ -134,3 +134,196 @@ An elevated read-only acquisition returned 43 devices and 448 sensors (433 finit
 Windows x64 restore, format verification, complete Release build and self-contained publication passed. Owner-approved offline checks passed: 35 studio checks and 31 Python checks, including all 44 declared System/Music pages at two sizes and two font limits, plus 180 System render scenarios. Light/dark previews and the 16–256 px icon frames were inspected. Preview graphs use explicitly synthetic inputs. A live Coldplay lookup returned an attributed Wikipedia biography and Commons photo; no qualifying worldwide album-sales record was returned. Sales coverage is not established. The artist provider keeps missing fields absent. No physical display trial or installer run was performed for these changes at this checkpoint.
 
 The eight C# scenes, their RPC/CLI fallback, old hardware background assets, unversioned-settings migration and implicit PATH interpreter lookup have been removed. The studio UI compiled; its on-screen layout has not been exercised in a running studio during this change.
+
+## 19 October 2026: cooling instruments and animation
+
+I replaced the long power/RPM bars in all six System cooling pages with watt readouts and named fan instruments. Outline fan blades turn only for positive measured RPM; zero stays visible and still. Visual rotation is slowed and capped. Codex work dots pulse only during live work. Both animations use the existing theme clock and chosen refresh; there is no extra timer or sensor polling.
+
+At the owner's request, I rendered 108 local page previews covering all 30 themes in light and dark with synthetic data at font scale 1.5. I inspected the overview sheets, cooling pages, activity pages and artist pages, plus wide/compact Thermal Atlas and a 32-frame rotor storyboard. These are source-rendered design previews, using the existing Python/Skia runtime as a dependency. They do not validate real sensor data, sustained frame rate, an installed app or USB output. No automated tests, C# build, installer build, installation or physical-device trial ran for this change.
+
+Automatic approval initially rejected removal of the generated `artifacts/theme-review` folder with a policy block. At that checkpoint it remained ignored by Git. Review images were also retained outside the repository; the existing MSI was left intact.
+
+## 19 October 2026: 0.1.11 source build
+
+At the owner's request, I restored the current projects from official NuGet, verified C# formatting and compiled/published Windows x64 Release from this repository, including Photino.Native and the updated cooling renderer. Missing build inputs came from their pinned official sources. Explicit targeted first-import scans completed without detections for their archives and extracted files. Hash evidence is saved outside repository output and reused during compilation; builds no longer launch scans. Generated app files and MSI files are not scanned as external imports.
+
+No automated tests, app launch, installation, sensor acquisition or USB trial ran. This compilation does not establish physical display behavior or animation frame rate. Build logs and package checksums are retained outside the repository, which keeps only the final requested MSI after cleanup.
+
+MSI 0.1.11 compiled successfully from that fresh payload. The guarded cleanup completed and removed the old MSI, ZIP, preview folder, staged dependencies, build tools, intermediates and generated web files. Only `artifacts/packages/VibePanel-win-x64-0.1.11.msi` remains. No installer execution or MSI validation ran.
+
+## 19 October 2026: shared progress colors and completion choices
+
+Circular and linear progress now share a theme-to-amber-to-red scale across System meters, playback and audio. Colors use the shown range, not guessed hardware alarm thresholds. The successful MSI completion page has two independent checked choices: start the app and open GitHub Releases with fixed installer UTM tags. Finish dispatches them after commit, with matching guards in the native actions. Silent setup, repair, removal, failure and cancellation do not dispatch them.
+
+These changes have not been exercised through a real installer. No automated tests, app launch, browser launch, sensor read or USB trial is authorized by this implementation checkpoint. Compilation and local synthetic design previews are separate evidence, not installer or hardware validation.
+
+Windows x64 Release source publication, both native setup targets and MSI 0.1.12 compilation completed. All unchanged dependency inputs reused saved first-import hashes without a scan. I rendered 108 page previews for all 30 themes in light/dark plus four compact frames at font scale 1.5, and inspected the System progress and Multimedia playback galleries. Compact units and the wide RAM readout now fit their reserved slots.
+
+Read-only MSI table inspection confirmed version 0.1.12, both option properties set to 1, independent guarded Finish events, and one active success dialog. No installer or custom action was executed. This does not verify the displayed Windows dialog, default-browser behavior or actual app startup after installation.
+
+Output cleanup completed. The repository keeps only the final 0.1.12 MSI; its SHA-256, build logs, MSI table snapshot and design previews are saved outside the repository. Installed files and user settings were left intact.
+
+## 19 October 2026: administrator launch and progressive disclosure
+
+Windows startup now requests elevation before creating the studio's child processes.
+Canceling shows an explicit non-administrator warning; saved-session and tray flags
+are forwarded on success. Setup explains the request and that themes share these rights.
+Fan pagination keeps one measured running fan visible while other channels rotate.
+This addresses the stopped-only page visible in the owner's screenshot; it does not
+establish that every possible sensor initialization issue has been reproduced.
+
+The studio now starts with setup, appearance, display options and diagnostics closed.
+Short connection/access summaries remain visible. Sensor Debug preserves expansion
+choices on refresh and initially leaves devices and groups collapsed.
+
+No automated tests, UAC dialog, real studio launch, installation, sensor read or USB
+trial has been run for these changes. Compilation is separate from runtime validation.
+
+Windows x64 restore, source format verification, Release publication and native/MSI
+compilation completed for 0.1.13. Unchanged dependencies reused their saved first-import
+hashes. Read-only MSI metadata confirms the administrator notice on the completion
+page and both completion choices still checked by default. This does not validate
+the real UAC, studio layout or installer interaction. Build logs, hashes and metadata
+are saved outside the repository. Cleanup left only the final 0.1.13 MSI in artifacts;
+installed files and user settings were not changed.
+
+## 19 October 2026: fan channels observed running
+
+The Windows reader now filters theme fan channels by actual positive RPM history,
+keyed by the sensor library's identifier. Never-active zero channels stay hidden;
+previously active channels retain a later measured zero. Null or invalid readings
+remain absent. Raw Sensor Debug stays unfiltered and its positive observations
+also qualify a channel. The bounded history belongs to the engine session, survives
+page/theme changes and renderer restarts, and is not saved across app restarts.
+
+No tests, studio launch, sensor sampling, driver access, installation or USB trial
+has been performed for this change. Compilation does not establish live behavior.
+
+Windows x64 restore, format verification, Release compilation and source publication
+completed, followed by native setup and MSI 0.1.14 compilation. The published core
+matches the current Release assembly. Unchanged dependencies reused existing
+first-import evidence. Build logs, source/package hashes and receipts are saved
+outside the repository. Cleanup retained only the final 0.1.14 MSI under artifacts.
+
+## 19 October 2026: grouped sensor details and device filtering
+
+The shared System renderer now declares eight pages, omitting unavailable details.
+It shows electrical readings, named temperature channels including GPU hotspot,
+aggregate clocks, RAM model/serial/slot identities and separate SPD timing limits.
+Board readings now reach themes. Individual core/thread rows are omitted from themes.
+Storage collection is disabled. Network diagnostics match only physical Ethernet/Wi-Fi
+through Windows adapter metadata; unknown identities remain hidden with a notice.
+Child sensor chips are visited before later roots can fill the 64-device budget.
+
+The owner's saved LibreHardwareMonitor report was inventoried privately, without a
+fresh acquisition. Static source and supplied-file inspection is separate from live
+sensor validation. No tests, Python rendering, application launch, installer execution,
+driver access or USB trial has been performed for these changes.
+
+Static inspection found an upstream NCT6792D temperature-decoding defect and missing
+exact-board mapping. This package retains the official library and does not repair
+that decoder. Generic board values remain raw, not confirmed physical temperatures.
+See [sensor mapping](docs/sensor-mapping.md). Proprietary HWMonitor resources were
+inspected only as data; no code or driver was imported or executed.
+
+Windows x64 restore, format verification for Core/Data, Release compilation and
+self-contained source publication completed with no build warnings or errors.
+Native setup targets and MSI 0.1.15 compiled successfully. Published Core and Python
+sources match the current repository build inputs. Unchanged dependencies reused
+their existing first-import hashes. The guarded cleanup retained only the final MSI;
+logs, checksums and receipts are saved outside the repository. No tests or runtime
+validation were added by packaging. Installed files and settings remain unchanged.
+
+## 19 October 2026: LibreHardwareMonitor contribution
+
+The owner authorized a separate fork and upstream contribution. Fork commit
+`e5fa436eae6cb9ad5e8693d9909cd81ddf473629` routes NCT6792D through the existing
+masked-source decoder, which skips empty register entries and retains valid
+fractional samples. The exact B550M-ITX/ac mapping also exposes SMBUSMASTER0.
+Source names remain technical; physical CPU/mainboard/chipset aliases are unverified.
+[Draft PR #2590](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/pull/2590)
+contains the saved-register evidence without the owner's full hardware report.
+
+Restore and a full Release net10.0 x64 rebuild with SDK 10.0.402 completed, with no
+rebuild warnings or errors. Whitespace verification reports only existing issues
+on unchanged lines, also present in the unmodified upstream base. Targeted
+first-import Defender scans completed without detections; unchanged dependencies
+reused recorded hash evidence. No tests, application launch, live sensor reads,
+driver operations or installation were performed. Vibe Panel 0.1.15 retains the
+official library and does not yet include this fork. Upstream CI requires action
+before it can run; the contributor account cannot assign upstream labels or users.
+
+## 19 October 2026: fork integration and RAM details
+
+Vibe Panel now builds the pinned LibreHardwareMonitor fork from source in this
+repository. Its original C# files, embedded modules, license and editor settings
+are preserved. The project file targets .NET 10 and repository-local build output.
+The distribution includes the exact MPL-covered source. No upstream GUI or driver
+installer is added. Previously scanned unchanged inputs reuse their hash evidence;
+new NuGet inputs passed a separate targeted scan before compilation.
+
+Each physical RAM module now carries its own reported type and configured rate.
+System themes use a clear model/serial hierarchy, a small DIMM outline and rotating
+compact summaries. Temperature details use the shared color scale and disclose
+their 0–120°C display range. Raw SYSTIN remains a detail channel, without being
+promoted to a confirmed motherboard temperature. No physical alias is guessed.
+
+Restore, changed C# formatting and the Core/library Release build completed.
+No tests, renderer execution or hardware validation was performed during these
+changes. Installation and package evidence are recorded separately below.
+
+Windows x64 source publication, native setup compilation and MSI 0.1.16 completed.
+The old 0.1.12 MSI was uninstalled with exit 0; the new MSI installed with exit 0
+through its visible UI. One 0.1.16 registration remains, and all 1,822 installed
+payload files match the fresh build. The installed sensor library identifies as
+`0.9.6-vibepanel.e5fa436`. The initial install invocation rejected a forward-slash
+package path before installation; retrying the resolved Windows path succeeded.
+Cleanup retained only the final MSI. Build/install logs and hashes are outside
+repository output. No automated tests or agent-issued sensor/USB trials ran.
+
+After installation, the owner reported checking the patch on this local hardware
+through Vibe Panel and seeing values matching CPUID HWMonitor. This owner-observed
+comparison is recorded in upstream PR #2590; it does not establish physical chip
+source aliases or coverage of other boards.
+
+## 19 October 2026: local board display profile and fewer System pages
+
+Vibe Panel now applies owner-approved Mainboard, Southbridge and CPU labels only
+to the ASRock B550M-ITX/ac NCT6792D instance 0 theme readings. Other temperature
+inputs from that chip remain in Sensor Debug. Raw library sensors, measurements,
+the pinned fork and its upstream PR are unchanged. These display labels follow
+the owner's comparison; physical board wiring has not been independently verified.
+
+System pack 2.1.2 has six pages instead of eight. Electrical readings and aggregate
+clocks share one page; memory identities and distinct SPD sources share another.
+Balanced detail banks avoid lone trailing rows. Static review covered independent
+memory counters and access to all groups in wide and compact layouts.
+
+Restore, changed C# formatting and the engine/CLI Release build completed with no
+warnings or errors. The prepared C# checks also compile; no tests were executed.
+Python source and JSON manifests passed syntax parsing without importing the app
+or renderer. No rendering, live sensor trial, new MSI or installation was performed
+for this change. The installed 0.1.16 and its existing MSI do not contain this update.
+
+## 20 October 2026: cooling power card
+
+The shared System cooling card now uses aggregate CPU power readings and available
+CPU voltage and current, with their measured units. It excludes named limits and
+individual cores. The installed build has not been updated for this change. No
+renderer preview, automated tests, live sensor trial or USB output was run.
+
+## 20 October 2026: System detail trends
+
+Electrical and temperature rows use bounded, timestamp-deduplicated snapshot history
+for their curves and window extrema. The curve preserves sampled values; no new
+sensor polling is added. Missing or stale readings clear their histories. The
+installed build does not contain this change. No renderer preview, automated tests,
+live sensor trial, USB output, build or installation was performed for this change.
+
+## 20 October 2026: local Debug 0.1.18
+
+The Windows x64 Debug payload and MSI were built from source at revision 73dca8b.
+The previous MSI was removed and 0.1.18 installed through Windows Installer; all
+1,823 installed payload files matched the fresh build. The app started afterwards.
+The MSI SHA-256 is 961645CC23E13F541FEE3EA4153A67FF3A6D41DAD7A77FE45330532CEEBF3D64.
+No automated tests, renderer previews, or agent-issued sensor or USB trials ran.

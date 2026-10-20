@@ -3,9 +3,9 @@
   "id": "system.horizon",
   "category": "system",
   "name": "Horizon",
-  "description": "2 rotating pages: live activity, at a glance.",
+  "description": "Up to six pages for CPU, GPU, board and RAM, with related readings together.",
   "entry": "render.py",
-  "version": "2.0.0",
+  "version": "2.1.2",
   "author": "Umberto Giacobbi",
   "license": "MIT",
   "canvas": {
@@ -51,6 +51,22 @@
     {
       "id": "overview",
       "title": "At a glance"
+    },
+    {
+      "title": "Power & cooling",
+      "id": "cooling"
+    },
+    {
+      "title": "Hardware readings",
+      "id": "electrical"
+    },
+    {
+      "title": "Temperature channels",
+      "id": "temperatures"
+    },
+    {
+      "title": "Memory modules & timings",
+      "id": "memory"
     }
   ],
   "pageSeconds": 8

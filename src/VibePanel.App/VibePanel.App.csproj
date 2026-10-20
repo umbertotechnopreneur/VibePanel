@@ -24,6 +24,7 @@ VBWR E -->
     <Compile Include="MainPage.Colors.cs" />
     <Compile Include="MainPage.Sensors.cs" />
     <Compile Include="MainPage.SensorDebug.cs" />
+    <Compile Include="MainPage.Disclosure.cs" />
     <Resource Include="Assets/vibeware-logo.png" />
     <Resource Include="Assets/vibepanel-icon.png" />
   </ItemGroup>

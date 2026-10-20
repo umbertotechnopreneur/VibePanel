@@ -105,6 +105,14 @@ def clip(value, low=0, high=1):
     return max(low, min(high, number(value)))
 
 
+def progress_color(tint, fraction, light=False):
+    """Keep the theme's low end, then move through amber to red at full scale."""
+    amount = clip(fraction)
+    warm = blend(tint, "#AE6A16" if light else "#F4B557", .8)
+    red = "#C73542" if light else "#FF5963"
+    return blend(tint, warm, amount / .6) if amount <= .6 else blend(warm, red, (amount - .6) / .4)
+
+
 def clean(value, fallback=""):
     return " ".join(str(value or fallback).split())[:300]
 
@@ -683,7 +691,8 @@ class Canvas:
         if self.ctx.progress is not None:
             fill = width * self.ctx.progress
             if fill > .5:
-                self.gradient(x, y, fill, height, [self.ctx.accent, blend(self.ctx.palette[1], self.ctx.fg, .35)], radius=height / 2)
+                active = progress_color(self.ctx.accent, self.ctx.progress, self.ctx.light)
+                self.gradient(x, y, fill, height, [blend(active, self.ctx.fg, .12), active], radius=height / 2)
         if labels:
             self.caption(duration(self.ctx.position), x, y + 31)
             self.caption(duration(self.ctx.length) if self.ctx.length else "—", x + width, y + 31, align="right")
@@ -699,7 +708,7 @@ class Canvas:
         normalized = clip((20 * math.log10(max(.001, number(peak))) + 60) / 60) if peak is not None else 0
         count = max(8, min(48, int(width / 9)))
         for index in range(count):
-            shade = blend(self.ctx.palette[2], "#E6B06F", index / max(1, count - 1))
+            shade = progress_color(self.ctx.palette[2], index / max(1, count - 1), self.ctx.light)
             self.rect(x + index * width / count, y, width / count - 3, height, shade, 2,
                       1 if index / count < normalized else .18)
         if label:
@@ -784,8 +793,7 @@ class Canvas:
         low, high = logs[0] - (logs[1] - logs[0]) / 2, logs[-1] + (logs[-1] - logs[-2]) / 2
         span = high - low
         shader = skia.GradientShader.MakeLinear([(left, top), (left, bottom)],
-            [color(blend(self.ctx.palette[1], "#F3BF73", .52)),
-             color(blend(self.ctx.palette[2], "#5DC9A1", .42))])
+            [color(progress_color(self.ctx.palette[2], value, self.ctx.light)) for value in (1, .5, 0)])
         paint = skia.Paint(Shader=shader, AntiAlias=True)
         for index, value in enumerate(analysis.display_bands):
             a = low if index == 0 else (logs[index - 1] + logs[index]) / 2
@@ -842,12 +850,13 @@ class Canvas:
                 self.native.save()
                 self.native.clipRect(skia.Rect.MakeXYWH(meter_x, bar_y, fill, bar_height))
                 self.gradient(meter_x, bar_y, meter_width, bar_height,
-                              [blend(self.ctx.palette[2], "#6FCA8A", .6), "#E6CD72", "#E99169"], radius=3)
+                              [progress_color(self.ctx.palette[2], value, self.ctx.light) for value in (0, .5, 1)], radius=3)
                 self.native.restore()
             peak, hold = analysis.display_peaks[index], analysis.holds[index]
             if peak is not None and peak >= -60:
                 peak_x = meter_x + clip((peak + 60) / 60) * meter_width
-                self.line(peak_x, bar_y - 1, peak_x, bar_y + bar_height + 1, self.ctx.accent, 2)
+                self.line(peak_x, bar_y - 1, peak_x, bar_y + bar_height + 1,
+                          progress_color(self.ctx.palette[2], (peak + 60) / 60, self.ctx.light), 2)
             if hold is not None and hold >= -60:
                 hold_x = meter_x + clip((hold + 60) / 60) * meter_width
                 self.line(hold_x, bar_y - 3, hold_x, bar_y + bar_height + 3, self.ctx.fg, 2)
@@ -871,7 +880,7 @@ class Canvas:
     def ring(self, x, y, radius, value=None, tint=None, stroke=4, marker=False):
         self.circle(x, y, radius, self.ctx.fg, .13, stroke)
         if value is not None and value > 0:
-            paint = self.paint(tint or self.ctx.accent, 1, stroke)
+            paint = self.paint(progress_color(tint or self.ctx.accent, value, self.ctx.light), 1, stroke)
             paint.setStrokeCap(skia.Paint.kRound_Cap)
             self.native.drawArc(skia.Rect.MakeXYWH(x - radius, y - radius, radius * 2, radius * 2), -90, 360 * clip(value), False, paint)
             if marker:
@@ -906,8 +915,12 @@ class Canvas:
         elif self.ctx.stale or not self.ctx.event or self.ctx.event in ("SessionEnd", "Interrupt"):
             self.line(x - radius * .26, y, x + radius * .26, y, self.ctx.signal, 4)
         else:
-            for offset in (-.28, 0, .28):
-                self.circle(x + radius * offset, y, 4, self.ctx.signal, .8)
+            for index, offset in enumerate((-.28, 0, .28)):
+                # Pulse only for received live work; these dots are not progress.
+                opacity = .8
+                if self.ctx.is_live:
+                    opacity = .35 + .55 * (1 + math.sin(self.ctx.elapsed_seconds * 4 - index * .9)) / 2
+                self.circle(x + radius * offset, y, 4, self.ctx.signal, opacity)
 
     def activity_rows(self, x, y, width, row_height=64, limit=4):
         events = self.ctx.events()[-limit:]

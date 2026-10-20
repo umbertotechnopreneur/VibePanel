@@ -28,7 +28,7 @@ Declare pages and their interval in the manifest:
 
 Inside `render`, draw the page named by `s.page_id`. The worker also supplies `page_title`, `page_index`, `page_count`, `page_cycle` and `page_progress`. It owns one monotonic timer and a 600 ms crossfade. Page fades work with color filters off. A manifest may declare one to eight unique page IDs and an integer interval from 4 to 120 seconds. Omitting pages gives one static page.
 
-The ten System themes have two or three pages at eight seconds each. Music themes use playback and an optional [artist page](artist-pages.md) at twelve seconds each. This page rotation is separate from the studio's twenty-second theme cycling.
+The ten System themes declare six pages at eight seconds each, skipping detail pages without readings. Power, voltage, current and aggregate clocks share one hardware page; RAM identity and SPD timing details share the memory page. Music themes use playback and an optional [artist page](artist-pages.md) at twelve seconds each. This page rotation is separate from the studio's twenty-second theme cycling.
 
 ## Color adjustments
 
@@ -57,7 +57,7 @@ Use `s.show_spectrum` to respect the sound-bars checkbox. `c.spectrum(...)` alre
 
 ## CLI
 
-System themes receive CPU, GPU, motherboard and physical RAM in `s.sensors`. CPU/GPU `readings` retain sensor names, types and units. `fans` contain measured RPM; generic board channels keep their names. Preserve measured zeroes and omit absent fields. `system_dashboard.py` draws gauges, timestamped history, core-load bars, memory occupancy and named watt/RPM channels. Power channels keep separate names and are never added together. `hardware.py` retains at most 60 observed samples per series; repeated timestamps add nothing. There is no simulated history or swap field. [Snapshot format](../theme-runtime/README.md#system-snapshots).
+System themes receive CPU, GPU, motherboard and physical RAM in `s.sensors`. CPU/GPU/board `readings` retain sensor names, types and units. `fans` contain measured RPM; generic board channels keep their names. Preserve measured zeroes and omit absent fields. `system_dashboard.py` draws gauges, timestamped history, aggregate clocks, memory occupancy, module identities and named electrical/thermal/RPM channels. `system_details.py` groups values and omits individual CPU cores. Power channels keep separate names and are never added together. `hardware.py` retains at most 60 observed samples per series; repeated timestamps add nothing. There is no simulated history or swap field. [Snapshot format](../theme-runtime/README.md#system-snapshots).
 
 ```powershell
 vp fonts
@@ -95,5 +95,25 @@ personal overrides. In the gallery, **Theme colors** edits the selected theme
 and appearance. Reset removes that override. Installed theme files stay intact.
 Palette colors are drawing inputs; the separate Color filters switch controls
 the final whole-image saturation, hue, brightness and contrast pass.
+
+## Progress colors
+
+Every circular and linear progress indicator must move from the theme's accent
+through amber to red as its value rises. This rule applies to all current and
+future themes, in every category, layout and light/dark appearance.
+
+The shared progress, ring and audio drawing methods already apply this scale.
+For custom meters, use the same helper with the displayed value divided by its
+maximum:
+
+```python
+from canvas import progress_color
+
+tint = progress_color(s.accent, value / maximum, s.light)
+```
+
+Use a positive maximum and keep missing measurements absent. Colors follow the
+displayed range; they are not hardware alarm thresholds. Decorative rings and
+status symbols keep their own meaning.
 
 [Full drawing API](https://github.com/umbertotechnopreneur/VibePanel/blob/codex/usb-transport/theme-runtime/README.md) · [Engine commands](engine-protocol.md). In the ZIP, the full API guide is in `engine/theme-runtime/README.md`.

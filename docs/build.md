@@ -19,11 +19,20 @@ themes stay in their user folders. Cancellation or any failed step stops it.
 pwsh -NoProfile -File ./scripts/Reinstall.ps1 -Architecture x64
 ```
 
-The packaging scripts stage external packages and scan their archives and
-extracted files with Microsoft Defender before use. Scan records are written
-under `artifacts/security` during the build; final cleanup removes those logs.
-A detection or unavailable scanner stops packaging. This is not a full security
-review. No tests or USB commands run during reinstall.
+Prepare new external imports before building: restore the NuGet packages into
+`artifacts/nuget-stage`, then run `Assert-DefenderClean.ps1 -ScanNewImport` on that
+staging folder. Native and Python dependencies have separate `-PrepareImports`
+steps. Each new archive and its extracted inputs need a completed targeted scan.
+Unchanged hashes reuse evidence saved outside build output. Builds check this
+evidence and never start scans. A detection or unavailable scanner stops the import.
+The checked-in dependency scan manifest contains the same recorded hashes with
+local paths removed, so clean CI runners can reuse the existing evidence.
+No tests or USB commands run during reinstall.
+
+The sensor library is compiled from the pinned MPL-2.0 source in
+`third_party/LibreHardwareMonitor`. The portable ZIP and MSI include that exact
+source under `sources/LibreHardwareMonitor`; no local checkout outside this
+repository or previously built sensor DLL is needed.
 
 For build-only work (no installation):
 
