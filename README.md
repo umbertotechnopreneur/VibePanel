@@ -16,6 +16,8 @@ Vibe Panel is an independent project. It is not connected with or endorsed by Th
 
 [Download Vibe Panel 0.1](https://github.com/umbertotechnopreneur/VibePanel/releases/tag/0.1). On Windows, pick the MSI for your PC: **x64** or **ARM64**. Open it and follow the steps. A portable ZIP is available too.
 
+**On Windows, run Vibe Panel as administrator.** CPU and motherboard temperatures and fan RPM also need the **PawnIO driver**. Install its official signed edition from the [PawnIO releases page](https://github.com/namazso/PawnIO.Setup/releases/latest): open **Assets** and download `PawnIO_setup.exe`. Vibe Panel does not install this driver.
+
 Windows is the supported platform today. Linux and macOS do not yet have USB or audio support. CPU and motherboard sensor access on Windows ARM64 is still unavailable. [How to use Vibe Panel](PORTABLE.md) · [Sensor setup](docs/sensors.md) · [Current limits](cave.md).
 
 **Themes run Python code on your PC. For now, only download themes from [this official repository](https://github.com/umbertotechnopreneur/VibePanel).**
