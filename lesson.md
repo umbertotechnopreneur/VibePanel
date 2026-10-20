@@ -48,7 +48,7 @@
 - I keep settings storage separate from the model, with a version, an atomic replacement and a last-good backup. Unknown formats stay untouched.
 - I keep data records and provider interfaces in plain .NET. The Windows host supplies its implementations; offline checks supply fakes. [Architecture](docs/studio-architecture.md).
 - The installer owns the single Start entry. I disable unused Photino toast registration, which otherwise creates a second shortcut from the window title.
-- My local reinstall command removes the previous app, clears generated files, increments the MSI version and builds a new package. It compares installed files with that package and then keeps only the final MSI.
+- Every local compilation uses the current source in Debug and finishes through my reinstall command. It removes the previous app, clears generated files, increments the MSI version and builds a new package. It compares installed files with that package and then keeps only the final MSI.
 - MSI cleanup removes my old script registration from the original user's registry views and verifies removal. Major upgrades remove the old MSI before installing new files. Settings and personal themes stay outside the app folder.
 - Sensor Debug exposes the library's device tree and raw sensor names, units, current/min/max values and missing readings. It refreshes on demand through the existing engine, with no sensor setters. CPU clock averages keep effective and nominal clocks separate.
 
