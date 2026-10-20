@@ -334,6 +334,8 @@ Thermal Atlas omits Power & cooling and declares fifteen seconds for Live activi
 as its first page. Temperature channels is second for twenty seconds, followed by
 eight seconds per page. The shared page clock supports individual durations and
 retains the default for other themes.
-Boundary and skipped-page checks were added but not executed. No build, renderer
-preview, installation, live sensor trial or USB output was run for this change.
-The installed app has not been updated.
+Boundary and skipped-page checks were added but not executed. The Windows x64
+Debug 0.1.21 MSI was built from current source and installed through its visible
+Windows Installer UI. All 1,825 installed payload files matched the fresh build.
+The MSI SHA-256 is C68D156DC0357E90F9AC8BB07C0800EFA3544C8C7746275F3A43E09EBEA9390F.
+No renderer preview, automated test, live sensor trial or USB output was run.
