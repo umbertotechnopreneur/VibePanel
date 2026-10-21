@@ -40,11 +40,11 @@ I keep a record of where each new import came from and the scan result. If a sca
 
 ---
 
+Part of my VibeWare initiative. [My manifesto](https://umbertogiacobbi.biz/vibeware/manifesto).
+
+[Terms](https://umbertogiacobbi.biz/terms/) · [Privacy](https://umbertogiacobbi.biz/privacy/)
+
 <p align="right">
   <a href="https://umbertogiacobbi.biz/vibeware/manifesto"><img src="src/VibePanel.App/Assets/vibeware-logo.png" alt="VibeWare" width="64"></a><br>
   <em>Human Intent, AI Execution, Plenty of Token</em>
 </p>
-
-Part of my VibeWare initiative. [My manifesto](https://umbertogiacobbi.biz/vibeware/manifesto).
-
-[Terms](https://umbertogiacobbi.biz/terms/) · [Privacy](https://umbertogiacobbi.biz/privacy/)
