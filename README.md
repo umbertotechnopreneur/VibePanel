@@ -88,5 +88,6 @@ Part of my VibeWare initiative. [My manifesto](https://umbertogiacobbi.biz/vibew
 [Terms](https://umbertogiacobbi.biz/terms/) · [Privacy](https://umbertogiacobbi.biz/privacy/)
 
 <p align="right">
-  <a href="https://umbertogiacobbi.biz/vibeware/manifesto"><img src="src/ThermalrightVibeWare.App/Assets/vibeware-logo.png" alt="VibeWare" width="64"></a>
+  <a href="https://umbertogiacobbi.biz/vibeware/manifesto"><img src="src/ThermalrightVibeWare.App/Assets/vibeware-logo.png" alt="VibeWare floppy logo" width="200"></a><br>
+  <em>Human Intent, AI Execution, Plenty of Token</em>
 </p>
