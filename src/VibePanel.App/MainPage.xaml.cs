@@ -254,6 +254,7 @@ public sealed partial class MainPage : Page
         var renderedTheme = state.ActiveThemeId ?? selectedTheme;
         var category = catalog?.Themes.FirstOrDefault(theme => theme.Id == renderedTheme)?.Category ?? selectedCategory;
         UpdateFrameHeading(renderedTheme, state.FrameSuppressed);
+        UpdateNavigationState(renderedTheme, state);
         UpdateArtistSources(state.ArtistSources);
         SourceText.Text = state.FrameSuppressed ? "No enabled screen is available." : category == "codex" ? "OpenAI Codex · local activity"
             : category == "system" ? "Local hardware sensors" : state.Source;
@@ -387,8 +388,8 @@ public sealed partial class MainPage : Page
         { button.Background = surface; button.Foreground = ink; button.BorderBrush = line; button.BorderThickness = new Thickness(1); }
         FiltersPanel.Background = Brush(light ? "#F0EDF5" : "#171A23");
         DisplayDivider.BorderBrush = line;
-        foreach (var text in new[] { Heading, SelectedThemeText, LoadingTitle, PositionText, FontScaleText, SaturationText, HueText, BrightnessText, ContrastText, AboutHeading, AboutAuthor, AboutDisclosureHeading, CodexStatusText }) { text.Foreground = ink; }
-        foreach (var text in new[] { Subtitle, Author, HeaderDot, CatalogText, SourceText, StatusText, LoadingText, FontLabel, SizeLabel, GeometryLabel, DeviceLabel, RefreshLabel, QualityLabel, SaturationLabel, HueLabel, BrightnessLabel, ContrastLabel, FiltersStatus, ScreensHelpText, CodexEventText, CodexHelpText, FooterDot2, AboutVersion, AboutDisclosure, AboutInitiative, AdministratorHelp }) { text.Foreground = muted; }
+        foreach (var text in new[] { Heading, SelectedThemeText, LoadingTitle, PositionText, PagePositionText, FontScaleText, SaturationText, HueText, BrightnessText, ContrastText, AboutHeading, AboutAuthor, AboutDisclosureHeading, CodexStatusText }) { text.Foreground = ink; }
+        foreach (var text in new[] { Subtitle, Author, HeaderDot, CatalogText, ThemeNavigationText, PageNavigationText, SourceText, StatusText, LoadingText, FontLabel, SizeLabel, GeometryLabel, DeviceLabel, RefreshLabel, QualityLabel, SaturationLabel, HueLabel, BrightnessLabel, ContrastLabel, FiltersStatus, ScreensHelpText, CodexEventText, CodexHelpText, FooterDot2, AboutVersion, AboutDisclosure, AboutInitiative, AdministratorHelp }) { text.Foreground = muted; }
         foreach (var text in new[] { Eyebrow, LibraryHeading, CategoryText, PreviewBadgeText, ScreensHeading, CodexSetupHeading }) { text.Foreground = accent; }
         foreach (var link in new[] { Manifesto, AboutLink, TermsLink, PrivacyLink, AboutManifesto, ProjectLink, InitiativeLink, WebsiteLink, AboutTerms, AboutPrivacy }) { link.Foreground = accent; }
         ThemePagesText.Foreground = muted;
@@ -411,7 +412,7 @@ public sealed partial class MainPage : Page
         SpectrumBox.Foreground = muted;
         FiltersBox.Foreground = ink;
         foreach (var box in new[] { MusicScreenBox, CodexScreenBox, SystemScreenBox }) { box.Foreground = ink; }
-        foreach (var button in new[] { ReloadButton, PreviousButton, NextButton, ApplyFontButton, FontListButton, ResetColorsButton, SmallerButton, LargerButton, CloseAboutButton, RefreshDevicesButton, StartDisplayButton, StopDisplayButton, CodexRefreshButton, CodexPrepareButton, OpenLogButton, AdministratorButton })
+        foreach (var button in new[] { ReloadButton, PreviousButton, NextButton, PagePreviousButton, PageNextButton, ApplyFontButton, FontListButton, ResetColorsButton, SmallerButton, LargerButton, CloseAboutButton, RefreshDevicesButton, StartDisplayButton, StopDisplayButton, CodexRefreshButton, CodexPrepareButton, OpenLogButton, AdministratorButton })
         { button.Background = transparent; button.Foreground = ink; button.BorderThickness = new Thickness(0); }
         foreach (var button in new[] { ScreensDetailsButton, CodexDetailsButton, SensorDetailsButton, AppearanceDetailsButton, DisplayOptionsButton, DiagnosticsDetailsButton })
         { button.Background = transparent; button.Foreground = accent; button.BorderThickness = new Thickness(0); }
@@ -458,8 +459,13 @@ public sealed partial class MainPage : Page
         AdministratorPanel.Visibility = selectedCategory == "system" && windowActions?.CanRestartAsAdministrator == true
             ? Visibility.Visible : Visibility.Collapsed;
         CategoryText.Text = (categoryRows.FirstOrDefault(row => row.Id == selectedCategory)?.Name ?? selectedCategory).ToUpperInvariant();
+        var selected = catalog?.Themes.FirstOrDefault(theme => theme.Id == selectedTheme);
         SelectedThemeText.Text = themeRows.FirstOrDefault(row => row.Id == selectedTheme)?.Name ?? "No themes installed";
-        UpdatePageLabel(catalog?.Themes.FirstOrDefault(theme => theme.Id == selectedTheme));
+        ThemeNavigationText.Text = "THEME - " + SelectedThemeText.Text;
+        PageNavigationText.Text = "PAGE - " + (selected?.PageCount > 1 ? "Loading…" : "Main");
+        PagePositionText.Text = selected is null ? "00 / 00" : $"01 / {selected.PageCount:00}";
+        PagePreviousButton.IsEnabled = PageNextButton.IsEnabled = selected?.PageCount > 1;
+        UpdatePageLabel(selected);
         ToolTipService.SetToolTip(SelectedThemeText, null);
         PositionText.Text = $"{ThemesBox.SelectedIndex + 1:00} / {themeRows.Count:00}";
         PreviousButton.IsEnabled = NextButton.IsEnabled = themeRows.Count > 1;
@@ -492,6 +498,33 @@ public sealed partial class MainPage : Page
     private void Navigate(int direction)
     {
         if (ThemesBox.Items.Count > 0) { ThemesBox.SelectedIndex = (ThemesBox.SelectedIndex + direction + ThemesBox.Items.Count) % ThemesBox.Items.Count; ThemesBox.ScrollIntoView(ThemesBox.SelectedItem); }
+    }
+
+    private void NavigatePage(int direction)
+    {
+        var state = session.Snapshot.Frame;
+        var count = Math.Max(1, state?.ActivePageCount ?? catalog?.Themes.FirstOrDefault(theme => theme.Id == selectedTheme)?.PageCount ?? 1);
+        var current = Math.Clamp(state?.ActivePageIndex ?? viewModel.Preferences.SelectedPageIndex, 0, count - 1);
+        var target = (current + direction + count) % count;
+        viewModel.Edit(preferences =>
+        {
+            preferences.SelectedPageIndex = target;
+            preferences.PageRevision++;
+            preferences.LastChange = Environment.TickCount64;
+        });
+        session.Wake();
+        _ = RefreshAsync();
+    }
+
+    private void UpdateNavigationState(string themeId, PanelState state)
+    {
+        var theme = catalog?.Themes.FirstOrDefault(item => item.Id == themeId);
+        ThemeNavigationText.Text = "THEME - " + (theme?.Name ?? "Unavailable");
+        var count = Math.Max(1, state.ActivePageCount);
+        var index = Math.Clamp(state.ActivePageIndex, 0, count - 1);
+        PageNavigationText.Text = "PAGE - " + (string.IsNullOrWhiteSpace(state.ActivePageTitle) ? "Main" : state.ActivePageTitle);
+        PagePositionText.Text = $"{index + 1:00} / {count:00}";
+        PagePreviousButton.IsEnabled = PageNextButton.IsEnabled = !state.FrameSuppressed && count > 1;
     }
 
     private void Screen_Changed(object sender, RoutedEventArgs args)
@@ -782,6 +815,8 @@ public sealed partial class MainPage : Page
     }
     private void Previous_Click(object sender, RoutedEventArgs args) => Navigate(-1);
     private void Next_Click(object sender, RoutedEventArgs args) => Navigate(1);
+    private void PagePrevious_Click(object sender, RoutedEventArgs args) => NavigatePage(-1);
+    private void PageNext_Click(object sender, RoutedEventArgs args) => NavigatePage(1);
     private void Auto_Click(object sender, RoutedEventArgs args) => SetAppearance(0);
     private void Dark_Click(object sender, RoutedEventArgs args) => SetAppearance(1);
     private void Light_Click(object sender, RoutedEventArgs args) => SetAppearance(2);

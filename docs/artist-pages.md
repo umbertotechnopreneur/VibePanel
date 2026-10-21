@@ -1,6 +1,6 @@
 # Artist pages
 
-Music themes alternate playback and artist information every 12 seconds, with a 600 ms fade. The artist page is skipped when no matching biography is available. The studio links to the biography, photo license and any sales reference.
+Music themes alternate playback and artist information every 12 seconds, with a two-second fade. The artist page is skipped when no matching biography is available. The studio links to the biography, photo license and any sales reference.
 
 The Windows engine sends the current artist and album names to the public [MusicBrainz API](https://musicbrainz.org/doc/MusicBrainz_API). It requires one exact artist-name match, then follows that artist's Wikidata link to the English Wikipedia article. It does not guess between artists with the same name. No account or API key is needed. Audio stays on the PC.
 

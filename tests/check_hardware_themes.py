@@ -37,10 +37,23 @@ STYLES = ("signal", "ledger", "orbit", "terminal", "thermal", "blueprint",
 
 def fixture_sensors(gpu_count=1):
     """OFFLINE synthetic input only. Never imported by the application runtime."""
+    core_readings = [
+        reading
+        for core in range(1, 17)
+        for reading in (
+            {"id": f"/cpu/power/{core}", "name": f"Core #{core} (SMU)",
+             "type": "Power", "value": core / 2, "unit": "W"},
+            {"id": f"/cpu/load/{core}/1", "name": f"CPU Core #{core} Thread #1",
+             "type": "Load", "value": core * 2, "unit": "%"},
+            {"id": f"/cpu/load/{core}/2", "name": f"CPU Core #{core} Thread #2",
+             "type": "Load", "value": core * 2 + 10, "unit": "%"},
+        )
+    ]
     return {
         "cpu": {"name": "OFFLINE fixture CPU", "usagePercent": 37.5,
                 "clockMHz": 4200, "temperatureC": 61.2,
-                "clockLabel": "Average core clock", "temperatureLabel": "CPU package"},
+                "clockLabel": "Average core clock", "temperatureLabel": "CPU package",
+                "readings": core_readings},
         "gpus": [{"name": f"OFFLINE fixture GPU {index + 1}", "usagePercent": 43 + index,
                   "clockMHz": 1800 + index * 100, "temperatureC": 49.1 + index,
                   "clockLabel": "Core clock", "temperatureLabel": "GPU core"}
@@ -220,6 +233,27 @@ class DetailHistoryChecks(unittest.TestCase):
 
 
 class ThemeDataContractChecks(unittest.TestCase):
+    def test_core_heatmap_matches_power_to_core_and_averages_thread_load(self):
+        from system_details import core_heatmap_values, page_available
+        sensors = fixture_sensors()
+        values = core_heatmap_values(sensors)
+        self.assertEqual(len(values), 16)
+        self.assertEqual(values[0], (1, .5, 7))
+        self.assertEqual(values[-1], (16, 8, 37))
+        self.assertTrue(page_available("cores", sensors))
+        sensors["cpu"]["readings"] = sensors["cpu"]["readings"][:7 * 3]
+        self.assertFalse(page_available("cores", sensors))
+
+    def test_core_heatmap_caps_output_at_thirty_two_cores(self):
+        from system_details import core_heatmap_values
+        readings = []
+        for core in range(1, 41):
+            readings.extend(({"name": f"Core #{core} (SMU)", "type": "Power", "value": core},
+                             {"name": f"CPU Core #{core}", "type": "Load", "value": core}))
+        values = core_heatmap_values({"cpu": {"readings": readings}})
+        self.assertEqual(len(values), 32)
+        self.assertEqual((values[0][0], values[-1][0]), (1, 32))
+
     def test_hardware_page_keeps_all_electrical_and_aggregate_clock_readings(self):
         from system_details import HARDWARE_KINDS, sensor_groups
         cpu = {"readings": [{"name": "Memory", "type": "Clock", "value": 1600},
@@ -306,9 +340,11 @@ class SystemPackChecks(unittest.TestCase):
             self.assertEqual(manifest["category"], "system")
             self.assertIn("sensors", manifest["optional"])
             self.assertNotIn("showSpectrum", manifest["settings"])
-            self.assertEqual({page["id"] for page in manifest["pages"]},
-                             {"overview", "activity", "cooling", "electrical", "temperatures", "memory"})
-            self.assertEqual(len(manifest["pages"]), 6)
+            expected_pages = {"overview", "activity", "cores", "cooling", "electrical", "temperatures", "memory"}
+            if manifest["id"] == "system.thermal":
+                expected_pages.remove("cooling")
+            self.assertEqual({page["id"] for page in manifest["pages"]}, expected_pages)
+            self.assertEqual(len(manifest["pages"]), len(expected_pages))
             self.assertTrue((folder / manifest["entry"]).is_file())
             identities.add(manifest["id"])
         self.assertEqual(identities, {"system." + style for style in STYLES})
@@ -322,6 +358,7 @@ class OptionalOfflineJpegChecks(unittest.TestCase):
         # fixture state; no C# host, sensor DLL or physical device is involved.
         import skia
         import worker
+        import canvas
 
         sparse = {"cpu": {"usagePercent": 0, "clockMHz": None, "temperatureC": None},
                   "gpus": [], "memory": {"totalGiB": 32, "usedGiB": None},
@@ -331,6 +368,8 @@ class OptionalOfflineJpegChecks(unittest.TestCase):
                 for light in (False, True):
                     for scenario, sensors in (("full", fixture_sensors()), ("sparse", sparse), ("empty", {})):
                         with self.subTest(style=style, size=(width, height), light=light, scenario=scenario):
+                            worker.FRAME_TRANSITION.reset()
+                            canvas._ACTIVE_THEME_TIMING = None
                             request = {"version": 1, "method": "render", "id": "offline-fixture",
                                        "themePath": str(ROOT / "themes/system/themes" / style),
                                        "width": width, "height": height, "light": light,

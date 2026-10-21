@@ -21,5 +21,7 @@ public sealed record StudioPreferences
     public bool CycleThemes { get; set; } = false;
     public string? SelectedDeviceId { get; set; } = null;
     public bool ShowSpectrum { get; set; } = true;
+    public int SelectedPageIndex { get; set; } = 0;
+    public long PageRevision { get; set; } = 0;
     public bool Light => Appearance == 2 || Appearance == 0 && DateTime.Now.Hour is >= 7 and < 19;
 }

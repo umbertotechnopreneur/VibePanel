@@ -57,22 +57,22 @@ class FrameTransitionChecks(unittest.TestCase):
         image, active = self.begin()
         self.assert_rgb(image, (255, 0, 0))
         self.assertTrue(active)
-        self.now = 1.3
+        self.now = 2.0
         image, active = self.fade.compose(self.blue, self.scope, "B")
         self.assert_rgb(image, (128, 0, 128))
         self.assertTrue(active)
-        self.now = 1.7
+        self.now = 3.1
         image, active = self.fade.compose(self.blue, self.scope, "B")
         self.assertIs(image, self.blue)
         self.assertFalse(active)
 
     def test_live_frame_updates_do_not_restart_a_track_fade(self):
         self.begin()
-        self.now = 1.3
+        self.now = 2.0
         image, active = self.fade.compose(self.green, self.scope, "B")
         self.assert_rgb(image, (128, 128, 0))
         self.assertTrue(active)
-        self.now = 1.7
+        self.now = 3.1
         image, active = self.fade.compose(self.green, self.scope, "B")
         self.assertIs(image, self.green)
         self.assertFalse(active)
@@ -85,13 +85,13 @@ class FrameTransitionChecks(unittest.TestCase):
 
     def test_rapid_skip_starts_from_the_visible_mix(self):
         self.begin()
-        self.now = 1.3
+        self.now = 2.0
         mixed, _ = self.fade.compose(self.blue, self.scope, "B")
-        self.now = 1.31
+        self.now = 2.01
         image, active = self.fade.compose(self.green, self.scope, "C")
         self.assertEqual(pixel(image), pixel(mixed))
         self.assertTrue(active)
-        self.now = 1.61
+        self.now = 3.01
         image, _ = self.fade.compose(self.green, self.scope, "C")
         self.assert_rgb(image, (64, 128, 64))
 
@@ -102,7 +102,7 @@ class FrameTransitionChecks(unittest.TestCase):
             self.fade.compose(self.blue, self.scope, str(index))
             self.now += .1
             self.fade.compose(self.blue, self.scope, str(index))
-        self.now += 1
+        self.now += 2.1
         image, active = self.fade.compose(self.green, self.scope, "31")
         self.assertIs(image, self.green)
         self.assertFalse(active)
@@ -117,14 +117,14 @@ class FrameTransitionChecks(unittest.TestCase):
 
     def test_elapsed_time_not_request_count_controls_progress(self):
         self.begin()
-        self.now = 1.45
+        self.now = 2.0
         sparse, _ = self.fade.compose(self.blue, self.scope, "B")
         dense = FrameTransition(clock=lambda: self.now)
         self.now = 0
         dense.compose(self.red, self.scope, "A")
         self.now = 1
         dense.compose(self.blue, self.scope, "B")
-        for elapsed in (1.1, 1.2, 1.3, 1.4, 1.45):
+        for elapsed in (1.2, 1.4, 1.6, 1.8, 2.0):
             self.now = elapsed
             image, _ = dense.compose(self.blue, self.scope, "B")
         self.assertEqual(pixel(image), pixel(sparse))
@@ -142,7 +142,7 @@ class FrameTransitionChecks(unittest.TestCase):
             request["state"]["media"]["title"] = "B"
             self.now = 1
             self.assertTrue(worker.render(request)["transitionActive"])
-            self.now = 1.3
+            self.now = 2.0
             result = worker.render(request)
             decoded = skia.Image.MakeFromEncoded(skia.Data.MakeWithCopy(base64.b64decode(result["jpegBase64"])))
             self.assert_rgb(decoded, (128, 0, 128), tolerance=4)

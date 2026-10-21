@@ -3,9 +3,9 @@
   "id": "system.orbit",
   "category": "system",
   "name": "Airflow",
-  "description": "Up to six pages for CPU, GPU, board and RAM, with related readings together.",
+  "description": "Up to seven pages for CPU, GPU, board and RAM, with related readings together.",
   "entry": "render.py",
-  "version": "2.1.2",
+  "version": "2.2.0",
   "author": "Umberto Giacobbi",
   "license": "MIT",
   "canvas": {
@@ -55,6 +55,10 @@
     {
       "title": "Live activity",
       "id": "activity"
+    },
+    {
+      "id": "cores",
+      "title": "Core power & load"
     },
     {
       "title": "Hardware readings",

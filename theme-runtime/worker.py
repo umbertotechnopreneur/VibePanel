@@ -86,6 +86,11 @@ def render(request: dict) -> dict:
             raise ValueError(f"{name} must be a finite number from {minimum} to {maximum}.")
     if not isinstance(request.get("showSpectrum", True), bool):
         raise ValueError("showSpectrum must be a boolean.")
+    page_index = request.get("pageIndex", 0)
+    page_revision = request.get("pageRevision", 0)
+    if (isinstance(page_index, bool) or not isinstance(page_index, int) or not 0 <= page_index <= 7
+            or isinstance(page_revision, bool) or not isinstance(page_revision, int) or page_revision < 0):
+        raise ValueError("Invalid theme page selection.")
     filters_enabled = request.get("colorFiltersEnabled", True)
     if not isinstance(filters_enabled, bool):
         raise ValueError("colorFiltersEnabled must be a boolean.")
@@ -136,7 +141,9 @@ def render(request: dict) -> dict:
         if data is not None and data.size() <= MAX_JPEG:
             return {"version": 1, "id": request.get("id"), "ok": True,
                     "jpegBase64": base64.b64encode(bytes(data)).decode("ascii"),
-                    "accentColor": context.accent, "transitionActive": transition_active}
+                    "accentColor": context.accent, "transitionActive": transition_active,
+                    "pageId": context.page_id, "pageTitle": context.page_title,
+                    "pageIndex": context.page_index, "pageCount": context.page_count}
     raise ValueError("Rendered frame exceeds the panel's 450,000-byte JPEG limit.")
 
 

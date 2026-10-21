@@ -10,7 +10,7 @@ From the repository folder:
 
 For a local reinstall, use this command. It uninstalls registered Vibe Panel
 packages, clears `artifacts`, `bin`, `obj` and generated web files, increments
-`installer/Version.txt`, builds a fresh MSI and opens its normal installer UI.
+`installer/Version.txt`, builds a fresh Debug MSI and opens its normal installer UI.
 After installation it compares every installed payload file with the new build
 and removes build output, keeping only the final MSI. Settings and personal
 themes stay in their user folders. Cancellation or any failed step stops it.
@@ -34,11 +34,15 @@ The sensor library is compiled from the pinned MPL-2.0 source in
 source under `sources/LibreHardwareMonitor`; no local checkout outside this
 repository or previously built sensor DLL is needed.
 
-For build-only work (no installation):
+CI packaging and an owner-approved exception to the local reinstall rule may call
+the publishing script directly:
 
 ```powershell
 ./scripts/Publish.ps1 -Architecture x64
 ```
+
+Do not use that command for an ordinary local compilation. Every local compilation
+uses the Debug reinstall flow above unless the owner explicitly says otherwise.
 
 The ZIP is written to `artifacts/packages/VibePanel-win-x64-preview.zip`. Each
 build first uses a unique ignored staging folder, so packaging does not overwrite

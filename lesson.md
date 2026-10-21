@@ -25,7 +25,7 @@
 - I free native message strings after use and send preview JPEGs as data, outside the JavaScript eval bridge.
 - I wait for each preview to be drawn, then close its decoded bitmap. The UI keeps two canvases for theme fades.
 - I keep the web view's visibility in sync when the studio hides, minimizes or reopens.
-- Track and cover changes blend for 600 ms in the renderer. Preview and USB share each blended JPEG. I keep no queue of old tracks.
+- Page, track and cover changes blend for two seconds in the renderer. Preview and USB share each blended JPEG. I keep no queue of old tracks.
 - A drawn canvas can still have no visible height. I check its on-screen bounds and a captured image as well.
 - The Python worker uses one native NumPy thread. Tiny palette arrays do not need a large thread pool.
 - I refresh the USB list every ten seconds. Reconnecting a screen does not start output.
@@ -48,7 +48,7 @@
 - I keep settings storage separate from the model, with a version, an atomic replacement and a last-good backup. Unknown formats stay untouched.
 - I keep data records and provider interfaces in plain .NET. The Windows host supplies its implementations; offline checks supply fakes. [Architecture](docs/studio-architecture.md).
 - The installer owns the single Start entry. I disable unused Photino toast registration, which otherwise creates a second shortcut from the window title.
-- My local reinstall command removes the previous app, clears generated files, increments the MSI version and builds a new package. It compares installed files with that package and then keeps only the final MSI.
+- Every local compilation uses the current source in Debug and finishes through my reinstall command. It removes the previous app, clears generated files, increments the MSI version and builds a new package. It compares installed files with that package and then keeps only the final MSI.
 - MSI cleanup removes my old script registration from the original user's registry views and verifies removal. Major upgrades remove the old MSI before installing new files. Settings and personal themes stay outside the app folder.
 - Sensor Debug exposes the library's device tree and raw sensor names, units, current/min/max values and missing readings. It refreshes on demand through the existing engine, with no sensor setters. CPU clock averages keep effective and nominal clocks separate.
 
@@ -66,10 +66,12 @@
 - I show short status summaries and primary actions first. Setup text, paths, advanced controls and diagnostic trees open on demand without changing saved settings.
 - I hide fan channels from themes until their sensor ID has reported positive RPM in the current engine session. A later measured zero stays visible as a stopped fan. Page/theme changes and renderer restarts do not erase that observation. Sensor Debug keeps raw channels.
 - I group System details into CPU, GPU, board and RAM pages, with at most four readings per detail card. I show aggregate clocks and omit individual cores. Empty detail pages stay hidden.
-- I keep six System pages. Power, voltage, current and aggregate clocks share one hardware page; RAM identities and SPD timing limits share the memory page without inventing a DIMM-to-SPD assignment.
+- I keep up to seven System pages. A core heatmap appears only with matched power and load for at least eight cores, averages thread load by physical core and stops at 32. Power, voltage, current and aggregate clocks share one hardware page; RAM identities and SPD timing limits share the memory page without inventing a DIMM-to-SPD assignment.
 - I put each RAM model code first and an available serial below in smaller type. Physical slot/bank labels come from firmware; an SPD index is not a slot. Identical modules keep their SPD timing limits separate.
 - I disable storage collection and keep only verified physical Ethernet/Wi-Fi in network diagnostics. Filtering happens before updates and device limits. I visit child sensor chips before later devices fill the budget.
 - I contribute sensor decoder fixes upstream. Board labels keep their chip source names outside exact, owner-approved display profiles. A display profile preserves raw diagnostics and never changes calibration or filters by a guessed temperature threshold.
 - I build the pinned LibreHardwareMonitor fork with the app and ship its MPL-covered source. Each RAM module shows its reported type and configured rate alongside its own model and physical identity.
 - Cooling cards show measured aggregate CPU power alongside available CPU voltage and current. They keep the package visible while other readings rotate, without treating limits as consumption.
 - Electrical and temperature detail rows pair each reading with a thin, smoothed trend of its recent measured samples. The displayed extrema cover that same bounded window.
+- Thermal Atlas omits Power & cooling, holds Live activity first for fifteen seconds and Temperature channels second for twenty seconds. Later pages use eight seconds. Per-page durations share the existing clock; unavailable pages add no time to the cycle.
+- I show separate THEME and PAGE navigation under the preview. Each names the rendered item and shows its own position. A manual page choice restarts that page's interval, then automatic page rotation continues; changing theme returns to its first available page.

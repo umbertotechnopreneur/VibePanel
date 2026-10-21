@@ -14,6 +14,10 @@ def select_page(context, manifest):
     seconds = manifest.get("pageSeconds", 8)
     if isinstance(seconds, bool) or not isinstance(seconds, int) or not 4 <= seconds <= 120:
         raise ValueError("pageSeconds must be between 4 and 120.")
+    for page in pages:
+        duration = page.get("seconds", seconds)
+        if isinstance(duration, bool) or not isinstance(duration, int) or not 4 <= duration <= 120:
+            raise ValueError("Page seconds must be between 4 and 120.")
     if any(not isinstance(page.get("title", ""), str) or len(page.get("title", "")) > 80 for page in pages):
         raise ValueError("Page titles must be strings up to 80 characters.")
     # An artist page appears only for the exact artist whose profile was resolved.
@@ -25,11 +29,20 @@ def select_page(context, manifest):
         from system_details import page_available
         pages = [page for page in pages if page_available(page["id"], context.sensors)]
     count = max(1, len(pages))
-    position = context.elapsed_seconds / seconds
-    context.page_cycle = int(position) // count
-    context.page_index = int(position) % count
+    durations = [page.get("seconds", seconds) for page in pages] or [seconds]
+    cycle_seconds = sum(durations)
+    start_index = context.page_start_index % count
+    elapsed = context.elapsed_seconds + sum(durations[:start_index])
+    context.page_cycle = int(elapsed // cycle_seconds)
+    position = elapsed % cycle_seconds
+    context.page_index = 0
+    for index, duration in enumerate(durations):
+        context.page_index = index
+        if position < duration:
+            break
+        position -= duration
     context.page_count = count
-    context.page_progress = position % 1
+    context.page_progress = position / durations[context.page_index]
     context.page_id = pages[context.page_index]["id"] if pages else "main"
     context.page_title = pages[context.page_index].get("title", context.page_id) if pages else ""
     return context.page_id

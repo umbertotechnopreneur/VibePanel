@@ -3,9 +3,9 @@
   "id": "system.pulse",
   "category": "system",
   "name": "Pulse",
-  "description": "Up to six pages for CPU, GPU, board and RAM, with related readings together.",
+  "description": "Up to seven pages for CPU, GPU, board and RAM, with related readings together.",
   "entry": "render.py",
-  "version": "2.1.2",
+  "version": "2.2.0",
   "author": "Umberto Giacobbi",
   "license": "MIT",
   "canvas": {
@@ -47,6 +47,10 @@
     {
       "id": "activity",
       "title": "Live activity"
+    },
+    {
+      "id": "cores",
+      "title": "Core power & load"
     },
     {
       "id": "cooling",

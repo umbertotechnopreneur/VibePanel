@@ -181,7 +181,7 @@ internal sealed class EngineServer : IDisposable
         {
             DiscoverDevices();
         }
-        var fingerprint = $"{theme.Id}|{profile.Id}|{options.Light}|{options.AmbientDrift}|{options.FontFamily}|{options.FontScale}|{options.JpegQuality}|{options.SaturationPercent}|{options.HueDegrees}|{options.ShowSpectrum}|{options.BrightnessPercent}|{options.ContrastPercent}|{options.ColorFiltersEnabled}";
+        var fingerprint = $"{theme.Id}|{profile.Id}|{options.Light}|{options.AmbientDrift}|{options.FontFamily}|{options.FontScale}|{options.JpegQuality}|{options.SaturationPercent}|{options.HueDegrees}|{options.ShowSpectrum}|{options.BrightnessPercent}|{options.ContrastPercent}|{options.ColorFiltersEnabled}|{options.PageIndex}|{options.PageRevision}";
         var paletteKey = theme.Id + (options.Light ? "@light" : "@dark");
         var palette = options.Palettes?.GetValueOrDefault(paletteKey) ?? options.Palettes?.GetValueOrDefault(theme.Id);
         fingerprint += "|" + JsonSerializer.Serialize(palette, PanelContract.Json);
@@ -195,7 +195,8 @@ internal sealed class EngineServer : IDisposable
             {
                 preview = await themeRenderer.RenderAsync(theme, snapshot, profile, options.Light, options.AmbientDrift, options.FontFamily, options.FontScale, options.JpegQuality,
                     saturationPercent: options.SaturationPercent, hueDegrees: options.HueDegrees, showSpectrum: options.ShowSpectrum,
-                    brightnessPercent: options.BrightnessPercent, contrastPercent: options.ContrastPercent, colorFiltersEnabled: options.ColorFiltersEnabled, palette: palette);
+                    brightnessPercent: options.BrightnessPercent, contrastPercent: options.ContrastPercent, colorFiltersEnabled: options.ColorFiltersEnabled, palette: palette,
+                    pageIndex: options.PageIndex, pageRevision: options.PageRevision);
                 previewNotice = null;
             }
             catch (Exception error) when (error is not OutOfMemoryException)
@@ -220,12 +221,15 @@ internal sealed class EngineServer : IDisposable
             options.IncludeFrame && preview is not null && themeRenderer.IsTransitioning
                 ? themeRenderer.FrameIntervalMilliseconds(options.RefreshIntervalMilliseconds) : null,
             theme.Id, codexProcess.IsRunning(), ArtistSources: snapshot.ArtistProfile is { } artist
-                ? new(artist.SourceUrl, artist.PhotoSourceUrl, artist.AlbumSales?.SourceUrl) : null);
+                ? new(artist.SourceUrl, artist.PhotoSourceUrl, artist.AlbumSales?.SourceUrl) : null,
+            ActivePageId: themeRenderer.ActivePageId, ActivePageTitle: themeRenderer.ActivePageTitle,
+            ActivePageIndex: themeRenderer.ActivePageIndex, ActivePageCount: themeRenderer.ActivePageCount);
     }
 
     private static void ValidatePreviewOptions(PreviewOptions options)
     {
         if (options.RefreshIntervalMilliseconds is < 25 or > 1000) { throw new ArgumentException("Refresh interval must be between 25 and 1000 ms."); }
+        if (options.PageIndex is < 0 or > 7 || options.PageRevision < 0) { throw new ArgumentException("Invalid theme page selection."); }
         if (options.JpegQuality is not ("poor" or "low" or "medium" or "high")) { throw new ArgumentException("JPEG quality must be Poor, Low, Medium or High."); }
         PythonThemeRenderer.ValidateColorAdjustments(options.SaturationPercent, options.HueDegrees, options.BrightnessPercent, options.ContrastPercent);
         ScreenSelectionPolicy.Validate(options.Screens);

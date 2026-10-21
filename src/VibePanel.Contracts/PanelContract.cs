@@ -37,7 +37,8 @@ public sealed record PreviewOptions(string ProfileId = "wide-1280x480", bool Inc
     string? ThemeId = null, string FontFamily = "Cascadia Mono", double FontScale = 1, int RefreshIntervalMilliseconds = 1000,
     string JpegQuality = "high", double SaturationPercent = 100, double HueDegrees = 0, bool ShowSpectrum = true,
     double BrightnessPercent = 0, double ContrastPercent = 100, bool ColorFiltersEnabled = true,
-    IReadOnlyList<ScreenSelectionDto>? Screens = null, IReadOnlyDictionary<string, ThemePalette>? Palettes = null);
+    IReadOnlyList<ScreenSelectionDto>? Screens = null, IReadOnlyDictionary<string, ThemePalette>? Palettes = null,
+    int PageIndex = 0, long PageRevision = 0);
 public sealed record StartOptions(string DeviceId, string ProfileId = "auto", string? ThemeId = null);
 public sealed record DisplayStartResult(bool Accepted, string? ProfileId = null);
 public sealed record MediaOptions(string Action);
@@ -62,7 +63,8 @@ public sealed record PanelState(string Title, string Artist, string Album, bool 
     IReadOnlyList<PanelChoice> Devices, IReadOnlyList<PanelChoice> Profiles,
     bool DisplayRunning, string Status, byte[]? FrameJpeg, IReadOnlyList<string> Notices,
     double? FrameMilliseconds = null, long SubmittedFrames = 0, string? AccentColor = null, int? NextFrameMilliseconds = null,
-    string? ActiveThemeId = null, bool CodexProcessRunning = false, bool FrameSuppressed = false, ArtistSourcesDto? ArtistSources = null);
+    string? ActiveThemeId = null, bool CodexProcessRunning = false, bool FrameSuppressed = false, ArtistSourcesDto? ArtistSources = null,
+    string? ActivePageId = null, string? ActivePageTitle = null, int ActivePageIndex = 0, int ActivePageCount = 1);
 
 /// <summary>The presentation depends on this contract, not the USB driver or operating system APIs.</summary>
 public interface IPanelClient

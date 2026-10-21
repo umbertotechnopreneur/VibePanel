@@ -47,7 +47,7 @@ The new playback spectrum, stereo VU and Codex setup controls are not checked in
 
 The color controls, monospace font list, theme fades and 25 ms/Poor settings also need a live check.
 
-Track and cover changes blend in the renderer for 600 ms. All 10 approved offline checks passed on 17 October: mixed pixels, timing, rapid skips and color filters. They used synthetic images and metadata, with no app, audio or USB. Real playback and USB output still need checking.
+Page, track and cover changes now blend in the renderer for two seconds. The approved offline checks from 17 October covered the earlier 600 ms duration, so the new timing still needs an owner-approved run. They used synthetic images and metadata, with no app, audio or USB. Real playback and USB output still need checking.
 
 The new studio layout builds for Windows x64 with no errors or warnings. Its dropdowns, filter switch and color guides still need my visual check. CPU savings have not been measured. No tests, app or USB trial were run for this change.
 
@@ -327,3 +327,68 @@ The previous MSI was removed and 0.1.18 installed through Windows Installer; all
 1,823 installed payload files matched the fresh build. The app started afterwards.
 The MSI SHA-256 is 961645CC23E13F541FEE3EA4153A67FF3A6D41DAD7A77FE45330532CEEBF3D64.
 No automated tests, renderer previews, or agent-issued sensor or USB trials ran.
+
+## 20 October 2026: Thermal Atlas page timing
+
+Thermal Atlas omits Power & cooling and declares fifteen seconds for Live activity
+as its first page. Temperature channels is second for twenty seconds, followed by
+eight seconds per page. The shared page clock supports individual durations and
+retains the default for other themes.
+Boundary and skipped-page checks were added but not executed. The Windows x64
+Debug 0.1.21 MSI was built from current source and installed through its visible
+Windows Installer UI. All 1,825 installed payload files matched the fresh build.
+The MSI SHA-256 is C68D156DC0357E90F9AC8BB07C0800EFA3544C8C7746275F3A43E09EBEA9390F.
+No renderer preview, automated test, live sensor trial or USB output was run.
+
+## 20 October 2026: per-core heatmaps and longer fades
+
+System pack 2.2.0 adds the same optional core page to all ten themes. It matches
+named per-core power and load readings, averages multiple load threads for each
+physical core, requires at least eight matched cores and displays at most 32.
+Power colors are relative to the currently visible core range; load uses 0–100%.
+The power grid outline uses the reported general CPU temperature when available.
+Missing or unmatched readings keep the page out of rotation.
+
+Page and Multimedia track/cover crossfades now last two seconds. Checks were
+updated for the new contracts but not executed. No renderer preview, live sensor
+trial, build, installation or USB output was performed for this change.
+
+## 20 October 2026: studio page navigation
+
+The preview area now has separate theme and page arrow groups. The engine returns
+the title and position of the page it actually rendered, including after unavailable
+pages are filtered out. A manual page choice restarts that page's interval and then
+normal rotation continues. The selection is session-only; a theme change starts its
+first available page.
+
+Contract and offline checks were updated but not executed. Static Python parsing,
+changed-file C# format verification and the full ARM64 Release build completed;
+the build had no warnings or errors. Whole-solution format verification still
+reports pre-existing whitespace/import differences in the pinned LibreHardwareMonitor
+fork, which was left unchanged. No live studio visual check, sensor trial,
+installation or USB output was performed for this change.
+
+## 21 October 2026: mandatory local reinstall and Debug 0.1.22
+
+The repository now treats every local compilation as a Debug reinstall unless the
+owner explicitly asks for an exception. The standing rule authorizes removal of the
+installed version and installation through the normal visible MSI UI while keeping
+settings and user data. Tests and publication remain separately authorized work.
+
+The previous 0.1.21 MSI was removed and Debug 0.1.22 was built from current source.
+The visible installer completed with optional app launch and release-news actions
+turned off. One 0.1.22 MSI registration remains, and all 1,825 installed payload
+files match the fresh build. The app was left closed, so no sensor or USB trial ran.
+Cleanup retained only `artifacts/packages/VibePanel-win-x64-0.1.22.msi`; its SHA-256
+is `C1E9DAE16DFC2D3C55B235EA4E9BF0C9452AA999E221D68434BFDCB1A5F524BE`.
+
+## 21 October 2026: page navigation and renderer checks
+
+All 46 checks in `check_theme_pages`, `check_hardware_themes`,
+`check_track_transition` and `check_palette` passed with offscreen rendering
+enabled. They ran against repository source using the installed Python runtime
+and synthetic fixtures. The checks cover page timing, heatmap availability,
+JPEG dimensions and size limits, palette overrides and transition pixels.
+The pack assertion now includes the core page and Thermal Atlas's cooling-page
+exception; independent JPEG cases reset the page clock and transition state.
+No live studio visual check, sensor trial or USB output was performed.

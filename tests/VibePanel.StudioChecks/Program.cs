@@ -19,13 +19,14 @@ await using (var session = new StudioSession(client, path))
 {
     await Until(() => session.Snapshot.Devices is not null);
     Check(client.Starts == 0 && client.Presents == 0, "Manual startup never sends output.");
-    session.Model.Edit(p => { p.SelectedTheme = "system.a"; p.SelectedCategory = "system"; p.RefreshMilliseconds = 25; p.Appearance = 1; });
+    session.Model.Edit(p => { p.SelectedTheme = "system.a"; p.SelectedCategory = "system"; p.RefreshMilliseconds = 25; p.Appearance = 1; p.SelectedPageIndex = 2; p.PageRevision = 3; });
     session.Model.Update(s => s.ScreenThemes["system"] = "system.a");
     session.Model.Update(s => s.ScreenEnabled["multimedia"] = false);
     session.ViewModel.SetPalette("system.a@dark", new(TextPrimary: "#123456", Warning: "#FEDCBA"));
     await session.StartAsync("fixture");
     // There is no UI, dispatcher, native window, preview acknowledgement or provider.
     await Until(() => client.Presents >= 4);
+    Check(client.LastOptions is { PageIndex: 2, PageRevision: 3 }, "Page selection crosses the UI-independent preview contract.");
     Check(session.Snapshot.DisplayActive, "Output runs with no UI attached.");
     var count = client.Presents;
     session.PreviewVisible = false;
@@ -35,6 +36,7 @@ await using (var session = new StudioSession(client, path))
     session.Wake();
     await Until(() => client.LastOptions?.ThemeId == "system.b");
     Check(session.Model.Preferences.SelectedTheme == "system.b", "Rotation updates the model without a UI callback.");
+    Check(session.Model.Preferences.SelectedPageIndex == 0 && session.Model.Preferences.PageRevision == 4, "A theme change starts its first page with a new page revision.");
     await session.StopAsync();
     count = client.Presents;
     await Task.Delay(150);
@@ -107,7 +109,7 @@ sealed class FakeClient : IPanelClient
             object result;
             switch (method)
             {
-                case "themes": result = new ThemeCatalogDto([new("system", "System")], [new("system.a", "A", "system", "", "fixture"), new("system.b", "B", "system", "", "fixture")], []); break;
+                case "themes": result = new ThemeCatalogDto([new("system", "System")], [new("system.a", "A", "system", "", "fixture", PageCount: 3), new("system.b", "B", "system", "", "fixture", PageCount: 3)], []); break;
                 case "devices": result = Connected ? new[] { new PanelChoice("fixture", "Offline fixture") } : []; break;
                 case "start": Interlocked.Increment(ref Starts); running = true; result = new DisplayStartResult(true, "wide-1280x480"); break;
                 case "stop": running = false; result = new { stopped = true }; break;
@@ -122,7 +124,8 @@ sealed class FakeClient : IPanelClient
                     }
                     await Task.Delay(5, cancellationToken);
                     result = new PanelState("", "", "", false, "fixture", [], new(null, null, null, null, "", ""), null,
-                        [], [], running, "Fixture", null, [], ActiveThemeId: LastOptions.ThemeId);
+                        [], [], running, "Fixture", null, [], ActiveThemeId: LastOptions.ThemeId,
+                        ActivePageId: "activity", ActivePageTitle: "Live activity", ActivePageIndex: LastOptions.PageIndex, ActivePageCount: 3);
                     break;
                 default: throw new InvalidOperationException(method);
             }

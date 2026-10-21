@@ -44,9 +44,9 @@ During explicit `present` requests, an identical JPEG is sent again after ten se
 
 `jpegQuality` is `poor`, `low`, `medium` or `high`, default high. Encoder targets are 20, 50, 75 and 90. Poor uses very strong compression. Encoding falls back to lower quality if needed to stay under 450,000 bytes. Rotated JPEG profiles also honor the selected target. Other pixel formats require conversion.
 
-`PanelState` adds `frameMilliseconds` (server-side data/render/send duration) and `submittedFrames`. These are not measurements of physical display latency. `displayRunning` and `status` report the session.
+`PanelState` adds `frameMilliseconds` (server-side data/render/send duration) and `submittedFrames`. These are not measurements of physical display latency. `displayRunning` and `status` report the session. `activePageId`, `activePageTitle`, `activePageIndex` and `activePageCount` describe the page actually rendered. `PreviewOptions.pageIndex` selects the first page for a rotation and `pageRevision` restarts its interval after an explicit studio navigation.
 
-`nextFrameMilliseconds` is normally null. During a 600 ms page or track/cover crossfade it requests updates at up to 40 ms, or the user's faster interval. The studio returns to the selected interval when it becomes null. The worker blends before the single color pass and JPEG encoding, so preview and USB receive the same image. Slow rendering or USB can reduce the fade steps; no frames are queued.
+`nextFrameMilliseconds` is normally null. During a two-second page or track/cover crossfade it requests updates at up to 40 ms, or the user's faster interval. The studio returns to the selected interval when it becomes null. The worker blends before the single color pass and JPEG encoding, so preview and USB receive the same image. Slow rendering or USB can reduce the fade steps; no frames are queued.
 
 ## Other settings
 

@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "id": "vibepanel.system",
-  "name": "Vibe Panel \u00b7 System",
-  "version": "2.1.2",
+  "name": "Vibe Panel · System",
+  "version": "2.2.0",
   "author": "Umberto Giacobbi",
   "license": "MIT",
   "description": "Ten themes for available CPU, GPU, motherboard and RAM readings.",
