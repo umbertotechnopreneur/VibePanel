@@ -1,12 +1,12 @@
 // VBWR B
-// Project: VibePanel | https://umbertogiacobbi.biz/vibeware/manifesto
+// Project: ThermalrightVibeWare | https://umbertogiacobbi.biz/vibeware/manifesto
 // Copyright (c) 2026 Umberto Giacobbi | SPDX-License-Identifier: MIT
 // VBWR E
 #pragma once
 #include <Windows.h>
 #include <string>
 
-namespace VibePanelNative
+namespace ThermalrightVibeWareNative
 {
     // Owned values survive subsequent conversions and are freed at scope exit.
     inline std::wstring ToUtf16(const char* source)

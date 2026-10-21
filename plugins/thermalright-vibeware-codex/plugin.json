@@ -1,0 +1,24 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "thermalright-vibeware-codex",
+  "version": "0.1.0",
+  "description": "I show my Codex activity on Thermalright VibeWare using local lifecycle status only.",
+  "author": {
+    "name": "Umberto Giacobbi",
+    "url": "https://umbertogiacobbi.biz/vibeware/manifesto"
+  },
+  "repository": "https://github.com/umbertotechnopreneur/thermalright-vibeware",
+  "license": "MIT",
+  "keywords": ["vibeware", "codex", "display"],
+  "extensions": {
+    "com.openai": {
+      "hooks": "./hooks/hooks.json",
+      "interface": {
+        "displayName": "Thermalright VibeWare Codex",
+        "shortDescription": "Local Codex status for my display",
+        "developerName": "Umberto Giacobbi",
+        "category": "Productivity"
+      }
+    }
+  }
+}

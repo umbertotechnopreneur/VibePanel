@@ -1,4 +1,4 @@
-# Vibe Panel Python themes
+# Thermalright VibeWare Python themes
 
 I use a persistent Python worker and Skia's offscreen raster canvas. The engine sends a snapshot once per requested update; a theme draws it and returns one JPEG. No browser, HTTP server, hardware write, media control, or audio recording is part of this renderer.
 
@@ -32,7 +32,7 @@ never establish a slot. System detail pages omit individual core/thread rows and
 rotate bounded groups of real readings. Storage collection is disabled; only verified
 physical Ethernet/Wi-Fi remain in network diagnostics, outside System theme pages.
 
-The NCT6792D decoder retains its original chip source names. Vibe Panel's exact
+The NCT6792D decoder retains its original chip source names. Thermalright VibeWare's exact
 ASRock B550M-ITX/ac + NCT6792D instance 0 display profile presents CPUTIN as Mainboard,
 AUXTIN0 as Southbridge and SMBUSMASTER0 as CPU, following the owner's local comparison.
 Only those temperature channels from this chip instance enter theme snapshots; Sensor Debug keeps

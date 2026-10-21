@@ -15,7 +15,7 @@ my-pack/
       render.py
 ```
 
-Put the pack in `%LOCALAPPDATA%\VibePanel\themes`. Press **Reload** in the app.
+Put the pack in `%LOCALAPPDATA%\ThermalrightVibeWare\themes`. Press **Reload** in the app.
 
 ## Pages
 
@@ -64,9 +64,9 @@ Use `s.show_spectrum` to respect the sound-bars checkbox. `c.spectrum(...)` alre
 System themes receive CPU, GPU, motherboard and physical RAM in `s.sensors`. CPU/GPU/board `readings` retain sensor names, types and units. `fans` contain measured RPM; generic board channels keep their names. Preserve measured zeroes and omit absent fields. `system_dashboard.py` draws gauges, timestamped history, aggregate clocks, memory occupancy, module identities and named electrical/thermal/RPM channels. `system_details.py` groups values and omits individual CPU cores. Power channels keep separate names and are never added together. `hardware.py` retains at most 60 observed samples per series; repeated timestamps add nothing. There is no simulated history or swap field. [Snapshot format](../theme-runtime/README.md#system-snapshots).
 
 ```powershell
-vp fonts
-vp themes
-vp theme media.aurora --export new-picture.jpg --saturation 120
+trv fonts
+trv themes
+trv theme media.aurora --export new-picture.jpg --saturation 120
 ```
 
 Export makes a new picture on the PC. It does not open USB. Only use `--device N` when you want to send pictures to a screen.
@@ -120,4 +120,4 @@ Use a positive maximum and keep missing measurements absent. Colors follow the
 displayed range; they are not hardware alarm thresholds. Decorative rings and
 status symbols keep their own meaning.
 
-[Full drawing API](https://github.com/umbertotechnopreneur/VibePanel/blob/codex/usb-transport/theme-runtime/README.md) · [Engine commands](engine-protocol.md). In the ZIP, the full API guide is in `engine/theme-runtime/README.md`.
+[Full drawing API](https://github.com/umbertotechnopreneur/thermalright-vibeware/blob/codex/usb-transport/theme-runtime/README.md) · [Engine commands](engine-protocol.md). In the ZIP, the full API guide is in `engine/theme-runtime/README.md`.

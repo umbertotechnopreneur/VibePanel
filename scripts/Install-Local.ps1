@@ -1,5 +1,5 @@
 # VBWR B
-# Project: VibePanel | https://umbertogiacobbi.biz/vibeware/manifesto
+# Project: ThermalrightVibeWare | https://umbertogiacobbi.biz/vibeware/manifesto
 # Copyright (c) 2026 Umberto Giacobbi | SPDX-License-Identifier: MIT
 # VBWR E
 [CmdletBinding()]
@@ -54,7 +54,7 @@ function Save-ManagedShortcut(
     [string]$Arguments, [int]$WindowStyle, [string]$BackupDirectory
 ) {
     Assert-ManagedShortcut $Shell $Path $Marker
-    $pendingPath = Join-Path $BackupDirectory ("VibePanel-$([Guid]::NewGuid().ToString('N')).pending.lnk")
+    $pendingPath = Join-Path $BackupDirectory ("ThermalrightVibeWare-$([Guid]::NewGuid().ToString('N')).pending.lnk")
     Assert-ChildPath $pendingPath $BackupDirectory
     $pending = $Shell.CreateShortcut($pendingPath)
     try {
@@ -68,7 +68,7 @@ function Save-ManagedShortcut(
     }
     finally { [void][System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($pending) }
     if (Test-Path -LiteralPath $Path) {
-        $backupPath = Join-Path $BackupDirectory ("VibePanel-$([Guid]::NewGuid().ToString('N')).lnk")
+        $backupPath = Join-Path $BackupDirectory ("ThermalrightVibeWare-$([Guid]::NewGuid().ToString('N')).lnk")
         Assert-ChildPath $backupPath $BackupDirectory
         [System.IO.File]::Replace($pendingPath, $Path, $backupPath)
     }
@@ -90,9 +90,9 @@ function Save-StableLauncher([string]$Path, [string]$Target, [string]$Root) {
 }
 
 $sourceRoot = Get-NormalPath $PSScriptRoot
-$sourceExecutable = Join-Path $sourceRoot 'VibePanel.exe'
+$sourceExecutable = Join-Path $sourceRoot 'ThermalrightVibeWare.exe'
 if (-not (Test-Path -LiteralPath $sourceExecutable -PathType Leaf)) {
-    throw 'Run Install-VibePanel.ps1 from the unzipped package, next to VibePanel.exe.'
+    throw 'Run Install-ThermalrightVibeWare.ps1 from the unzipped package, next to ThermalrightVibeWare.exe.'
 }
 
 $localAppData = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
@@ -103,15 +103,15 @@ foreach ($folder in @($localAppData, $roamingAppData, $startupDirectory, $progra
     if ([string]::IsNullOrWhiteSpace($folder)) { throw 'A required current-user Windows folder is unavailable.' }
     Assert-NoReparsePath $folder
 }
-$installRoot = Join-Path $localAppData 'Umberto Giacobbi.biz\Apps\VibePanel'
-$launcherPath = Join-Path $installRoot 'VibePanel.cmd'
-$launcherIcon = Join-Path $installRoot 'VibePanel.ico'
-$backupRoot = Join-Path $roamingAppData 'Umberto Giacobbi.biz\VibePanel\Startup backups'
-$startupShortcut = Join-Path $startupDirectory 'VibePanel.lnk'
-$startShortcut = Join-Path $programsDirectory 'Vibe Panel.lnk'
-$startupMarker = 'VibePanel auto-start managed by Install-VibePanel.ps1'
-$startMarker = 'VibePanel Start menu managed by Install-VibePanel.ps1'
-$uninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\VibePanel'
+$installRoot = Join-Path $localAppData 'Umberto Giacobbi.biz\Apps\ThermalrightVibeWare'
+$launcherPath = Join-Path $installRoot 'ThermalrightVibeWare.cmd'
+$launcherIcon = Join-Path $installRoot 'ThermalrightVibeWare.ico'
+$backupRoot = Join-Path $roamingAppData 'Umberto Giacobbi.biz\ThermalrightVibeWare\Startup backups'
+$startupShortcut = Join-Path $startupDirectory 'ThermalrightVibeWare.lnk'
+$startShortcut = Join-Path $programsDirectory 'Thermalright VibeWare.lnk'
+$startupMarker = 'ThermalrightVibeWare auto-start managed by Install-ThermalrightVibeWare.ps1'
+$startMarker = 'ThermalrightVibeWare Start menu managed by Install-ThermalrightVibeWare.ps1'
+$uninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\ThermalrightVibeWare'
 Assert-ChildPath $installRoot $localAppData
 Assert-ChildPath $launcherPath $installRoot
 Assert-ChildPath $launcherIcon $installRoot
@@ -125,7 +125,7 @@ try {
     Assert-ManagedShortcut $shell $startupShortcut $startupMarker
     if ($DisableStartup) {
         if (Test-Path -LiteralPath $startupShortcut) {
-            $backupPath = Join-Path $backupRoot ("VibePanel-$([Guid]::NewGuid().ToString('N')).lnk")
+            $backupPath = Join-Path $backupRoot ("ThermalrightVibeWare-$([Guid]::NewGuid().ToString('N')).lnk")
             Assert-ChildPath $backupPath $backupRoot
             Move-Item -LiteralPath $startupShortcut -Destination $backupPath
             Write-Host "Automatic startup is off. The previous shortcut is saved at: $backupPath"
@@ -137,11 +137,11 @@ try {
     Assert-ManagedShortcut $shell $startShortcut $startMarker
     if (Test-Path -LiteralPath $uninstallKey) {
         $registered = Get-ItemProperty -LiteralPath $uninstallKey
-        if ($registered.PSObject.Properties.Name -notcontains 'VibePanelManaged' -or $registered.VibePanelManaged -ne 1) {
-            throw 'Another VibePanel uninstall entry already exists and was left unchanged.'
+        if ($registered.PSObject.Properties.Name -notcontains 'ThermalrightVibeWareManaged' -or $registered.ThermalrightVibeWareManaged -ne 1) {
+            throw 'Another ThermalrightVibeWare uninstall entry already exists and was left unchanged.'
         }
     }
-    foreach ($required in @((Join-Path $sourceRoot 'Uninstall-VibePanel.ps1'), (Join-Path $sourceRoot 'Assets\vibepanel.ico'))) {
+    foreach ($required in @((Join-Path $sourceRoot 'Uninstall-ThermalrightVibeWare.ps1'), (Join-Path $sourceRoot 'Assets\thermalright-vibeware.ico'))) {
         if (-not (Test-Path -LiteralPath $required -PathType Leaf)) { throw "Package file is missing: $required" }
     }
     Assert-NoReparsePath $sourceRoot
@@ -159,7 +159,7 @@ try {
     $hasher = [System.Security.Cryptography.SHA256]::Create()
     try { $packageHash = [BitConverter]::ToString($hasher.ComputeHash([Text.Encoding]::UTF8.GetBytes($manifest.ToString()))).Replace('-', '').ToLowerInvariant() }
     finally { $hasher.Dispose() }
-    $releasePath = Join-Path $installRoot ("VibePanel-" + $packageHash.Substring(0, 12))
+    $releasePath = Join-Path $installRoot ("ThermalrightVibeWare-" + $packageHash.Substring(0, 12))
     Assert-ChildPath $releasePath $installRoot
     if ([string]::Equals($sourceRoot, $releasePath, [StringComparison]::OrdinalIgnoreCase)) {
         throw 'This package is already in its managed install folder. Run the installer from an unzipped package.'
@@ -188,29 +188,29 @@ try {
         }
     }
     foreach ($folder in @($startupDirectory, $programsDirectory)) { New-Item -ItemType Directory -Path $folder -Force | Out-Null }
-    $installedExecutable = Join-Path $releasePath 'VibePanel.exe'
-    $installedIcon = Join-Path $releasePath 'Assets\vibepanel.ico'
+    $installedExecutable = Join-Path $releasePath 'ThermalrightVibeWare.exe'
+    $installedIcon = Join-Path $releasePath 'Assets\thermalright-vibeware.ico'
     Save-StableLauncher $launcherPath $installedExecutable $installRoot
     Copy-Item -LiteralPath $installedIcon -Destination $launcherIcon -Force
     Save-ManagedShortcut $shell $startShortcut $startMarker $launcherPath $installRoot $launcherIcon '' 1 $backupRoot
     Save-ManagedShortcut $shell $startupShortcut $startupMarker $launcherPath $installRoot $launcherIcon '--start-minimized --restore-last-session' 7 $backupRoot
 
-    $uninstaller = Join-Path $releasePath 'Uninstall-VibePanel.ps1'
+    $uninstaller = Join-Path $releasePath 'Uninstall-ThermalrightVibeWare.ps1'
     $powershellPath = Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::System)) 'WindowsPowerShell\v1.0\powershell.exe'
     $uninstallCommand = '"' + $powershellPath + '" -NoProfile -ExecutionPolicy Bypass -File "' + $uninstaller + '"'
     New-Item -Path $uninstallKey -Force | Out-Null
     foreach ($property in @{
-        DisplayName = 'Vibe Panel'; Publisher = 'Umberto Giacobbi'; DisplayIcon = $installedIcon
+        DisplayName = 'Thermalright VibeWare'; Publisher = 'Umberto Giacobbi'; DisplayIcon = $installedIcon
         InstallLocation = $releasePath; UninstallString = $uninstallCommand
         DisplayVersion = (Get-Item -LiteralPath $installedExecutable).VersionInfo.ProductVersion
-        InstallDate = (Get-Date).ToString('yyyyMMdd'); URLInfoAbout = 'https://github.com/umbertotechnopreneur/VibePanel'
+        InstallDate = (Get-Date).ToString('yyyyMMdd'); URLInfoAbout = 'https://github.com/umbertotechnopreneur/thermalright-vibeware'
     }.GetEnumerator()) {
         New-ItemProperty -LiteralPath $uninstallKey -Name $property.Key -Value $property.Value -PropertyType String -Force | Out-Null
     }
-    foreach ($name in @('NoModify', 'NoRepair', 'VibePanelManaged')) {
+    foreach ($name in @('NoModify', 'NoRepair', 'ThermalrightVibeWareManaged')) {
         New-ItemProperty -LiteralPath $uninstallKey -Name $name -Value 1 -PropertyType DWord -Force | Out-Null
     }
-    Write-Host "Vibe Panel is installed at: $releasePath"
+    Write-Host "Thermalright VibeWare is installed at: $releasePath"
     Write-Host "Stable launcher: $launcherPath"
     Write-Host "Open it from Start: $startShortcut"
     Write-Host 'At Windows sign-in, it starts in the tray and starts the saved USB display and theme. Stop cancels output for the current run.'

@@ -1,4 +1,4 @@
-# VBWR B — Vibe Panel. Copyright (c) 2026 Umberto Giacobbi. MIT.
+# VBWR B — Thermalright VibeWare. Copyright (c) 2026 Umberto Giacobbi. MIT.
 """Small groups of real readings for System pages, without per-core noise."""
 from __future__ import annotations
 

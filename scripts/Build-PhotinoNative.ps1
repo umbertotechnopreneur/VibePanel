@@ -1,5 +1,5 @@
 # VBWR B
-# Project: VibePanel | https://umbertogiacobbi.biz/vibeware/manifesto
+# Project: ThermalrightVibeWare | https://umbertogiacobbi.biz/vibeware/manifesto
 # Copyright (c) 2026 Umberto Giacobbi | SPDX-License-Identifier: MIT
 # VBWR E
 #requires -Version 7.0
@@ -27,7 +27,7 @@ New-Item -ItemType Directory -Path $root, $destination -Force | Out-Null
 # Pinned Apache-2.0 sources remain in ignored build output.
 $archive = Join-Path $root 'photino-native.zip'
 if (-not (Test-Path -LiteralPath $archive)) {
-    Invoke-WebRequest -Uri "https://api.github.com/repos/tryphotino/photino.Native/zipball/$commit" -Headers @{ 'User-Agent' = 'VibePanel-build' } -OutFile $archive
+    Invoke-WebRequest -Uri "https://api.github.com/repos/tryphotino/photino.Native/zipball/$commit" -Headers @{ 'User-Agent' = 'ThermalrightVibeWare-build' } -OutFile $archive
 }
 if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ne $archiveHash) { throw 'Photino source archive checksum mismatch.' }
 & "$PSScriptRoot/Assert-DefenderClean.ps1" -Path $archive -Source "https://github.com/tryphotino/photino.Native/commit/$commit" -ScanNewImport:$PrepareImports
@@ -85,8 +85,8 @@ foreach ($fileName in @('Photino.Windows.cpp', 'Photino.Windows.Dialog.cpp')) {
         $text = Replace-Required $text 'body = ToUTF16String(body);' "const auto bodyStorage = ToUTF16String(bodyUtf8);`n`tconst auto body = bodyStorage.c_str();"
         $text = Replace-Required $text 'void Photino::SetIconFile(AutoString filename)' 'void Photino::SetIconFile(const wchar_t* filename)'
         $text = Replace-Required $text 'this->_iconFileName = filename;' "_ownedIconFileName = filename ? filename : L`"`";`n`tthis->_iconFileName = _ownedIconFileName.empty() ? nullptr : &_ownedIconFileName[0];"
-        $text = [regex]::Replace($text, '(?ms)^AutoString Photino::ToUTF8String\(AutoString source\)\s*\{.*?^\}', "std::string Photino::ToUTF8String(AutoString source)`n{`n`treturn VibePanelNative::ToUtf8(source);`n}")
-        $text = [regex]::Replace($text, '(?ms)^AutoString Photino::ToUTF16String\(AutoString source\)\s*\{.*?^\}', "std::wstring Photino::ToUTF16String(AutoString source)`n{`n`treturn VibePanelNative::ToUtf16(reinterpret_cast<const char*>(source));`n}")
+        $text = [regex]::Replace($text, '(?ms)^AutoString Photino::ToUTF8String\(AutoString source\)\s*\{.*?^\}', "std::string Photino::ToUTF8String(AutoString source)`n{`n`treturn ThermalrightVibeWareNative::ToUtf8(source);`n}")
+        $text = [regex]::Replace($text, '(?ms)^AutoString Photino::ToUTF16String\(AutoString source\)\s*\{.*?^\}', "std::wstring Photino::ToUTF16String(AutoString source)`n{`n`treturn ThermalrightVibeWareNative::ToUtf16(reinterpret_cast<const char*>(source));`n}")
         # Restoring the host HWND does not restore a WebView created while hidden.
         # Keep the controller in sync for tray hide/show, minimize/restore and its
         # asynchronous creation. RefitContent already runs on WM_SIZE and creation.

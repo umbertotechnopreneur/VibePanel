@@ -1,5 +1,5 @@
 <!-- VBWR B
-  Project: VibePanel
+  Project: ThermalrightVibeWare
   Creator: Umberto Giacobbi | https://umbertogiacobbi.biz
   VibeWare: Human intent, AI execution, and plenty of tokens
   Manifesto: https://umbertogiacobbi.biz/vibeware/manifesto
@@ -11,9 +11,11 @@ VBWR E -->
     <BaseOutputPath>$(MSBuildThisFileDirectory)artifacts\bin\$(MSBuildProjectName)\</BaseOutputPath>
     <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)artifacts\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
     <!-- OpenSilver's XAML compiler expects this path relative to its project directory. -->
-    <BaseIntermediateOutputPath Condition="'$(MSBuildProjectName)' == 'VibePanel.App'">..\..\artifacts\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <BaseIntermediateOutputPath Condition="'$(MSBuildProjectName)' == 'ThermalrightVibeWare.App'">..\..\artifacts\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
     <DefaultItemExcludes>$(DefaultItemExcludes);$(MSBuildThisFileDirectory)artifacts\**</DefaultItemExcludes>
     <Nullable>enable</Nullable>
+    <Product>Thermalright VibeWare</Product>
+    <Company>Umberto Giacobbi</Company>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <SkipOpenSilverUpdates>true</SkipOpenSilverUpdates>

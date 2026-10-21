@@ -1,4 +1,4 @@
-# VBWR B — Vibe Panel. Copyright (c) 2026 Umberto Giacobbi. MIT.
+# VBWR B — Thermalright VibeWare. Copyright (c) 2026 Umberto Giacobbi. MIT.
 """Offline page contract checks. Run only with owner approval."""
 import sys
 import os
@@ -54,7 +54,7 @@ class PageChecks(unittest.TestCase):
             with self.assertRaises(ValueError):
                 select_page(self.context(),{'pages':[{'id':'overview','seconds':seconds}]})
 
-@unittest.skipUnless(os.environ.get('VIBEPANEL_OFFLINE_RENDER_CHECKS') == '1', 'Explicit offscreen opt-in required')
+@unittest.skipUnless(os.environ.get('THERMALRIGHT_VIBEWARE_OFFLINE_RENDER_CHECKS') == '1', 'Explicit offscreen opt-in required')
 class PageRenderingChecks(unittest.TestCase):
     def test_every_declared_page_renders_at_both_sizes_and_font_limits(self):
         import skia, worker, canvas

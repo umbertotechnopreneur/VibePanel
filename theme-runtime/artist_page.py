@@ -1,4 +1,4 @@
-# VBWR B — Vibe Panel. Copyright (c) 2026 Umberto Giacobbi. MIT.
+# VBWR B — Thermalright VibeWare. Copyright (c) 2026 Umberto Giacobbi. MIT.
 """A short attributed artist page shared by the ten music themes."""
 from __future__ import annotations
 

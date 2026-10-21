@@ -1,4 +1,4 @@
-# VBWR B - Vibe Panel. Copyright (c) 2026 Umberto Giacobbi. MIT.
+# VBWR B - Thermalright VibeWare. Copyright (c) 2026 Umberto Giacobbi. MIT.
 from system_dashboard import render as render_system
 
 

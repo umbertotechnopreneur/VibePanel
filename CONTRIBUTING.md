@@ -1,4 +1,4 @@
-# Contributing to VibePanel
+# Contributing to ThermalrightVibeWare
 
 I welcome focused improvements. Please open an issue first when a change affects a physical panel or protocol behaviour.
 

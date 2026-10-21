@@ -1,0 +1,171 @@
+{
+  "description": "ThermalrightVibeWare: I show my Codex lifecycle status locally, without chat content.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -B -c \"import os,runpy;runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'],'hooks','thermalright-vibeware_hook.py'),run_name='__main__')\"",
+            "commandWindows": "py -3 -B -c \"import os,runpy;runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'],'hooks','thermalright-vibeware_hook.py'),run_name='__main__')\"",
+            "statusMessage": "ThermalrightVibeWare: Chat ready",
+            "timeout": 3,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -B -c \"import os,runpy;runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'],'hooks','thermalright-vibeware_hook.py'),run_name='__main__')\"",
+            "commandWindows": "py -3 -B -c \"import os,runpy;runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'],'hooks','thermalright-vibeware_hook.py'),run_name='__main__')\"",
+            "statusMessage": "ThermalrightVibeWare: Thinking",
+            "timeout": 3,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -B -c \"import os,runpy;runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'],'hooks','thermalright-vibeware_hook.py'),run_name='__main__')\"",
+            "commandWindows": "py -3 -B -c \"import os,runpy;runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'],'hooks','thermalright-vibeware_hook.py'),run_name='__main__')\"",
+            "statusMessage": "ThermalrightVibeWare: Using a tool",
+            "timeout": 3,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -B -c \"import os,runpy;runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'],'hooks','thermalright-vibeware_hook.py'),run_name='__main__')\"",
+            "commandWindows": "py -3 -B -c \"import os,runpy;runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'],'hooks','thermalright-vibeware_hook.py'),run_name='__main__')\"",
+            "statusMessage": "ThermalrightVibeWare: Approval requested on PC",
+            "timeout": 3,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -B -c \"import os,runpy;runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'],'hooks','thermalright-vibeware_hook.py'),run_name='__main__')\"",
+            "commandWindows": "py -3 -B -c \"import os,runpy;runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'],'hooks','thermalright-vibeware_hook.py'),run_name='__main__')\"",
+            "statusMessage": "ThermalrightVibeWare: Continuing work",
+            "timeout": 3,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -B -c \"import os,runpy;runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'],'hooks','thermalright-vibeware_hook.py'),run_name='__main__')\"",
+            "commandWindows": "py -3 -B -c \"import os,runpy;runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'],'hooks','thermalright-vibeware_hook.py'),run_name='__main__')\"",
+            "statusMessage": "ThermalrightVibeWare: Refreshing context",
+            "timeout": 3,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -B -c \"import os,runpy;runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'],'hooks','thermalright-vibeware_hook.py'),run_name='__main__')\"",
+            "commandWindows": "py -3 -B -c \"import os,runpy;runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'],'hooks','thermalright-vibeware_hook.py'),run_name='__main__')\"",
+            "statusMessage": "ThermalrightVibeWare: Context ready",
+            "timeout": 3,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -B -c \"import os,runpy;runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'],'hooks','thermalright-vibeware_hook.py'),run_name='__main__')\"",
+            "commandWindows": "py -3 -B -c \"import os,runpy;runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'],'hooks','thermalright-vibeware_hook.py'),run_name='__main__')\"",
+            "statusMessage": "ThermalrightVibeWare: Agent working",
+            "timeout": 3,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -B -c \"import os,runpy;runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'],'hooks','thermalright-vibeware_hook.py'),run_name='__main__')\"",
+            "commandWindows": "py -3 -B -c \"import os,runpy;runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'],'hooks','thermalright-vibeware_hook.py'),run_name='__main__')\"",
+            "statusMessage": "ThermalrightVibeWare: Agent finished",
+            "timeout": 3,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -B -c \"import os,runpy;runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'],'hooks','thermalright-vibeware_hook.py'),run_name='__main__')\"",
+            "commandWindows": "py -3 -B -c \"import os,runpy;runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'],'hooks','thermalright-vibeware_hook.py'),run_name='__main__')\"",
+            "statusMessage": "ThermalrightVibeWare: Reply ready",
+            "timeout": 3,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "Interrupt": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -B -c \"import os,runpy;runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'],'hooks','thermalright-vibeware_hook.py'),run_name='__main__')\"",
+            "commandWindows": "py -3 -B -c \"import os,runpy;runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'],'hooks','thermalright-vibeware_hook.py'),run_name='__main__')\"",
+            "statusMessage": "ThermalrightVibeWare: Work interrupted",
+            "timeout": 2
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -B -c \"import os,runpy;runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'],'hooks','thermalright-vibeware_hook.py'),run_name='__main__')\"",
+            "commandWindows": "py -3 -B -c \"import os,runpy;runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'],'hooks','thermalright-vibeware_hook.py'),run_name='__main__')\"",
+            "statusMessage": "ThermalrightVibeWare: Chat closed",
+            "timeout": 2
+          }
+        ]
+      }
+    ]
+  }
+}

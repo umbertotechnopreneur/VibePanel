@@ -1,0 +1,26 @@
+<!-- VBWR B
+  Project: ThermalrightVibeWare
+  Creator: Umberto Giacobbi | https://umbertogiacobbi.biz
+  VibeWare: Human intent, AI execution, and plenty of tokens
+  Copyright (c) 2026 Umberto Giacobbi
+  SPDX-License-Identifier: MIT
+VBWR E -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <RootNamespace>ThermalrightVibeWare.Cli</RootNamespace>
+    <AssemblyName>trv</AssemblyName>
+    <Description>Command-line companion for ThermalrightVibeWare USB displays.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../ThermalrightVibeWare.Contracts/ThermalrightVibeWare.Contracts.csproj" />
+    <ProjectReference Include="../ThermalrightVibeWare.Core/ThermalrightVibeWare.Core.csproj" />
+    <PackageReference Include="Spectre.Console" Version="0.57.2" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="../../themes/**/*" Exclude="../../themes/**/__pycache__/**;../../themes/**/*.pyc" Link="themes/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../../theme-runtime/**/*" Exclude="../../theme-runtime/**/__pycache__/**;../../theme-runtime/**/*.pyc" Link="theme-runtime/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../../plugins/**/*" Exclude="../../plugins/**/__pycache__/**;../../plugins/**/*.pyc" Link="plugins/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

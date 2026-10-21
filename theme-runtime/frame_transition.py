@@ -1,4 +1,4 @@
-# VBWR B — Vibe Panel. Copyright (c) 2026 Umberto Giacobbi. MIT.
+# VBWR B — Thermalright VibeWare. Copyright (c) 2026 Umberto Giacobbi. MIT.
 """Blend a changed page or track from the last visible frame; retain no frame queue."""
 from __future__ import annotations
 

@@ -1,9 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <!-- Vibe Panel builds this pinned MPL-2.0 source for its .NET 10 engine. -->
+    <!-- Thermalright VibeWare builds this pinned MPL-2.0 source for its .NET 10 engine. -->
     <TargetFrameworks>net10.0</TargetFrameworks>
     <Version>0.9.6</Version>
-    <InformationalVersion>0.9.6-vibepanel.e5fa436</InformationalVersion>
+    <InformationalVersion>0.9.6-thermalright-vibeware.e5fa436</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>

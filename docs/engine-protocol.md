@@ -1,6 +1,6 @@
 # Local engine protocol
 
-The desktop window starts one hidden `vp --stdio` process. Requests and replies are UTF-8 JSON Lines, version 1. There is no server port. Stdout contains replies only.
+The desktop window starts one hidden `trv --stdio` process. Requests and replies are UTF-8 JSON Lines, version 1. There is no server port. Stdout contains replies only.
 
 ## Choose a theme and display
 
@@ -34,7 +34,7 @@ Every Windows GUI launch automatically starts the saved display and theme. With 
 
 The studio requests `devices` every ten seconds, with one enumeration pending at most. Discovery reads Windows interface metadata and closes a missing theme session; it never sends a probe or a frame. Reconnection only updates the list, apart from the initial Windows-startup wait described above. Starting output still needs `start`. A browser preview failure leaves a successfully opened USB session active.
 
-During explicit `present` requests, an identical JPEG is sent again after ten seconds. This detects a stale handle after an unplug/replug between enumerations. It uses the existing session and never reopens it. An I/O failure closes output and requires a new explicit start. Legacy `vp play` also stops on a disconnect rather than retrying.
+During explicit `present` requests, an identical JPEG is sent again after ten seconds. This detects a stale handle after an unplug/replug between enumerations. It uses the existing session and never reopens it. An I/O failure closes output and requires a new explicit start. Legacy `trv play` also stops on a disconnect rather than retrying.
 
 `colorFiltersEnabled: false` skips the final color pass, including theme overrides. It keeps the slider values. The studio saves this switch and starts with it off; omitted engine values default to true for CLI color requests. Replies include `accentColor`, the theme's cached accent, for the slider guides.
 
@@ -88,22 +88,22 @@ Codex themes read optional local hook activity. The latest twelve observed event
 
 The engine caches that preference. If a separate CLI changes it while the GUI is open, reopen the GUI to pick it up.
 
-The engine resolves Python from `VIBEPANEL_PYTHON`, bundled `python/python.exe`, and requires that file to exist. There is no PATH search. It uses a persistent worker with a twelve-second render deadline. Themes are executable Python, not sandboxed documents.
+The engine resolves Python from `THERMALRIGHT_VIBEWARE_PYTHON`, bundled `python/python.exe`, and requires that file to exist. There is no PATH search. It uses a persistent worker with a twelve-second render deadline. Themes are executable Python, not sandboxed documents.
 
 ## CLI
 
 ```powershell
-vp gui
-vp themes
-vp fonts
-vp codex status
-vp codex prepare
-vp diagnostics on
-vp diagnostics open
-vp diagnostics off
-vp theme media.aurora --export frame.jpg --quality high
-vp theme media.aurora --export tinted-frame.jpg --saturation 120 --hue -20 --brightness 10 --contrast 115 --no-spectrum
-vp theme media.aurora --device 1 --interval-ms 250 --quality medium --seconds 20
+trv gui
+trv themes
+trv fonts
+trv codex status
+trv codex prepare
+trv diagnostics on
+trv diagnostics open
+trv diagnostics off
+trv theme media.aurora --export frame.jpg --quality high
+trv theme media.aurora --export tinted-frame.jpg --saturation 120 --hue -20 --brightness 10 --contrast 115 --no-spectrum
+trv theme media.aurora --device 1 --interval-ms 250 --quality medium --seconds 20
 ```
 
 Export is local and never overwrites a file. Device playback stops on Ctrl+C, its optional duration or a failure. It does not reconnect automatically.

@@ -1,0 +1,16 @@
+<!-- VBWR B — Thermalright VibeWare. Copyright (c) 2026 Umberto Giacobbi. MIT. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="base" x2=".8" y2="1"><stop stop-color="#203144"/><stop offset="1" stop-color="#101623"/></linearGradient>
+    <linearGradient id="signal" x2="1" y2=".6"><stop stop-color="#70F4D8"/><stop offset="1" stop-color="#17BCAF"/></linearGradient>
+    <linearGradient id="accent" x2="1" y2="1"><stop stop-color="#C0A5FF"/><stop offset="1" stop-color="#8461F3"/></linearGradient>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="54" fill="url(#base)"/>
+  <rect x="9" y="9" width="238" height="238" rx="53" fill="none" stroke="#93A7C5" stroke-opacity=".22" stroke-width="2"/>
+  <rect x="38" y="60" width="180" height="126" rx="20" fill="#0D1622" stroke="url(#signal)" stroke-width="9"/>
+  <path d="M59 139H82L98 101 121 155 141 117H164" fill="none" stroke="url(#signal)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="176" y="87" width="12" height="22" rx="6" fill="url(#accent)"/>
+  <rect x="176" y="119" width="12" height="40" rx="6" fill="url(#accent)"/>
+  <path d="M107 205H149" fill="none" stroke="url(#accent)" stroke-width="9" stroke-linecap="round"/>
+</svg>
+<!-- VBWR E -->

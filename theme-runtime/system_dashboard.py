@@ -1,4 +1,4 @@
-# VBWR B — Vibe Panel. Copyright (c) 2026 Umberto Giacobbi. MIT.
+# VBWR B — Thermalright VibeWare. Copyright (c) 2026 Umberto Giacobbi. MIT.
 """Paged instruments for measured hardware; no synthetic history or missing-value filler."""
 from __future__ import annotations
 
@@ -138,7 +138,7 @@ def frame(c, s, style):
     _text(c, s.page_title.upper(), margin, 52, 11, c.width - 100, s.palette[0])
     bottom = 441
     c.line(margin, bottom, c.width - margin, bottom, s.fg, opacity=.12)
-    _text(c, "VIBE PANEL", margin, 468, 11, 120, s.muted)
+    _text(c, "THERMALRIGHT VIBEWARE", margin, 468, 11, 260, s.muted)
     for index in range(s.page_count):
         x = c.width / 2 - s.page_count * 12 + index * 24
         c.rect(x, 459, 17, 3, s.palette[0], radius=1, opacity=1 if index == s.page_index else .2)

@@ -1,18 +1,18 @@
 <!-- VBWR B
-  Project: VibePanel | https://umbertogiacobbi.biz/vibeware/manifesto
+  Project: ThermalrightVibeWare | https://umbertogiacobbi.biz/vibeware/manifesto
   Copyright (c) 2026 Umberto Giacobbi | SPDX-License-Identifier: MIT
 VBWR E -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
      xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
-  <Package Name="Vibe Panel" Manufacturer="Umberto Giacobbi" Version="$(var.ProductVersion)"
-           UpgradeCode="D3F87B46-457B-41D3-98B7-249E21D83B63" Scope="perUser" InstallerVersion="500">
+  <Package Name="Thermalright VibeWare" Manufacturer="Umberto Giacobbi" Version="$(var.ProductVersion)"
+           UpgradeCode="0E45EA55-B9C3-44D2-AD0A-D3BB78B53096" Scope="perUser" InstallerVersion="500">
     <!-- The new package must release the old app/driver before the old MSI removes files. -->
     <MajorUpgrade Schedule="afterInstallInitialize" AllowSameVersionUpgrades="yes"
-                  DowngradeErrorMessage="A newer Vibe Panel version is already installed." />
+                  DowngradeErrorMessage="A newer Thermalright VibeWare version is already installed." />
     <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
-    <Icon Id="ProductIcon" SourceFile="$(var.PayloadRoot)\Assets\vibepanel.ico" />
+    <Icon Id="ProductIcon" SourceFile="$(var.PayloadRoot)\Assets\thermalright-vibeware.ico" />
     <Property Id="ARPPRODUCTICON" Value="ProductIcon" />
-    <Property Id="ARPURLINFOABOUT" Value="https://github.com/umbertotechnopreneur/VibePanel" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/umbertotechnopreneur/thermalright-vibeware" />
     <Property Id="ARPCOMMENTS" Value="Preview build $(var.SourceRevision)" />
     <!-- WixUI_Minimal supplies ARPNOMODIFY. -->
     <!-- Preview assemblies can have the same FileVersion. Replace the complete
@@ -24,28 +24,28 @@ VBWR E -->
     <Property Id="MSIDISABLERMRESTART" Value="1" />
     <ui:WixUI Id="WixUI_Minimal" />
     <UIRef Id="WixUI_ErrorProgressText" />
-    <Property Id="VP_START_AFTER_INSTALL" Value="1" />
-    <Property Id="VP_SEE_LATEST_NEWS" Value="1" />
+    <Property Id="TRV_START_AFTER_INSTALL" Value="1" />
+    <Property Id="TRV_SEE_LATEST_NEWS" Value="1" />
     <WixVariable Id="WixUILicenseRtf" Value="$(var.InstallerRoot)\License.rtf" />
     <Binary Id="SetupGate" SourceFile="$(var.SetupGate)" />
     <CustomAction Id="BeginSetupGate" BinaryRef="SetupGate" DllEntry="BeginSetup" Execute="deferred" Impersonate="yes" Return="check" />
     <CustomAction Id="RollbackSetupGate" BinaryRef="SetupGate" DllEntry="EndSetup" Execute="rollback" Impersonate="yes" Return="check" />
     <CustomAction Id="CommitSetupGate" BinaryRef="SetupGate" DllEntry="EndSetup" Execute="commit" Impersonate="yes" Return="check" />
     <!-- Completion actions run only from the visible success dialog, after commit. -->
-    <CustomAction Id="StartVibePanelAfterInstall" BinaryRef="SetupGate" DllEntry="StartVibePanelAfterInstall" Execute="immediate" Return="ignore" />
-    <CustomAction Id="SeeLatestVibePanelNews" BinaryRef="SetupGate" DllEntry="SeeLatestVibePanelNews" Execute="immediate" Return="ignore" />
+    <CustomAction Id="StartThermalrightVibeWareAfterInstall" BinaryRef="SetupGate" DllEntry="StartThermalrightVibeWareAfterInstall" Execute="immediate" Return="ignore" />
+    <CustomAction Id="SeeLatestThermalrightVibeWareNews" BinaryRef="SetupGate" DllEntry="SeeLatestThermalrightVibeWareNews" Execute="immediate" Return="ignore" />
     <Binary Id="SetupActions" SourceFile="$(var.SetupHelper)" />
     <!-- Close before InstallValidate enumerates in-use files. This changes runtime
          state only; service/file cleanup remains in the deferred transaction. -->
-    <CustomAction Id="CloseVibePanel" BinaryRef="SetupActions"
+    <CustomAction Id="CloseThermalrightVibeWare" BinaryRef="SetupActions"
                   ExeCommand="--close-apps --ui-level [UILevel]"
                   Execute="immediate" Return="check" />
     <!-- Binary-table helper is available even before installation and during removal.
          It stays per-user; only verified cleanup needing admin rights requests UAC. -->
-    <CustomAction Id="CleanupVibePanel" BinaryRef="SetupActions"
+    <CustomAction Id="CleanupThermalrightVibeWare" BinaryRef="SetupActions"
                   ExeCommand="--cleanup --ui-level [UILevel]"
                   Execute="deferred" Impersonate="yes" Return="check" />
-    <CustomAction Id="CleanupFreshVibePanel" BinaryRef="SetupActions"
+    <CustomAction Id="CleanupFreshThermalrightVibeWare" BinaryRef="SetupActions"
                   ExeCommand="--clean-install --ui-level [UILevel]"
                   Execute="deferred" Impersonate="yes" Return="check" />
     <CustomAction Id="CleanupBeforeUpgrade" BinaryRef="SetupActions"
@@ -55,56 +55,56 @@ VBWR E -->
       <Custom Action="RollbackSetupGate" After="InstallInitialize" Condition="NOT UPGRADINGPRODUCTCODE" />
       <Custom Action="BeginSetupGate" After="RollbackSetupGate" Condition="NOT UPGRADINGPRODUCTCODE" />
       <Custom Action="CommitSetupGate" After="BeginSetupGate" Condition="NOT UPGRADINGPRODUCTCODE" />
-      <Custom Action="CloseVibePanel" Before="InstallValidate"
+      <Custom Action="CloseThermalrightVibeWare" Before="InstallValidate"
               Condition="NOT UPGRADINGPRODUCTCODE" />
       <Custom Action="CleanupBeforeUpgrade" Before="RemoveExistingProducts"
               Condition="WIX_UPGRADE_DETECTED AND NOT Installed" />
-      <Custom Action="CleanupVibePanel" Before="RemoveFiles"
+      <Custom Action="CleanupThermalrightVibeWare" Before="RemoveFiles"
               Condition="Installed AND NOT UPGRADINGPRODUCTCODE" />
-      <Custom Action="CleanupFreshVibePanel" Before="CleanupVibePanel"
+      <Custom Action="CleanupFreshThermalrightVibeWare" Before="CleanupThermalrightVibeWare"
               Condition="NOT Installed AND NOT UPGRADINGPRODUCTCODE" />
     </InstallExecuteSequence>
     <UI>
-      <Dialog Id="VibePanelComplete" Width="370" Height="270" Title="Vibe Panel Setup" NoMinimize="yes">
+      <Dialog Id="ThermalrightVibeWareComplete" Width="370" Height="270" Title="Thermalright VibeWare Setup" NoMinimize="yes">
         <Control Id="Title" Type="Text" X="24" Y="26" Width="322" Height="40" NoPrefix="yes"
-                 Text="{\WixUI_Font_Bigger}Vibe Panel setup is complete" />
+                 Text="{\WixUI_Font_Bigger}Thermalright VibeWare setup is complete" />
         <Control Id="Description" Type="Text" X="24" Y="73" Width="322" Height="36" NoPrefix="yes"
-                 Text="Vibe Panel requests administrator access when it starts. Windows asks for your approval. Themes run with the same rights." />
+                 Text="Thermalright VibeWare requests administrator access when it starts. Windows asks for your approval. Themes run with the same rights." />
         <Control Id="StartAfterInstall" Type="CheckBox" X="24" Y="117" Width="322" Height="18"
-                 Property="VP_START_AFTER_INSTALL" CheckBoxValue="1" Text="Start after install"
+                 Property="TRV_START_AFTER_INSTALL" CheckBoxValue="1" Text="Start after install"
                  Hidden="yes" ShowCondition="NOT Installed AND NOT REMOVE AND UILevel = 5" />
         <Control Id="SeeLatestNews" Type="CheckBox" X="24" Y="149" Width="322" Height="18"
-                 Property="VP_SEE_LATEST_NEWS" CheckBoxValue="1" Text="See the latest news"
+                 Property="TRV_SEE_LATEST_NEWS" CheckBoxValue="1" Text="See the latest news"
                  Hidden="yes" ShowCondition="NOT Installed AND NOT REMOVE AND UILevel = 5" />
         <Control Id="NewsDestination" Type="Text" X="39" Y="170" Width="307" Height="28" NoPrefix="yes"
-                 Text="Vibe Panel releases on GitHub" Hidden="yes"
+                 Text="Thermalright VibeWare releases on GitHub" Hidden="yes"
                  ShowCondition="NOT Installed AND NOT REMOVE AND UILevel = 5" />
         <Control Id="Divider" Type="Line" X="0" Y="234" Width="370" Height="0" />
         <Control Id="Finish" Type="PushButton" X="290" Y="243" Width="56" Height="17" Default="yes" Cancel="yes" Text="Finish">
-          <Publish Event="DoAction" Value="StartVibePanelAfterInstall" Order="1"
-                   Condition="VP_START_AFTER_INSTALL = 1 AND NOT Installed AND NOT REMOVE AND UILevel = 5" />
-          <Publish Event="DoAction" Value="SeeLatestVibePanelNews" Order="2"
-                   Condition="VP_SEE_LATEST_NEWS = 1 AND NOT Installed AND NOT REMOVE AND UILevel = 5" />
+          <Publish Event="DoAction" Value="StartThermalrightVibeWareAfterInstall" Order="1"
+                   Condition="TRV_START_AFTER_INSTALL = 1 AND NOT Installed AND NOT REMOVE AND UILevel = 5" />
+          <Publish Event="DoAction" Value="SeeLatestThermalrightVibeWareNews" Order="2"
+                   Condition="TRV_SEE_LATEST_NEWS = 1 AND NOT Installed AND NOT REMOVE AND UILevel = 5" />
           <Publish Event="EndDialog" Value="Return" Order="3" />
         </Control>
       </Dialog>
-      <ProgressText Action="CloseVibePanel" Message="Closing Vibe Panel..." />
-      <ProgressText Action="CleanupVibePanel" Message="Closing Vibe Panel and releasing its hardware monitoring driver..." />
-      <ProgressText Action="CleanupFreshVibePanel" Message="Removing previous Vibe Panel files and registration..." />
+      <ProgressText Action="CloseThermalrightVibeWare" Message="Closing Thermalright VibeWare..." />
+      <ProgressText Action="CleanupThermalrightVibeWare" Message="Closing Thermalright VibeWare and releasing its hardware monitoring driver..." />
+      <ProgressText Action="CleanupFreshThermalrightVibeWare" Message="Removing previous Thermalright VibeWare files and registration..." />
     </UI>
     <InstallUISequence>
       <!-- Replace WixUI's overridable success sequence, retaining its other dialogs. -->
       <Show Dialog="ExitDialog" Sequence="1" Condition="0" />
-      <Show Dialog="VibePanelComplete" OnExit="success" />
+      <Show Dialog="ThermalrightVibeWareComplete" OnExit="success" />
     </InstallUISequence>
     <StandardDirectory Id="LocalAppDataFolder">
       <Directory Id="PublisherFolder" Name="Umberto Giacobbi.biz">
         <Directory Id="AppsFolder" Name="Apps">
-          <Directory Id="VibePanelRoot" Name="VibePanel">
+          <Directory Id="ThermalrightVibeWareRoot" Name="ThermalrightVibeWare">
             <Directory Id="INSTALLFOLDER" Name="MSI" />
             <Component Id="StableLauncher" Guid="E7AB0A35-CA28-4367-9885-17B6B934A38D">
-              <File Source="$(var.GeneratedRoot)\VibePanel.cmd" />
-              <RegistryValue Root="HKCU" Key="Software\Umberto Giacobbi.biz\VibePanel\MSI" Name="Launcher" Type="integer" Value="1" KeyPath="yes" />
+              <File Source="$(var.GeneratedRoot)\ThermalrightVibeWare.cmd" />
+              <RegistryValue Root="HKCU" Key="Software\Umberto Giacobbi.biz\ThermalrightVibeWare\MSI" Name="Launcher" Type="integer" Value="1" KeyPath="yes" />
             </Component>
           </Directory>
         </Directory>
@@ -112,25 +112,25 @@ VBWR E -->
     </StandardDirectory>
     <StandardDirectory Id="ProgramMenuFolder">
       <Component Id="StartShortcut" Guid="79D28196-7969-4D07-83A6-6EA8456D293C">
-        <RemoveFile Id="PreviousStartShortcut" Name="Vibe Panel.lnk" On="install" />
-        <RemoveFile Id="PreviousStudioShortcut" Name="Vibe Panel — theme studio.lnk" On="both" />
-        <RemoveFile Id="PreviousAdminCheckShortcut" Name="Vibe Panel - offline administrator checks.lnk" On="both" />
-        <RemoveFile Id="PreviousMemoryCheckShortcut" Name="Vibe Panel - offline memory checks.lnk" On="both" />
-        <RemoveFile Id="PreviousStartupCheckShortcut" Name="Vibe Panel - offline startup checks.lnk" On="both" />
-        <RemoveFile Id="PreviousVisibilityCheckShortcut" Name="Vibe Panel - offline visibility check.lnk" On="both" />
-        <RemoveFile Id="PreviousBackgroundCheckShortcut" Name="Vibe Panel - offline background check.lnk" On="both" />
-        <Shortcut Id="StartMenuShortcut" Name="Vibe Panel" Target="[INSTALLFOLDER]VibePanel.exe" WorkingDirectory="INSTALLFOLDER" Icon="ProductIcon" Description="Vibe Panel" />
-        <RegistryValue Root="HKCU" Key="Software\Umberto Giacobbi.biz\VibePanel\MSI" Name="StartShortcut" Type="integer" Value="1" KeyPath="yes" />
+        <RemoveFile Id="PreviousStartShortcut" Name="Thermalright VibeWare.lnk" On="install" />
+        <RemoveFile Id="PreviousStudioShortcut" Name="Thermalright VibeWare — theme studio.lnk" On="both" />
+        <RemoveFile Id="PreviousAdminCheckShortcut" Name="Thermalright VibeWare - offline administrator checks.lnk" On="both" />
+        <RemoveFile Id="PreviousMemoryCheckShortcut" Name="Thermalright VibeWare - offline memory checks.lnk" On="both" />
+        <RemoveFile Id="PreviousStartupCheckShortcut" Name="Thermalright VibeWare - offline startup checks.lnk" On="both" />
+        <RemoveFile Id="PreviousVisibilityCheckShortcut" Name="Thermalright VibeWare - offline visibility check.lnk" On="both" />
+        <RemoveFile Id="PreviousBackgroundCheckShortcut" Name="Thermalright VibeWare - offline background check.lnk" On="both" />
+        <Shortcut Id="StartMenuShortcut" Name="Thermalright VibeWare" Target="[INSTALLFOLDER]ThermalrightVibeWare.exe" WorkingDirectory="INSTALLFOLDER" Icon="ProductIcon" Description="Thermalright VibeWare" />
+        <RegistryValue Root="HKCU" Key="Software\Umberto Giacobbi.biz\ThermalrightVibeWare\MSI" Name="StartShortcut" Type="integer" Value="1" KeyPath="yes" />
       </Component>
     </StandardDirectory>
     <StandardDirectory Id="StartupFolder">
       <Component Id="StartupShortcut" Guid="C49044E3-6CA8-40D6-9949-9C42A9302B12">
-        <RemoveFile Id="PreviousStartupShortcut" Name="VibePanel.lnk" On="install" />
-        <Shortcut Id="SignInShortcut" Name="VibePanel" Target="[INSTALLFOLDER]VibePanel.exe" WorkingDirectory="INSTALLFOLDER" Arguments="--start-minimized --restore-last-session" Icon="ProductIcon" Show="minimized" Description="Vibe Panel saved display at Windows sign-in" />
-        <RegistryValue Root="HKCU" Key="Software\Umberto Giacobbi.biz\VibePanel\MSI" Name="StartupShortcut" Type="integer" Value="1" KeyPath="yes" />
+        <RemoveFile Id="PreviousStartupShortcut" Name="ThermalrightVibeWare.lnk" On="install" />
+        <Shortcut Id="SignInShortcut" Name="ThermalrightVibeWare" Target="[INSTALLFOLDER]ThermalrightVibeWare.exe" WorkingDirectory="INSTALLFOLDER" Arguments="--start-minimized --restore-last-session" Icon="ProductIcon" Show="minimized" Description="Thermalright VibeWare saved display at Windows sign-in" />
+        <RegistryValue Root="HKCU" Key="Software\Umberto Giacobbi.biz\ThermalrightVibeWare\MSI" Name="StartupShortcut" Type="integer" Value="1" KeyPath="yes" />
       </Component>
     </StandardDirectory>
-    <Feature Id="Complete" Title="Vibe Panel" Level="1">
+    <Feature Id="Complete" Title="Thermalright VibeWare" Level="1">
       <ComponentGroupRef Id="Payload" />
       <ComponentRef Id="StableLauncher" />
       <ComponentRef Id="StartShortcut" />

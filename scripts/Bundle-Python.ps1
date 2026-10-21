@@ -1,5 +1,5 @@
 # VBWR B
-# Project: VibePanel | https://umbertogiacobbi.biz/vibeware/manifesto
+# Project: ThermalrightVibeWare | https://umbertogiacobbi.biz/vibeware/manifesto
 # Copyright (c) 2026 Umberto Giacobbi | SPDX-License-Identifier: MIT
 # VBWR E
 param(
@@ -31,7 +31,7 @@ $pythonArchiveName = "python-$version-embeddable-$architectureTag.zip"
 $pythonArchive = Join-Path $cache $pythonArchiveName
 $wheelCache = Join-Path $cache 'wheels'
 $wheelManifest = Join-Path $wheelCache 'verified.json'
-$bundleMarker = Join-Path $pythonDestination 'vibepanel-bundle.json'
+$bundleMarker = Join-Path $pythonDestination 'thermalright-vibeware-bundle.json'
 
 function Assert-Hash([string]$Path, [string]$Expected) {
     $actual = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -202,7 +202,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $pythonStage 'python.exe'))) {
     throw "Official embeddable archive did not contain python.exe: $pythonArchive"
 }
 @{ id = $bundleId; pythonArchiveSha256 = $expectedPythonSha256; wheels = $wheelEntries } |
-    ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $pythonStage 'vibepanel-bundle.json') -Encoding utf8
+    ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $pythonStage 'thermalright-vibeware-bundle.json') -Encoding utf8
 
 if (Test-Path -LiteralPath $pythonDestination) {
     $artifactsRoot = [System.IO.Path]::GetFullPath((Join-Path $repo 'artifacts'))

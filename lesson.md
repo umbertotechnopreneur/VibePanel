@@ -1,6 +1,6 @@
 # My choices
 
-- I'm Umberto Giacobbi. I made Vibe Panel. VibeWare is my initiative.
+- I'm Umberto Giacobbi. I made Thermalright VibeWare. VibeWare is my initiative.
 - I offer a real per-user Windows MSI as well as the portable ZIP. After a requested build, I keep only its final MSI and remove generated build folders from the repository.
 - I choose which Music, Codex and System screens may appear on the display.
 - I use the music details Windows already has. No Spotify login.
@@ -55,7 +55,7 @@
 - System themes share one composition path; omit absent fields and remove superseded renderers. Keep CPU/GPU identity, clock and thermal data in reserved regions. The owner requested automatic output on each Windows launch; Stop still cancels the initial wait.
 
 - I use one Python page clock and one frame compositor for page and track fades. System graphs retain only timestamped readings; artist facts need attributed sources. Missing profiles skip the artist page.
-- Small Windows icons use the simple two-color VP vector. Larger frames use a separate gradient drawing.
+- Small Windows icons use a first-party display and sensor trace. Larger frames use a separate gradient drawing. The VibeWare initiative logo stays separate.
 - Cooling pages use watt readouts and named fan instruments. Outline rotors turn only for positive measured RPM and stay still at zero. Their visual speed is capped; it is not physical rotor speed. Animations share the theme clock and the selected frame refresh.
 - Codex work dots pulse only during received live work. Idle, stale, stopped and approval states keep their own still symbols.
 - I build each package from the current source. First-import scans are explicit preparation; builds only verify saved hashes. Scan evidence survives output cleanup. Generated app files and installers are not external imports.
@@ -75,3 +75,6 @@
 - Electrical and temperature detail rows pair each reading with a thin, smoothed trend of its recent measured samples. The displayed extrema cover that same bounded window.
 - Thermal Atlas omits Power & cooling, holds Live activity first for fifteen seconds and Temperature channels second for twenty seconds. Later pages use eight seconds. Per-page durations share the existing clock; unavailable pages add no time to the cycle.
 - I show separate THEME and PAGE navigation under the preview. Each names the rendered item and shows its own position. A manual page choice restarts that page's interval, then automatic page rotation continues; changing theme returns to its first available page.
+- On 21 October 2026 I renamed the product to Thermalright VibeWare, the GitHub repository to `thermalright-vibeware`, code identifiers to `ThermalrightVibeWare` and the CLI to `trv`. There are no old-name aliases or settings migrations. The new MSI has its own upgrade identity. Old user data is preserved outside the new app's settings directory.
+- The product uses its own display-and-sensor icon. Thermalright's logo is not used. The VibeWare initiative mark and author remain unchanged. Public pages disclose the independent project and lack of employment, affiliation, sponsorship or endorsement.
+- The README uses real owner-supplied captures with conventional cropping, resizing and mild sharpening, and asks for volunteer Linux/macOS guinea pigs. Historical evidence keeps its original filenames and measurements.

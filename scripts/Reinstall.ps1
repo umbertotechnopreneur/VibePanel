@@ -1,4 +1,4 @@
-# VBWR B — Vibe Panel. Copyright (c) 2026 Umberto Giacobbi. MIT. VBWR E
+# VBWR B — Thermalright VibeWare. Copyright (c) 2026 Umberto Giacobbi. MIT. VBWR E
 # Explicitly uninstalls, rebuilds and installs. Never runs tests.
 #requires -Version 7.0
 [CmdletBinding()]
@@ -8,7 +8,7 @@ $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
 $versionFile = Join-Path $repo 'installer/Version.txt'
 $previous = [version](Get-Content -LiteralPath $versionFile -Raw).Trim()
-$upgradeCode = '{D3F87B46-457B-41D3-98B7-249E21D83B63}'
+$upgradeCode = '{0E45EA55-B9C3-44D2-AD0A-D3BB78B53096}'
 $installer = New-Object -ComObject WindowsInstaller.Installer
 try {
     $products = @($installer.RelatedProducts($upgradeCode))
@@ -17,7 +17,7 @@ try {
         if ($installedVersion -gt $previous) { $previous = $installedVersion }
     }
     foreach ($product in $products) {
-        Write-Host "Uninstalling Vibe Panel $product with visible Windows Installer UI."
+        Write-Host "Uninstalling Thermalright VibeWare $product with visible Windows Installer UI."
         $process = Start-Process msiexec.exe -ArgumentList @('/x', $product, '/norestart') -PassThru -Wait
         if ($process.ExitCode -ne 0) { throw "Uninstall failed or cancelled (exit $($process.ExitCode)). Build stopped." }
     }
@@ -30,20 +30,20 @@ if ($previous.Build -ge 65535) { throw 'MSI build version limit reached. Update 
 $version = '{0}.{1}.{2}' -f $previous.Major, $previous.Minor, ($previous.Build + 1)
 # Reserve the version before building. Retries never reuse an installed version.
 Set-Content -LiteralPath $versionFile -Value $version -Encoding ascii
-Write-Host "Building Vibe Panel $version from clean output folders."
+Write-Host "Building Thermalright VibeWare $version from clean output folders."
 & "$PSScriptRoot/Publish.ps1" -Architecture $Architecture -Configuration Debug
 $payloads = @(Get-ChildItem -LiteralPath (Join-Path $repo 'artifacts/staging') -Directory)
 if ($payloads.Count -ne 1) { throw 'Expected exactly one fresh payload.' }
 $payload = $payloads[0].FullName
 & "$PSScriptRoot/Build-Msi.ps1" -PayloadPath $payload -Architecture $Architecture -Version $version
-$msi = Join-Path $repo "artifacts/packages/VibePanel-win-$($Architecture.ToLowerInvariant())-$version.msi"
+$msi = Join-Path $repo "artifacts/packages/ThermalrightVibeWare-win-$($Architecture.ToLowerInvariant())-$version.msi"
 $process = Start-Process msiexec.exe -ArgumentList @('/i', ('"' + $msi + '"'), '/norestart') -PassThru -Wait
 if ($process.ExitCode -ne 0) { throw "Install failed or cancelled (exit $($process.ExitCode)). MSI retained." }
-$installed = Join-Path $env:LOCALAPPDATA 'Umberto Giacobbi.biz/Apps/VibePanel/MSI'
+$installed = Join-Path $env:LOCALAPPDATA 'Umberto Giacobbi.biz/Apps/ThermalrightVibeWare/MSI'
 $checked = 0
 foreach ($file in Get-ChildItem -LiteralPath $payload -File -Recurse) {
     $relative = [IO.Path]::GetRelativePath($payload, $file.FullName)
-    if ($relative -in @('Install-VibePanel.ps1', 'Uninstall-VibePanel.ps1')) { continue }
+    if ($relative -in @('Install-ThermalrightVibeWare.ps1', 'Uninstall-ThermalrightVibeWare.ps1')) { continue }
     $destination = Join-Path $installed $relative
     if (-not (Test-Path -LiteralPath $destination -PathType Leaf) -or
         (Get-FileHash -LiteralPath $file.FullName).Hash -ne (Get-FileHash -LiteralPath $destination).Hash) {
@@ -51,7 +51,7 @@ foreach ($file in Get-ChildItem -LiteralPath $payload -File -Recurse) {
     }
     $checked++
 }
-if (Test-Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\VibePanel') {
+if (Test-Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\ThermalrightVibeWare') {
     throw 'The legacy uninstall registration is still present.'
 }
 $installer = New-Object -ComObject WindowsInstaller.Installer

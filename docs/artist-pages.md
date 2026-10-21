@@ -12,4 +12,4 @@ One background lookup runs at a time. MusicBrainz calls are spaced at least 1.1 
 
 The online response is data, not executable code. No additional library was imported for this feature. Future external binaries still require targeted Microsoft Defender scans of both their archives and extracted dependencies before use.
 
-<!-- VBWR B — Vibe Panel. Copyright (c) 2026 Umberto Giacobbi. MIT. VBWR E -->
+<!-- VBWR B — Thermalright VibeWare. Copyright (c) 2026 Umberto Giacobbi. MIT. VBWR E -->

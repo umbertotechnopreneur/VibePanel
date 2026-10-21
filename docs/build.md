@@ -1,4 +1,4 @@
-# Build Vibe Panel
+# Build Thermalright VibeWare
 
 I use the .NET 10 SDK and Python with pip on the packaging PC.
 
@@ -8,7 +8,7 @@ Windows builds also need PowerShell 7, Visual Studio's C++ v143 tools for the ta
 
 From the repository folder:
 
-For a local reinstall, use this command. It uninstalls registered Vibe Panel
+For a local reinstall, use this command. It uninstalls registered Thermalright VibeWare
 packages, clears `artifacts`, `bin`, `obj` and generated web files, increments
 `installer/Version.txt`, builds a fresh Debug MSI and opens its normal installer UI.
 After installation it compares every installed payload file with the new build
@@ -44,7 +44,7 @@ the publishing script directly:
 Do not use that command for an ordinary local compilation. Every local compilation
 uses the Debug reinstall flow above unless the owner explicitly says otherwise.
 
-The ZIP is written to `artifacts/packages/VibePanel-win-x64-preview.zip`. Each
+The ZIP is written to `artifacts/packages/ThermalrightVibeWare-win-x64-preview.zip`. Each
 build first uses a unique ignored staging folder, so packaging does not overwrite
 or stop a portable copy that is currently running. Use `-Architecture ARM64` for
 that architecture; my local package check covered x64.

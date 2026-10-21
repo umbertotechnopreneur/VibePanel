@@ -1,4 +1,4 @@
-# VBWR B — Vibe Panel. Copyright (c) 2026 Umberto Giacobbi. MIT.
+# VBWR B — Thermalright VibeWare. Copyright (c) 2026 Umberto Giacobbi. MIT.
 """Shared Skia primitives. Theme scripts own composition; expensive layers are cached."""
 from __future__ import annotations
 
@@ -890,7 +890,7 @@ class Canvas:
                 self.circle(x + math.cos(angle) * radius, y + math.sin(angle) * radius, 5.5, self.ctx.fg)
 
     def footer(self, text=None, width=None):
-        text = text or ("DEMO DATA · PREVIEW" if self.ctx.preview else "VIBE PANEL")
+        text = text or ("DEMO DATA · PREVIEW" if self.ctx.preview else "THERMALRIGHT VIBEWARE")
         if self.ctx.preview and not text.startswith("DEMO DATA"):
             text = "DEMO DATA · PREVIEW · " + text
         self.label(text, 24 if self.compact else 40, 470, width or self.width - 80)

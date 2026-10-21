@@ -1,4 +1,4 @@
-# VBWR B — Vibe Panel. Copyright (c) 2026 Umberto Giacobbi. MIT.
+# VBWR B — Thermalright VibeWare. Copyright (c) 2026 Umberto Giacobbi. MIT.
 """Persistent, offscreen theme worker. stdin/stdout are JSON Lines protocol only."""
 from __future__ import annotations
 
@@ -46,7 +46,7 @@ def load_theme(folder: pathlib.Path):
     stamp = entry.stat().st_mtime_ns
     key = str(entry)
     if key not in MODULES or MODULES[key][0] != stamp:
-        name = "vibepanel_theme_" + hashlib.sha256(key.encode()).hexdigest()[:16]
+        name = "thermalright-vibeware_theme_" + hashlib.sha256(key.encode()).hexdigest()[:16]
         spec = importlib.util.spec_from_file_location(name, entry)
         if spec is None or spec.loader is None:
             raise ValueError("Theme entry cannot be loaded.")

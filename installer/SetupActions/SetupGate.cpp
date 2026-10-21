@@ -1,4 +1,4 @@
-// VBWR B — Vibe Panel. Copyright (c) 2026 Umberto Giacobbi. MIT. VBWR E
+// VBWR B — Thermalright VibeWare. Copyright (c) 2026 Umberto Giacobbi. MIT. VBWR E
 #include <windows.h>
 #include <msi.h>
 #include <msiquery.h>
@@ -24,7 +24,7 @@ static std::wstring GateName() {
     CloseHandle(token);
     LPWSTR sid = nullptr;
     if (!ConvertSidToStringSidW(reinterpret_cast<TOKEN_USER*>(data.data())->User.Sid, &sid)) { return {}; }
-    const std::wstring name = L"Global\\UmbertoGiacobbi.VibePanel.SetupGate." + std::wstring(sid);
+    const std::wstring name = L"Global\\UmbertoGiacobbi.ThermalrightVibeWare.SetupGate." + std::wstring(sid);
     LocalFree(sid);
     return name;
 }
@@ -97,29 +97,29 @@ static bool OpenCompletionTarget(const std::wstring& target, const wchar_t* dire
     return opened != FALSE;
 }
 
-extern "C" __declspec(dllexport) UINT __stdcall StartVibePanelAfterInstall(MSIHANDLE installer) {
+extern "C" __declspec(dllexport) UINT __stdcall StartThermalrightVibeWareAfterInstall(MSIHANDLE installer) {
     try {
-        if (!CompletionSelected(installer, L"VP_START_AFTER_INSTALL")) { return ERROR_SUCCESS; }
+        if (!CompletionSelected(installer, L"TRV_START_AFTER_INSTALL")) { return ERROR_SUCCESS; }
         std::wstring folder = SetupProperty(installer, L"INSTALLFOLDER");
         if (!folder.empty() && folder.back() != L'\\') { folder += L'\\'; }
-        if (folder.empty() || !OpenCompletionTarget(folder + L"VibePanel.exe", folder.c_str())) {
-            CompletionWarning(installer, L"Setup finished, but Vibe Panel could not start. Open it from Start.");
+        if (folder.empty() || !OpenCompletionTarget(folder + L"ThermalrightVibeWare.exe", folder.c_str())) {
+            CompletionWarning(installer, L"Setup finished, but Thermalright VibeWare could not start. Open it from Start.");
         }
     }
-    catch (...) { CompletionWarning(installer, L"Setup finished, but Vibe Panel could not start. Open it from Start."); }
+    catch (...) { CompletionWarning(installer, L"Setup finished, but Thermalright VibeWare could not start. Open it from Start."); }
     return ERROR_SUCCESS;
 }
 
-extern "C" __declspec(dllexport) UINT __stdcall SeeLatestVibePanelNews(MSIHANDLE installer) {
+extern "C" __declspec(dllexport) UINT __stdcall SeeLatestThermalrightVibeWareNews(MSIHANDLE installer) {
     try {
-        if (!CompletionSelected(installer, L"VP_SEE_LATEST_NEWS")) { return ERROR_SUCCESS; }
+        if (!CompletionSelected(installer, L"TRV_SEE_LATEST_NEWS")) { return ERROR_SUCCESS; }
         // Fixed campaign tags identify this installer link, with no user/session ID.
-        const std::wstring url = L"https://github.com/umbertotechnopreneur/VibePanel/releases"
-            L"?utm_source=vibepanel&utm_medium=installer&utm_campaign=release_news";
+        const std::wstring url = L"https://github.com/umbertotechnopreneur/thermalright-vibeware/releases"
+            L"?utm_source=thermalright-vibeware&utm_medium=installer&utm_campaign=release_news";
         if (!OpenCompletionTarget(url)) {
-            CompletionWarning(installer, L"Setup finished, but the browser could not open. Find Vibe Panel releases on GitHub.");
+            CompletionWarning(installer, L"Setup finished, but the browser could not open. Find Thermalright VibeWare releases on GitHub.");
         }
     }
-    catch (...) { CompletionWarning(installer, L"Setup finished, but the browser could not open. Find Vibe Panel releases on GitHub."); }
+    catch (...) { CompletionWarning(installer, L"Setup finished, but the browser could not open. Find Thermalright VibeWare releases on GitHub."); }
     return ERROR_SUCCESS;
 }
