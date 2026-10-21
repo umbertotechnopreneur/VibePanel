@@ -32,16 +32,19 @@ You are welcome to try it with other screens, use the code and share what you le
 
 [VoiceDucker](https://github.com/umbertotechnopreneur/VoiceDucker) · [Ulanzi Dock](https://github.com/umbertotechnopreneur/ulanzi-dock-vibeware)
 
----
-
-<a href="https://umbertogiacobbi.biz/vibeware/manifesto"><img src="src/VibePanel.App/Assets/vibeware-logo.png" alt="VibeWare" width="64"></a>
-
-Part of my VibeWare initiative. [My manifesto](https://umbertogiacobbi.biz/vibeware/manifesto).
-
-[Terms](https://umbertogiacobbi.biz/terms/) · [Privacy](https://umbertogiacobbi.biz/privacy/)
-
 ## A note on security
 
 I care about what goes into this project. Before I add a third-party library or prebuilt binary, including files supplied without source code, I scan the downloaded package, its extracted files and any dependencies with Microsoft Windows Defender. I keep new imports aside until the scan finishes without detections.
 
 I keep a record of where each new import came from and the scan result. If a scan cannot finish or flags something, I leave it out.
+
+---
+
+<p align="right">
+  <a href="https://umbertogiacobbi.biz/vibeware/manifesto"><img src="src/VibePanel.App/Assets/vibeware-logo.png" alt="VibeWare" width="64"></a><br>
+  <em>Human Intent, AI Execution, Plenty of Token</em>
+</p>
+
+Part of my VibeWare initiative. [My manifesto](https://umbertogiacobbi.biz/vibeware/manifesto).
+
+[Terms](https://umbertogiacobbi.biz/terms/) · [Privacy](https://umbertogiacobbi.biz/privacy/)

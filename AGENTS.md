@@ -59,8 +59,9 @@ I am Umberto Giacobbi. Vibe Panel is my MIT-licensed holiday hobby project for c
 
 ## Delivery and validation
 
-- Keep `main` protected. Stay on the current branch unless the owner approves a new one; merge through reviewed pull requests after required checks pass.
-- For every owner-authorized Git delivery, create or reuse an open pull request for the current branch. Always assign it to `umbertotechnopreneur` and apply the relevant repository labels.
+- For owner-authorized documentation-only or repository-instruction-only delivery, commit and push directly on the current branch with `[skip ci]`. Do not create a branch or pull request, start CI, or include unrelated local commits.
+- For other changes, keep `main` protected. Stay on the current branch unless the owner approves a new one; merge through reviewed pull requests after required checks pass.
+- For owner-authorized delivery of other changes, create or reuse an open pull request for the current branch. Always assign it to `umbertotechnopreneur` and apply the relevant repository labels.
 - CI priority is Windows, Linux, then macOS. The owner authorizes an administrator override only for a failed, cancelled, unavailable or stalled macOS-only check when Windows, Linux, other required checks and review requirements pass. Preserve protections and report that limitation. This does not authorize starting tests, builds, Git delivery, installation or publication by itself.
 - Do not commit credentials, local device paths, captures, logs, `artifacts/`, `bin/`, or `obj/`.
 - Use `artifacts/` for generated output. Preserve unrelated working-tree changes.
