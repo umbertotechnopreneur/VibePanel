@@ -381,3 +381,14 @@ turned off. One 0.1.22 MSI registration remains, and all 1,825 installed payload
 files match the fresh build. The app was left closed, so no sensor or USB trial ran.
 Cleanup retained only `artifacts/packages/VibePanel-win-x64-0.1.22.msi`; its SHA-256
 is `C1E9DAE16DFC2D3C55B235EA4E9BF0C9452AA999E221D68434BFDCB1A5F524BE`.
+
+## 21 October 2026: page navigation and renderer checks
+
+All 46 checks in `check_theme_pages`, `check_hardware_themes`,
+`check_track_transition` and `check_palette` passed with offscreen rendering
+enabled. They ran against repository source using the installed Python runtime
+and synthetic fixtures. The checks cover page timing, heatmap availability,
+JPEG dimensions and size limits, palette overrides and transition pixels.
+The pack assertion now includes the core page and Thermal Atlas's cooling-page
+exception; independent JPEG cases reset the page clock and transition state.
+No live studio visual check, sensor trial or USB output was performed.

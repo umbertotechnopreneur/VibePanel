@@ -340,9 +340,11 @@ class SystemPackChecks(unittest.TestCase):
             self.assertEqual(manifest["category"], "system")
             self.assertIn("sensors", manifest["optional"])
             self.assertNotIn("showSpectrum", manifest["settings"])
-            self.assertEqual({page["id"] for page in manifest["pages"]},
-                             {"overview", "activity", "cooling", "electrical", "temperatures", "memory"})
-            self.assertEqual(len(manifest["pages"]), 6)
+            expected_pages = {"overview", "activity", "cores", "cooling", "electrical", "temperatures", "memory"}
+            if manifest["id"] == "system.thermal":
+                expected_pages.remove("cooling")
+            self.assertEqual({page["id"] for page in manifest["pages"]}, expected_pages)
+            self.assertEqual(len(manifest["pages"]), len(expected_pages))
             self.assertTrue((folder / manifest["entry"]).is_file())
             identities.add(manifest["id"])
         self.assertEqual(identities, {"system." + style for style in STYLES})
@@ -356,6 +358,7 @@ class OptionalOfflineJpegChecks(unittest.TestCase):
         # fixture state; no C# host, sensor DLL or physical device is involved.
         import skia
         import worker
+        import canvas
 
         sparse = {"cpu": {"usagePercent": 0, "clockMHz": None, "temperatureC": None},
                   "gpus": [], "memory": {"totalGiB": 32, "usedGiB": None},
@@ -365,6 +368,8 @@ class OptionalOfflineJpegChecks(unittest.TestCase):
                 for light in (False, True):
                     for scenario, sensors in (("full", fixture_sensors()), ("sparse", sparse), ("empty", {})):
                         with self.subTest(style=style, size=(width, height), light=light, scenario=scenario):
+                            worker.FRAME_TRANSITION.reset()
+                            canvas._ACTIVE_THEME_TIMING = None
                             request = {"version": 1, "method": "render", "id": "offline-fixture",
                                        "themePath": str(ROOT / "themes/system/themes" / style),
                                        "width": width, "height": height, "light": light,
