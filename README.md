@@ -8,7 +8,7 @@ I made Vibe Panel to put music and PC information on a small USB screen. I'm [Um
 - **Your PC:** See available CPU, GPU, RAM, temperatures, power and fan readings. What you see depends on your hardware and sensor access.
 - **Codex:** Try the early Codex themes. This part still needs work.
 
-I built this for my Thermalright Trofeo Vision LCD, a 6.86-inch USB screen (1280 × 480). Thermalright sells it in [black](https://www.thermalright.com/product/trofeo-vision-lcd-black/) and [white](https://www.thermalright.com/product/trofeo-vision-lcd-white/). Other models and profiles have not all been checked. [Hardware details](docs/protocol-notes.md).
+I built this for my Thermalright Trofeo Vision LCD, a 6.86-inch USB screen (1280 × 480). Thermalright sells it in [black](https://www.thermalright.com/product/trofeo-vision-lcd-black/) and [white](https://www.thermalright.com/product/trofeo-vision-lcd-white/). [Hardware details](docs/protocol-notes.md).
 
 Vibe Panel is an independent project. It is not connected with or endorsed by Thermalright. All trademarks belong to their respective owners.
 
@@ -22,7 +22,7 @@ Windows is the supported platform today. Linux and macOS do not yet have USB or 
 
 **Themes run Python code on your PC. For now, only download themes from [this official repository](https://github.com/umbertotechnopreneur/VibePanel).**
 
-I made this hobby project in a few days on holiday because I wanted lighter display software that I could change to suit me. I learned from other people's public work and used AI to help write it. [Credits](docs/protocol-notes.md#sources-studied). Memory, speed and security checks are still on my list; I have not finished them.
+I made this hobby project in a few days on holiday because I wanted lighter display software that I could change to suit me. I learned from other people's public work and used AI to help write it. [Credits](docs/protocol-notes.md#sources-studied).
 
 The software is open source under the [MIT license](LICENSE); the hardware is sold separately. Some included components have their own [licenses](THIRD_PARTY_NOTICES.md). This is a hobby project, with no warranty.
 
@@ -40,6 +40,8 @@ Part of my VibeWare initiative. [My manifesto](https://umbertogiacobbi.biz/vibew
 
 [Terms](https://umbertogiacobbi.biz/terms/) · [Privacy](https://umbertogiacobbi.biz/privacy/)
 
-## External binary security
+## A note on security
 
-Before importing a new external library or binary, I scan its archive and extracted files with Microsoft Defender, record the source, hashes, command and result, and proceed only after a clean scan. Unchanged files reuse their recorded evidence; builds do not start scans. See the [build guide](docs/build.md).
+I care about what goes into this project. Before I add a third-party library or prebuilt binary, including files supplied without source code, I scan the downloaded package, its extracted files and any dependencies with Microsoft Windows Defender. I keep new imports aside until the scan finishes without detections.
+
+I keep a record of where each new import came from and the scan result. If a scan cannot finish or flags something, I leave it out.
