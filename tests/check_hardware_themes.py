@@ -1,11 +1,11 @@
-# VBWR B — Vibe Panel. Copyright (c) 2026 Umberto Giacobbi. MIT.
+# VBWR B — Thermalright VibeWare. Copyright (c) 2026 Umberto Giacobbi. MIT.
 """OFFLINE checks. Every execution needs explicit owner approval first.
 
 All values below are synthetic fixtures confined to this test file. These checks
 never query sensors, launch the studio, load a monitoring driver, or touch USB.
 The default checks inspect normalization, bounded history and drawing commands.
 Actual offscreen JPEG rendering additionally requires the explicit environment
-opt-in VIBEPANEL_OFFLINE_RENDER_CHECKS=1 and the theme-runtime dependencies.
+opt-in THERMALRIGHT_VIBEWARE_OFFLINE_RENDER_CHECKS=1 and the theme-runtime dependencies.
 Neither mode establishes physical-device support or visual acceptance.
 """
 from __future__ import annotations
@@ -350,8 +350,8 @@ class SystemPackChecks(unittest.TestCase):
         self.assertEqual(identities, {"system." + style for style in STYLES})
 
 
-@unittest.skipUnless(os.environ.get("VIBEPANEL_OFFLINE_RENDER_CHECKS") == "1",
-                     "Owner-approved offscreen rendering requires VIBEPANEL_OFFLINE_RENDER_CHECKS=1")
+@unittest.skipUnless(os.environ.get("THERMALRIGHT_VIBEWARE_OFFLINE_RENDER_CHECKS") == "1",
+                     "Owner-approved offscreen rendering requires THERMALRIGHT_VIBEWARE_OFFLINE_RENDER_CHECKS=1")
 class OptionalOfflineJpegChecks(unittest.TestCase):
     def test_all_ten_themes_encode_exact_wide_square_and_portrait_frames(self):
         # Imported only inside the optional check. The worker receives only the

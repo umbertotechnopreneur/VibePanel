@@ -1,5 +1,5 @@
 # VBWR B
-# Project: VibePanel | https://umbertogiacobbi.biz/vibeware/manifesto
+# Project: ThermalrightVibeWare | https://umbertogiacobbi.biz/vibeware/manifesto
 # Copyright (c) 2026 Umberto Giacobbi | SPDX-License-Identifier: MIT
 # VBWR E
 #requires -Version 7.0
@@ -26,9 +26,9 @@ if (-not $msbuild) {
 if (-not $msbuild) { throw 'Existing Visual Studio C++ tools are required. This script does not install tools.' }
 New-Item -ItemType Directory -Path $destination -Force | Out-Null
 & $msbuild (Join-Path $repo 'installer/SetupActions/SetupActions.vcxproj') /nologo /m /v:minimal /p:Configuration=Release "/p:Platform=$Architecture" "/p:OutDir=$destination\" "/p:IntDir=$destination\obj\"
-if ($LASTEXITCODE -ne 0) { throw 'Vibe Panel setup helper compilation failed.' }
+if ($LASTEXITCODE -ne 0) { throw 'Thermalright VibeWare setup helper compilation failed.' }
 & $msbuild (Join-Path $repo 'installer/SetupActions/SetupGate.vcxproj') /nologo /m /v:minimal /p:Configuration=Release "/p:Platform=$Architecture" "/p:OutDir=$destination\" "/p:IntDir=$destination\gate-obj\"
-if ($LASTEXITCODE -ne 0) { throw 'Vibe Panel setup gate compilation failed.' }
-$executable = Join-Path $destination 'VibePanel.SetupActions.exe'
+if ($LASTEXITCODE -ne 0) { throw 'Thermalright VibeWare setup gate compilation failed.' }
+$executable = Join-Path $destination 'ThermalrightVibeWare.SetupActions.exe'
 if (-not (Test-Path -LiteralPath $executable)) { throw 'The setup helper executable is missing.' }
 Write-Host "Setup helper ($Architecture): $executable. No tests or cleanup actions executed."

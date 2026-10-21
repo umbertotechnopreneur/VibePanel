@@ -11,7 +11,7 @@ flowchart TD
     VM --> Session
     Session --> Client[IPanelClient: JSON-lines]
     Client --> Engine[Windows engine host]
-    Engine --> Data[VibePanel.Data: portable models and collection]
+    Engine --> Data[ThermalrightVibeWare.Data: portable models and collection]
     Data --> Providers[Provider interfaces]
     Providers --> Windows[Windows media, audio, metrics and network]
     Providers --> Fixtures[Offline test providers]
@@ -27,6 +27,6 @@ flowchart TD
 
 ## Platform boundary
 
-`VibePanel.Data` targets plain `net10.0`. It holds data records, provider interfaces and the shared collection service. It references no Windows APIs or hardware libraries.  `WindowsDashboardProviders` is the Windows composition root. The host explicitly supplies these providers; constructing the data service does not choose or open hardware. Disabled features do not read their providers. A failed playback provider cannot discard available media or sensor results.
+`ThermalrightVibeWare.Data` targets plain `net10.0`. It holds data records, provider interfaces and the shared collection service. It references no Windows APIs or hardware libraries.  `WindowsDashboardProviders` is the Windows composition root. The host explicitly supplies these providers; constructing the data service does not choose or open hardware. Disabled features do not read their providers. A failed playback provider cannot discard available media or sensor results.
 
 This is a portable data boundary, not a Linux or macOS hardware backend. The engine host, USB transport, system providers and raster conversion remain Windows-specific. The non-Windows desktop runtime is not yet a complete working studio. Linux CI builds the UI and executes model, persistence and fake-provider checks. No test opens USB, sensors or audio. These checks do not establish physical-device or installer behavior.

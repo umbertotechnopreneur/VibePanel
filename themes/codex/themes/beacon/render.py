@@ -1,4 +1,4 @@
-# VBWR B — Vibe Panel. Copyright (c) 2026 Umberto Giacobbi. MIT.
+# VBWR B — Thermalright VibeWare. Copyright (c) 2026 Umberto Giacobbi. MIT.
 def render(c, s):
     if c.compact:
         c.compact_codex("beacon")
@@ -11,5 +11,5 @@ def render(c, s):
     c.text(s.activity_detail(), 365, 291, min(24, 32 / s.font_scale), s.muted, 830)
     c.line(365, 338, 1190, 338, s.fg, opacity=.12)
     c.caption(s.model or s.phase, 365, 376, s.muted, 830)
-    c.footer("DEMO DATA · PREVIEW" if s.preview else "VIBE PANEL · OPENAI CODEX")
+    c.footer("DEMO DATA · PREVIEW" if s.preview else "THERMALRIGHT VIBEWARE · OPENAI CODEX")
 # VBWR E

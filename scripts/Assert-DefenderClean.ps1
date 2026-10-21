@@ -1,4 +1,4 @@
-# VBWR B — Vibe Panel. Copyright (c) 2026 Umberto Giacobbi. MIT. VBWR E
+# VBWR B — Thermalright VibeWare. Copyright (c) 2026 Umberto Giacobbi. MIT. VBWR E
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)][string]$Path,
@@ -19,7 +19,7 @@ if ((Get-Item -LiteralPath $target -Force).Attributes -band [IO.FileAttributes]:
     ($files | Where-Object { $_.Attributes -band [IO.FileAttributes]::ReparsePoint })) {
     throw 'First-import checks do not follow links.'
 }
-$evidenceRoot = Join-Path $env:LOCALAPPDATA 'VibePanel/build-security'
+$evidenceRoot = Join-Path $env:LOCALAPPDATA 'ThermalrightVibeWare/build-security'
 $evidencePath = Join-Path $evidenceRoot 'first-import-scans.jsonl'
 $cleanHashes = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 foreach ($recordPath in @($evidencePath, (Join-Path $repo 'docs/dependency-scan-manifest.jsonl'), (Join-Path $artifacts 'security/scans.jsonl'))) {

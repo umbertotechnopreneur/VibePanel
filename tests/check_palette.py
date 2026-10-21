@@ -1,4 +1,4 @@
-# VBWR B — Vibe Panel. Copyright (c) 2026 Umberto Giacobbi. MIT.
+# VBWR B — Thermalright VibeWare. Copyright (c) 2026 Umberto Giacobbi. MIT.
 """Offline palette contract checks. Run only with owner approval."""
 import pathlib
 import os
@@ -28,7 +28,7 @@ class PaletteChecks(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     ThemePalette((), {}, {}, overrides, False)
 
-    @unittest.skipUnless(os.environ.get("VIBEPANEL_OFFLINE_RENDER_CHECKS") == "1", "Requires approved offscreen rendering")
+    @unittest.skipUnless(os.environ.get("THERMALRIGHT_VIBEWARE_OFFLINE_RENDER_CHECKS") == "1", "Requires approved offscreen rendering")
     def test_bundled_themes_render_with_overrides(self):
         import worker
         root = pathlib.Path(__file__).resolve().parents[1]

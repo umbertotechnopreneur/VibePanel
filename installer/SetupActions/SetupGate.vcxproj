@@ -1,5 +1,5 @@
 <!-- VBWR B
-  Project: VibePanel | https://umbertogiacobbi.biz/vibeware/manifesto
+  Project: ThermalrightVibeWare | https://umbertogiacobbi.biz/vibeware/manifesto
   Copyright (c) 2026 Umberto Giacobbi | SPDX-License-Identifier: MIT
 VBWR E -->
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
@@ -10,7 +10,7 @@ VBWR E -->
   <PropertyGroup Label="Globals">
     <ProjectGuid>{AF3105F1-2376-4E08-B1D3-51F9371182A6}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>VibePanelSetupActions</RootNamespace>
+    <RootNamespace>ThermalrightVibeWareSetupActions</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -22,7 +22,7 @@ VBWR E -->
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <PropertyGroup>
-    <TargetName>VibePanel.SetupGate</TargetName>
+    <TargetName>ThermalrightVibeWare.SetupGate</TargetName>
     <OutDir>$(MSBuildThisFileDirectory)..\..\artifacts\native\msi\$(Platform)\</OutDir>
     <IntDir>$(OutDir)gate-obj\</IntDir>
   </PropertyGroup>

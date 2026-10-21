@@ -1,4 +1,4 @@
-# VBWR B — Vibe Panel. Copyright (c) 2026 Umberto Giacobbi. MIT.
+# VBWR B — Thermalright VibeWare. Copyright (c) 2026 Umberto Giacobbi. MIT.
 """One owner-approved, local 40-frame review. Never call from automated CI.
 
 Creates twenty themes x light/dark, using only original synthetic fixtures.
@@ -76,7 +76,7 @@ def base_state(cover_key):
                   "sessions": [{"name": "Demo media", "volumePercent": 65, "peak": .32, "muted": False}]},
         "clock": {"iso": "2026-10-16T21:42:24+07:00", "locale": "en-US"},
         "desktop": {"palette": ["#686DB4", "#B67EA7", "#529BA5", "#CAA57D"]},
-        "codex": {"preview": True, "chatTitle": "Vibe Panel · Theme engine",
+        "codex": {"preview": True, "chatTitle": "Thermalright VibeWare · Theme engine",
                   "status": "Working on the theme", "event": "PreToolUse", "phase": "working",
                   "isLive": True, "stale": False, "atUtc": "2026-10-16T14:42:24Z",
                   "tool": "terminal", "model": "Demo model",
@@ -185,7 +185,7 @@ def draw_contacts(output, results):
             surface = skia.Surface(1280, 1480)
             canvas = surface.getCanvas()
             canvas.clear(background)
-            canvas.drawString(f"VIBE PANEL / {category.upper()} / {appearance.upper()}", 24, 43, title_font, skia.Paint(Color=foreground, AntiAlias=True))
+            canvas.drawString(f"THERMALRIGHT VIBEWARE / {category.upper()} / {appearance.upper()}", 24, 43, title_font, skia.Paint(Color=foreground, AntiAlias=True))
             canvas.drawString("DEMO DATA · 10 THEMES · 1280 x 480 EACH · NO LIVE APPS OR DEVICES", 24, 71, small_font, skia.Paint(Color=muted, AntiAlias=True))
             for index, item in enumerate(items):
                 x = 24 + (index % 2) * 628

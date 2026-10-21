@@ -1,0 +1,25 @@
+<!-- VBWR B
+  Project: ThermalrightVibeWare
+  Creator: Umberto Giacobbi | https://umbertogiacobbi.biz
+  VibeWare: Human intent, AI execution, and plenty of tokens
+  Copyright (c) 2026 Umberto Giacobbi
+  SPDX-License-Identifier: MIT
+VBWR E -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <RootNamespace>ThermalrightVibeWare.Core</RootNamespace>
+    <AssemblyName>ThermalrightVibeWare.Core</AssemblyName>
+    <Platforms>x64;ARM64</Platforms>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../ThermalrightVibeWare.Data/ThermalrightVibeWare.Data.csproj" />
+    <ProjectReference Include="../ThermalrightVibeWare.Contracts/ThermalrightVibeWare.Contracts.csproj" />
+    <PackageReference Include="System.Drawing.Common" Version="10.0.10" />
+    <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
+    <!-- Pinned MPL-2.0 fork source; includes the NCT6792D decoder correction. -->
+    <ProjectReference Include="../../third_party/LibreHardwareMonitor/LibreHardwareMonitorLib.csproj" />
+    <!-- The sensor library uses this internally for SMBIOS. -->
+    <PackageReference Include="System.Management" Version="10.0.13" />
+  </ItemGroup>
+</Project>

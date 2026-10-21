@@ -1,0 +1,7 @@
+<!-- VBWR B — Thermalright VibeWare. Copyright (c) 2026 Umberto Giacobbi. MIT. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <rect x="1" y="2" width="14" height="10" rx="2" fill="#10202B" stroke="#32CDB8" stroke-width="1.5"/>
+  <path d="M3 8H5L6.5 5 8.5 9 10 7H11" fill="none" stroke="#70F4D8" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M13 5V9M6 14H10" stroke="#AC8CF8" stroke-width="1.5" stroke-linecap="round"/>
+</svg>
+<!-- VBWR E -->

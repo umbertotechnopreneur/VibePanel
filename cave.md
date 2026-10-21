@@ -392,3 +392,44 @@ JPEG dimensions and size limits, palette overrides and transition pixels.
 The pack assertion now includes the core page and Thermal Atlas's cooling-page
 exception; independent JPEG cases reset the page clock and transition state.
 No live studio visual check, sensor trial or USB output was performed.
+
+## 21 October 2026: Thermalright VibeWare rename
+
+The product is now Thermalright VibeWare. Code projects, namespaces, binaries,
+the CLI (`trv`), Codex plugin, theme footers, installer and current guides use
+the new identity. The existing GitHub repository was renamed to
+`umbertotechnopreneur/thermalright-vibeware`, with the owner accepting GitHub's
+automatic redirect. There are no old-name aliases or settings migrations.
+Historical entries above and dependency scan evidence keep their original names.
+
+Windows x64 was built from current source in Debug. Restore and source format
+verification completed successfully. Unchanged dependency inputs reused their
+recorded first-import scan evidence. The previous MSI was removed through its
+visible UI, and the new 0.1.23 MSI completed visible installation with exit 0.
+All 1,834 installed payload files match the fresh build by SHA-256. There is one
+new MSI registration and no old MSI registration. Start and sign-in shortcuts
+point to the new executable; sign-in retains `--start-minimized
+--restore-last-session`. Existing user data remains outside the new settings
+directory. The old cleanup log records completed scoped cleanup, and the
+OpenHardwareMonitor service registration is absent.
+
+The final package is `artifacts/packages/ThermalrightVibeWare-win-x64-0.1.23.msi`.
+Its SHA-256 is
+`3C6774E07FA107FABB18D44BF951D9789EB9C389D5DF352AA63F357A256F5011`.
+The installer source checkpoint is `fe49056`. Build output is cleaned while
+retaining this MSI. No tests, CI runs or USB output commands were executed for
+this change.
+
+Nine owner-supplied app captures use one 1280 × 864 canvas. They keep their
+original UI text and readings, with conventional crop, resize and light
+sharpening. The product icon is a first-party display and sensor trace; the
+VibeWare initiative mark is unchanged.
+
+The personal site's source now includes the project, images and independent
+brand disclaimer in English, Italian and Vietnamese. Its Node 24 static build
+and changed-file lint completed successfully; generated canonical URLs and
+language alternates match the new pages. New npm archive and extracted-package
+inputs completed targeted Defender scans without detections. The site's
+pre-existing edited `dist` files were preserved. The site has not been deployed
+as part of this change. UlanziDock keeps its existing name and repository;
+its README and site page gained the requested independent-brand disclaimer.

@@ -1,5 +1,5 @@
 # VBWR B
-# Project: VibePanel | https://umbertogiacobbi.biz/vibeware/manifesto
+# Project: ThermalrightVibeWare | https://umbertogiacobbi.biz/vibeware/manifesto
 # Copyright (c) 2026 Umberto Giacobbi | SPDX-License-Identifier: MIT
 # VBWR E
 param(
@@ -12,25 +12,25 @@ $env:MSBUILDDISABLENODEREUSE = '1'
 $env:DOTNET_CLI_USE_MSBUILD_SERVER = '0'
 $repo = Split-Path $PSScriptRoot -Parent
 $runtime = 'win-' + $Architecture.ToLowerInvariant()
-$packageName = "VibePanel-$runtime-preview"
+$packageName = "ThermalrightVibeWare-$runtime-preview"
 $stagingRoot = Join-Path $repo 'artifacts/staging'
 $destination = Join-Path $stagingRoot ("$packageName-" + [Guid]::NewGuid().ToString('N'))
 $engine = Join-Path $destination 'engine'
 $env:NUGET_HTTP_CACHE_PATH = Join-Path $repo 'artifacts/nuget-http'
 $env:NUGET_PACKAGES = Join-Path $repo 'artifacts/nuget-stage'
 foreach ($name in @('Cli', 'Photino')) {
-    dotnet restore (Join-Path $repo "src/VibePanel.$name/VibePanel.$name.csproj") --runtime $runtime -p:Platform=$Architecture
+    dotnet restore (Join-Path $repo "src/ThermalrightVibeWare.$name/ThermalrightVibeWare.$name.csproj") --runtime $runtime -p:Platform=$Architecture
     if ($LASTEXITCODE -ne 0) { throw "Restore failed: $name" }
 }
 & "$PSScriptRoot/Assert-DefenderClean.ps1" -Path $env:NUGET_PACKAGES -Source 'https://api.nuget.org/v3/index.json; restored package archives and extracted dependencies'
 foreach ($target in @(@{ Project = 'Cli'; Folder = $engine }, @{ Project = 'Photino'; Folder = $destination })) {
-    $project = Join-Path $repo "src/VibePanel.$($target.Project)/VibePanel.$($target.Project).csproj"
+    $project = Join-Path $repo "src/ThermalrightVibeWare.$($target.Project)/ThermalrightVibeWare.$($target.Project).csproj"
     dotnet publish $project --no-restore --disable-build-servers --configuration $Configuration --runtime $runtime --self-contained true -p:Platform=$Architecture --output $target.Folder --warnaserror
     if ($LASTEXITCODE -ne 0) { throw "Publish failed: $($target.Project) / $runtime" }
 }
 & (Join-Path $PSScriptRoot 'Bundle-Python.ps1') -Architecture $Architecture -Destination $destination -HostPython $HostPython
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Install-Local.ps1') -Destination (Join-Path $destination 'Install-VibePanel.ps1') -Force
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Uninstall-Local.ps1') -Destination (Join-Path $destination 'Uninstall-VibePanel.ps1') -Force
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Install-Local.ps1') -Destination (Join-Path $destination 'Install-ThermalrightVibeWare.ps1') -Force
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Uninstall-Local.ps1') -Destination (Join-Path $destination 'Uninstall-ThermalrightVibeWare.ps1') -Force
 foreach ($document in @('README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'TRADEMARKS.md', 'PORTABLE.md', 'cave.md', 'lesson.md')) {
     Copy-Item -LiteralPath (Join-Path $repo $document) -Destination $destination -Force
 }
@@ -50,8 +50,8 @@ if (-not (Test-Path -LiteralPath (Join-Path $engine 'themes'))) {
 if (Test-Path -LiteralPath (Join-Path $destination 'themes')) {
     throw 'A stale root/themes folder duplicates engine/themes. Remove only that generated folder before repackaging.'
 }
-if (-not (Test-Path -LiteralPath (Join-Path $engine 'plugins/vibepanel-codex/install.py'))) {
-    throw 'CLI publish did not include engine/plugins/vibepanel-codex.'
+if (-not (Test-Path -LiteralPath (Join-Path $engine 'plugins/thermalright-vibeware-codex/install.py'))) {
+    throw 'CLI publish did not include engine/plugins/thermalright-vibeware-codex.'
 }
 foreach ($folder in @('docs')) {
     $target = Join-Path $destination $folder

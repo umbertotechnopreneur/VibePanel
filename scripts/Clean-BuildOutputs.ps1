@@ -1,5 +1,5 @@
 # VBWR B
-# Project: VibePanel | https://umbertogiacobbi.biz/vibeware/manifesto
+# Project: ThermalrightVibeWare | https://umbertogiacobbi.biz/vibeware/manifesto
 # Copyright (c) 2026 Umberto Giacobbi | SPDX-License-Identifier: MIT
 # VBWR E
 #requires -Version 7.0
@@ -45,7 +45,7 @@ $folders = @(Get-ChildItem -LiteralPath $repo -Directory -Recurse -Force |
     Where-Object { $_.Name -in @('bin', 'obj', 'temp', 'tmp', '__pycache__') -and $_.FullName -notmatch '\\\.git\\|\\artifacts\\' } |
     Sort-Object { $_.FullName.Length })
 foreach ($folder in $folders) { Remove-Generated $folder.FullName }
-foreach ($relative in @('src/VibePanel.Photino/wwwroot/libs', 'src/VibePanel.Photino/wwwroot/resources')) {
+foreach ($relative in @('src/ThermalrightVibeWare.Photino/wwwroot/libs', 'src/ThermalrightVibeWare.Photino/wwwroot/resources')) {
     Remove-Generated (Join-Path $repo $relative)
 }
 Write-Host "Build outputs removed. Retained MSI: $keep"

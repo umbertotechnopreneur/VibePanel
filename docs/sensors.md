@@ -1,6 +1,6 @@
 # System sensors
 
-Vibe Panel builds its CPU, GPU and motherboard reader from
+Thermalright VibeWare builds its CPU, GPU and motherboard reader from
 [LibreHardwareMonitor fork e5fa436](https://github.com/umbertotechnopreneur/LibreHardwareMonitor/tree/e5fa436eae6cb9ad5e8693d9909cd81ddf473629).
 This includes the NCT6792D decoder repair and ASRock B550M-ITX/ac source mapping.
 The MPL-2.0 library source is in `third_party/LibreHardwareMonitor`, and distributions
@@ -9,7 +9,7 @@ sensor code and embedded modules match the pinned fork. The GUI and driver insta
 are excluded.
 
 CPU and motherboard temperatures and fan RPM need PawnIO. Its official signed edition
-is available from [pawnio.eu](https://pawnio.eu/). Vibe Panel does not install it.
+is available from [pawnio.eu](https://pawnio.eu/). Thermalright VibeWare does not install it.
 The System sidebar shows a brief access status. Expand **Sensor access** for
 registration details and the driver path when available.
 **Open driver folder** reveals that location; it does not execute or allow the driver.
@@ -20,12 +20,12 @@ Windows' [GlobalMemoryStatusEx](https://learn.microsoft.com/en-us/windows/win32/
 physical totals remain independent of SPD access. Following owner approval, the
 library's RAM/SPD group is enabled. `RAMSPDToolkit-NDD` contains no default driver;
 LibreHardwareMonitor supplies a PawnIO adapter that opens its embedded SMBus
-modules through the existing PawnIO installation. Vibe Panel installs no driver.
+modules through the existing PawnIO installation. Thermalright VibeWare installs no driver.
 No values are inferred from load or ACPI thermal zones. Zero RPM is a measured stop;
 an unavailable RPM is a missing reading. Technical motherboard source names remain
 visible when their physical location is unknown.
 
-Vibe Panel requests administrator access on every Windows launch, including sign-in.
+Thermalright VibeWare requests administrator access on every Windows launch, including sign-in.
 Windows asks for approval. If canceled, a popup warns that the app is running without
 administrator rights and some readings may be unavailable. **Sensor access** and
 **Sensor Debug** offer **Reopen as administrator**. Themes run with the app's rights.
@@ -52,7 +52,7 @@ matched by Windows adapter GUID, not a translated display name. Disconnected phy
 adapters remain eligible. If Windows metadata is unavailable, uncertain entries stay
 hidden with a notice. Adapter metadata is cached until the engine restarts.
 
-`vp sensors --all` reads the same raw schema once without audio or USB. The
+`trv sensors --all` reads the same raw schema once without audio or USB. The
 `sensors.debug` JSON-lines request uses the engine's existing sensor reader. No
 network listener is added. Some devices need administrator rights; the header
 shows the privilege level and sample time. The existing System action can reopen

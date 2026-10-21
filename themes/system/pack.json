@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "id": "vibepanel.system",
-  "name": "Vibe Panel · System",
+  "id": "thermalright-vibeware.system",
+  "name": "Thermalright VibeWare · System",
   "version": "2.2.0",
   "author": "Umberto Giacobbi",
   "license": "MIT",

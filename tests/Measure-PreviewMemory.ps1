@@ -1,5 +1,5 @@
 # VBWR B
-# Project: VibePanel | https://umbertogiacobbi.biz/vibeware/manifesto
+# Project: ThermalrightVibeWare | https://umbertogiacobbi.biz/vibeware/manifesto
 # Copyright (c) 2026 Umberto Giacobbi | SPDX-License-Identifier: MIT
 # VBWR E
 # Run only with the owner's explicit approval. The fixture cannot access USB.
@@ -9,7 +9,7 @@ $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
 $output = Join-Path $repo 'artifacts/memory-checks'
 New-Item -ItemType Directory -Path $output -Force | Out-Null
-$exe = Join-Path $repo 'artifacts/bin/VibePanel.MemoryChecks/x64/Release/net10.0-windows10.0.19041.0/VibePanel.MemoryChecks.exe'
+$exe = Join-Path $repo 'artifacts/bin/ThermalrightVibeWare.MemoryChecks/x64/Release/net10.0-windows10.0.19041.0/ThermalrightVibeWare.MemoryChecks.exe'
 $launch = @{ FilePath = $exe; PassThru = $true; WindowStyle = 'Hidden'; RedirectStandardOutput = "$output/ui.stdout.txt"; RedirectStandardError = "$output/ui.stderr.txt" }
 if ($PreviewCapture) { $launch.ArgumentList = '--preview-capture' }
 $process = Start-Process @launch

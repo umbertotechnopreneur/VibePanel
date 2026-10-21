@@ -10,5 +10,5 @@ desktop.ini
 *.vpframe
 __pycache__/
 *.pyc
-/src/VibePanel.Photino/wwwroot/libs/
-/src/VibePanel.Photino/wwwroot/resources/
+/src/ThermalrightVibeWare.Photino/wwwroot/libs/
+/src/ThermalrightVibeWare.Photino/wwwroot/resources/

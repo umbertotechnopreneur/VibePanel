@@ -1,12 +1,12 @@
 // VBWR B
-// Project: VibePanel | https://umbertogiacobbi.biz/vibeware/manifesto
+// Project: ThermalrightVibeWare | https://umbertogiacobbi.biz/vibeware/manifesto
 // Copyright (c) 2026 Umberto Giacobbi | SPDX-License-Identifier: MIT
 // VBWR E
 // Opt-in diagnostic DLL only. Read the rendered WebView through its native API.
 #include <Shlwapi.h>
 #pragma comment(lib, "Shlwapi.lib")
 using PreviewCaptureCallback = void(__cdecl*)(HRESULT);
-extern "C" __declspec(dllexport) HRESULT VibePanel_CapturePreview(Photino* instance, const wchar_t* path, PreviewCaptureCallback completed)
+extern "C" __declspec(dllexport) HRESULT ThermalrightVibeWare_CapturePreview(Photino* instance, const wchar_t* path, PreviewCaptureCallback completed)
 {
     wil::com_ptr<IStream> stream;
     const auto result = SHCreateStreamOnFileEx(path, STGM_CREATE | STGM_WRITE | STGM_SHARE_DENY_WRITE,

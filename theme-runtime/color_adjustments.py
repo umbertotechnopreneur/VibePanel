@@ -1,4 +1,4 @@
-# VBWR B — Vibe Panel. Copyright (c) 2026 Umberto Giacobbi. MIT.
+# VBWR B — Thermalright VibeWare. Copyright (c) 2026 Umberto Giacobbi. MIT.
 """Full-frame native Skia color correction, before JPEG encoding.
 
 Matrix definitions follow the public W3C filter-effects specification:

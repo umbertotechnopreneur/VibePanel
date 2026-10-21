@@ -1,0 +1,35 @@
+<Solution>
+  <Configurations>
+    <BuildType Name="Debug" />
+    <BuildType Name="Release" />
+    <Platform Name="x64" />
+    <Platform Name="ARM64" />
+  </Configurations>
+  <Project Path="src/ThermalrightVibeWare.Data/ThermalrightVibeWare.Data.csproj" />
+  <Project Path="src/ThermalrightVibeWare.Studio/ThermalrightVibeWare.Studio.csproj" />
+  <Project Path="src/ThermalrightVibeWare.Contracts/ThermalrightVibeWare.Contracts.csproj" />
+  <Project Path="src/ThermalrightVibeWare.Photino/ThermalrightVibeWare.Photino.csproj">
+    <Platform Solution="*|x64" Project="x64" />
+    <Platform Solution="*|ARM64" Project="ARM64" />
+  </Project>
+  <Project Path="third_party/LibreHardwareMonitor/LibreHardwareMonitorLib.csproj">
+    <Platform Solution="*|x64" Project="x64" />
+    <Platform Solution="*|ARM64" Project="ARM64" />
+  </Project>
+  <Project Path="src/ThermalrightVibeWare.Core/ThermalrightVibeWare.Core.csproj">
+    <Platform Solution="*|x64" Project="x64" />
+    <Platform Solution="*|ARM64" Project="ARM64" />
+  </Project>
+  <Project Path="src/ThermalrightVibeWare.Cli/ThermalrightVibeWare.Cli.csproj">
+    <Platform Solution="*|x64" Project="x64" />
+    <Platform Solution="*|ARM64" Project="ARM64" />
+  </Project>
+  <Project Path="src/ThermalrightVibeWare.App/ThermalrightVibeWare.App.csproj">
+    <Platform Solution="*|x64" Project="x64" />
+    <Platform Solution="*|ARM64" Project="ARM64" />
+  </Project>
+  <Project Path="tests/ThermalrightVibeWare.Checks/ThermalrightVibeWare.Checks.csproj">
+    <Platform Solution="*|x64" Project="x64" />
+    <Platform Solution="*|ARM64" Project="ARM64" />
+  </Project>
+</Solution>

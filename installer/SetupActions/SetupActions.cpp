@@ -1,5 +1,5 @@
 // VBWR B
-// Project: VibePanel | https://umbertogiacobbi.biz/vibeware/manifesto
+// Project: ThermalrightVibeWare | https://umbertogiacobbi.biz/vibeware/manifesto
 // Copyright (c) 2026 Umberto Giacobbi | SPDX-License-Identifier: MIT
 // VBWR E
 
@@ -243,8 +243,8 @@ Scope MakeScope(DWORD parentId, uint64_t parentStart) {
     CoTaskMemFree(local);
     scope.local = FullPath(path);
     CheckNoReparse(scope.local);
-    scope.apps = Join(scope.local, L"Umberto Giacobbi.biz\\Apps\\VibePanel");
-    scope.backups = Join(scope.local, L"Umberto Giacobbi.biz\\VibePanel\\Uninstall backups");
+    scope.apps = Join(scope.local, L"Umberto Giacobbi.biz\\Apps\\ThermalrightVibeWare");
+    scope.backups = Join(scope.local, L"Umberto Giacobbi.biz\\ThermalrightVibeWare\\Uninstall backups");
     return scope;
 }
 
@@ -256,7 +256,7 @@ public:
             0, FALSE, DUPLICATE_SAME_ACCESS)) { Fail(L"Cannot retain the original setup user's identity"); }
         token_ = Handle(retained);
         OriginalUser user(token_.get());
-        const auto directory = Join(scope.local, L"VibePanel\\logs");
+        const auto directory = Join(scope.local, L"ThermalrightVibeWare\\logs");
         EnsureDirectory(directory);
         path_ = Join(directory, L"setup.log");
         CheckNoReparse(path_);
@@ -299,7 +299,9 @@ bool IsHex(const std::wstring& value, size_t size) {
 }
 
 bool IsReleaseName(const std::wstring& value) {
-    return value.size() == 22 && Equal(value.substr(0, 10), L"VibePanel-") && IsHex(value.substr(10), 12);
+    const std::wstring prefix = L"ThermalrightVibeWare-";
+    return value.size() == prefix.size() + 12 && Equal(value.substr(0, prefix.size()), prefix)
+        && IsHex(value.substr(prefix.size()), 12);
 }
 
 // Recognize a release structurally, even if an old uninstaller moved its files.
@@ -326,8 +328,8 @@ std::optional<std::wstring> OwnedExecutable(const Scope& scope, const std::wstri
     const auto root = ReleaseRoot(scope, path);
     if (!root || !StartsWithPath(path, *root)) { return std::nullopt; }
     const auto relative = path.substr(root->size() + 1);
-    if (Equal(relative, L"VibePanel.exe") || Equal(relative, L"engine\\vp.exe")
-        || Equal(relative, L"engine\\VibePanel.Cli.exe") || Equal(relative, L"engine\\python\\python.exe")
+    if (Equal(relative, L"ThermalrightVibeWare.exe") || Equal(relative, L"engine\\trv.exe")
+        || Equal(relative, L"engine\\ThermalrightVibeWare.Cli.exe") || Equal(relative, L"engine\\python\\python.exe")
         || Equal(relative, L"engine\\python\\pythonw.exe")) {
         CheckNoReparse(path);
         return root;
@@ -406,7 +408,7 @@ std::vector<PROCESSENTRY32W> ProcessSnapshot() {
 }
 
 bool SeedName(const std::wstring& name) {
-    return Equal(name, L"VibePanel.exe") || Equal(name, L"vp.exe") || Equal(name, L"VibePanel.Cli.exe")
+    return Equal(name, L"ThermalrightVibeWare.exe") || Equal(name, L"trv.exe") || Equal(name, L"ThermalrightVibeWare.Cli.exe")
         || Equal(name, L"python.exe") || Equal(name, L"pythonw.exe");
 }
 
@@ -423,7 +425,7 @@ std::vector<Process> FindProcesses(const Scope& scope) {
         const auto root = OwnedExecutable(scope, path);
         if (!root || !SameUser(process.get(), scope.user)) { continue; }
         const auto started = ProcessStart(process.get());
-        selected.push_back(Process{ std::move(process), entry.th32ProcessID, started, path, Equal(path, Join(*root, L"VibePanel.exe")) });
+        selected.push_back(Process{ std::move(process), entry.th32ProcessID, started, path, Equal(path, Join(*root, L"ThermalrightVibeWare.exe")) });
     }
     // A WebView runtime can live outside our folder. Include only a live,
     // retained parent/child chain of this user, with monotonically increasing
@@ -459,14 +461,14 @@ void StopProcesses(const Scope& scope, const Log& log) {
     for (unsigned pass = 0; pass != 3; ++pass) {
         auto processes = FindProcesses(scope);
         if (processes.empty()) { return; }
-        log.Write(L"Stopping verified Vibe Panel processes; pass " + std::to_wstring(pass + 1));
+        log.Write(L"Stopping verified Thermalright VibeWare processes; pass " + std::to_wstring(pass + 1));
         for (const auto& process : processes) {
             log.Write(L"Owned process " + std::to_wstring(process.id) + L": " + process.image);
             if (!process.studio) { continue; }
-            const auto eventName = L"Global\\UmbertoGiacobbi.VibePanel.SetupClose." + std::to_wstring(process.id)
+            const auto eventName = L"Global\\UmbertoGiacobbi.ThermalrightVibeWare.SetupClose." + std::to_wstring(process.id)
                 + L"." + std::to_wstring(process.started);
             Handle event(OpenEventW(EVENT_MODIFY_STATE, FALSE, eventName.c_str()));
-            if (event && !SetEvent(event.get())) { Fail(L"Cannot request Vibe Panel shutdown"); }
+            if (event && !SetEvent(event.get())) { Fail(L"Cannot request Thermalright VibeWare shutdown"); }
         }
         const ULONGLONG deadline = GetTickCount64() + 60000;
         while (GetTickCount64() < deadline
@@ -482,22 +484,22 @@ void StopProcesses(const Scope& scope, const Log& log) {
             if (!terminating) {
                 const DWORD error = GetLastError();
                 if (WaitForSingleObject(process.handle.get(), 0) != WAIT_TIMEOUT) { continue; }
-                Fail(L"Cannot close Vibe Panel process " + std::to_wstring(process.id) + L": " + process.image, error);
+                Fail(L"Cannot close Thermalright VibeWare process " + std::to_wstring(process.id) + L": " + process.image, error);
             }
             if (ProcessStart(terminating.get()) != process.started || !Equal(ProcessPath(terminating.get()), process.image)
                 || !SameUser(terminating.get(), scope.user)) { Fail(L"Application process identity changed during cleanup", ERROR_INVALID_DATA); }
             if (!TerminateProcess(terminating.get(), 0)) {
                 const DWORD error = GetLastError();
                 if (WaitForSingleObject(terminating.get(), 0) != WAIT_TIMEOUT) { continue; }
-                Fail(L"Cannot terminate Vibe Panel process: " + process.image, error);
+                Fail(L"Cannot terminate Thermalright VibeWare process: " + process.image, error);
             }
             if (WaitForSingleObject(terminating.get(), 5000) != WAIT_OBJECT_0) {
-                Fail(L"Vibe Panel did not finish closing: " + process.image, ERROR_TIMEOUT);
+                Fail(L"Thermalright VibeWare did not finish closing: " + process.image, ERROR_TIMEOUT);
             }
             log.Write(L"Terminated verified remaining process " + std::to_wstring(process.id));
         }
     }
-    if (!FindProcesses(scope).empty()) { Fail(L"Vibe Panel is still restarting. Close it before running setup again.", ERROR_BUSY); }
+    if (!FindProcesses(scope).empty()) { Fail(L"Thermalright VibeWare is still restarting. Close it before running setup again.", ERROR_BUSY); }
 }
 
 struct DriverConfiguration {
@@ -586,14 +588,14 @@ bool IsOurConfiguration(const Scope& scope, const DriverConfiguration& configura
         log.Write(L"Preserving foreign WinRing0 ImagePath: " + path);
         return false;
     }
-    log.Write(L"Verified Vibe Panel driver ImagePath: " + path);
+    log.Write(L"Verified Thermalright VibeWare driver ImagePath: " + path);
     return true;
 }
 
 void CheckDriverNotShared() {
     Handle device(CreateFileW(L"\\\\.\\WinRing0_1_2_0", GENERIC_READ | GENERIC_WRITE,
         FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr));
-    if (!device) { Fail(L"Cannot verify whether another hardware monitor is using the Vibe Panel driver"); }
+    if (!device) { Fail(L"Cannot verify whether another hardware monitor is using the Thermalright VibeWare driver"); }
     DWORD count = 0, returned = 0;
     if (!DeviceIoControl(device.get(), GetDriverReferenceCount, nullptr, 0, &count, sizeof(count), &returned, nullptr)) {
         Fail(L"Cannot verify hardware driver reference count");
@@ -601,7 +603,7 @@ void CheckDriverNotShared() {
     if (returned != sizeof(count)) { Fail(L"Invalid hardware driver reference count result", ERROR_INVALID_DATA); }
     // This temporary device handle is itself one reference. No sensor IOCTLs
     // are sent, and no service or device is ever installed or started here.
-    if (count > 1) { Fail(L"Another hardware monitor is using the Vibe Panel driver. Close that app and run setup again.", ERROR_SHARING_VIOLATION); }
+    if (count > 1) { Fail(L"Another hardware monitor is using the Thermalright VibeWare driver. Close that app and run setup again.", ERROR_SHARING_VIOLATION); }
 }
 
 void RemoveDriverService(const Scope& scope, const Log& log) {
@@ -617,7 +619,7 @@ void RemoveDriverService(const Scope& scope, const Log& log) {
             // The registry key can disappear before the SCM object is gone.
             // Only wait in that case; do not mistake pending removal for absence.
             WaitForServiceAbsent(manager.get());
-            log.Write(L"Pending Vibe Panel driver service removal completed.");
+            log.Write(L"Pending Thermalright VibeWare driver service removal completed.");
             return;
         }
         Fail(L"Cannot inspect hardware driver service", error);
@@ -628,7 +630,7 @@ void RemoveDriverService(const Scope& scope, const Log& log) {
     if (status.dwCurrentState == SERVICE_RUNNING) { CheckDriverNotShared(); }
     ServiceHandle service(OpenServiceW(manager.get(), ServiceName,
         SERVICE_QUERY_CONFIG | SERVICE_QUERY_STATUS | SERVICE_STOP | DELETE));
-    if (!service) { Fail(L"Administrator permission is needed to release the Vibe Panel hardware driver"); }
+    if (!service) { Fail(L"Administrator permission is needed to release the Thermalright VibeWare hardware driver"); }
     // Recheck the actual service configuration immediately before mutating it.
     if (!IsOurConfiguration(scope, ReadDriverConfiguration(service.get()), log)) {
         Fail(L"The hardware driver ownership changed during cleanup", ERROR_INVALID_DATA);
@@ -639,7 +641,7 @@ void RemoveDriverService(const Scope& scope, const Log& log) {
         SERVICE_STATUS requested{};
         if (!ControlService(service.get(), SERVICE_CONTROL_STOP, &requested)) {
             const DWORD error = GetLastError();
-            if (error != ERROR_SERVICE_NOT_ACTIVE) { Fail(L"Cannot stop the Vibe Panel hardware driver. Close other hardware monitors or restart Windows.", error); }
+            if (error != ERROR_SERVICE_NOT_ACTIVE) { Fail(L"Cannot stop the Thermalright VibeWare hardware driver. Close other hardware monitors or restart Windows.", error); }
         }
     }
     const ULONGLONG deadline = GetTickCount64() + 15000;
@@ -650,7 +652,7 @@ void RemoveDriverService(const Scope& scope, const Log& log) {
     log.Write(L"Owned driver service is stopped.");
     if (!DeleteService(service.get())) {
         const DWORD error = GetLastError();
-        if (error != ERROR_SERVICE_MARKED_FOR_DELETE) { Fail(L"Cannot remove Vibe Panel hardware driver registration", error); }
+        if (error != ERROR_SERVICE_MARKED_FOR_DELETE) { Fail(L"Cannot remove Thermalright VibeWare hardware driver registration", error); }
     }
     service.reset(); // An open service handle itself delays actual deletion.
     WaitForServiceAbsent(manager.get());
@@ -690,13 +692,13 @@ void RemoveDriverFiles(const Scope& scope, const Log& log) {
 }
 
 void VerifyCleanup(const Scope& scope, const Log& log) {
-    if (!FindProcesses(scope).empty()) { Fail(L"Vibe Panel restarted during setup. Close it and run setup again.", ERROR_BUSY); }
+    if (!FindProcesses(scope).empty()) { Fail(L"Thermalright VibeWare restarted during setup. Close it and run setup again.", ERROR_BUSY); }
     ServiceHandle manager(OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CONNECT));
     if (!manager) { Fail(L"Cannot verify final hardware driver registration"); }
     ServiceHandle service(OpenServiceW(manager.get(), ServiceName, SERVICE_QUERY_CONFIG));
     if (service) {
         if (IsOurConfiguration(scope, ReadDriverConfiguration(service.get()), log)) {
-            Fail(L"The Vibe Panel hardware driver was registered again during cleanup. Close hardware monitors and retry setup.", ERROR_BUSY);
+            Fail(L"The Thermalright VibeWare hardware driver was registered again during cleanup. Close hardware monitors and retry setup.", ERROR_BUSY);
         }
     }
     else {
@@ -704,7 +706,7 @@ void VerifyCleanup(const Scope& scope, const Log& log) {
         if (error == ERROR_SERVICE_MARKED_FOR_DELETE) {
             const auto configuration = PendingDriverConfiguration();
             if (!configuration || IsOurConfiguration(scope, *configuration, log)) {
-                Fail(L"Vibe Panel driver removal is still pending. Restart Windows before running setup again.", error);
+                Fail(L"Thermalright VibeWare driver removal is still pending. Restart Windows before running setup again.", error);
             }
         }
         else if (error != ERROR_SERVICE_DOES_NOT_EXIST) { Fail(L"Cannot verify final hardware driver removal", error); }
@@ -753,27 +755,27 @@ void RemoveLegacyRegistration(const Scope& scope, const Log& log) {
     if (!ConvertSidToStringSidW(reinterpret_cast<const TOKEN_USER*>(scope.user.data())->User.Sid, &sidText)) {
         Fail(L"Cannot resolve the legacy registration owner");
     }
-    const std::wstring keyPath = std::wstring(sidText) + L"\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\VibePanel";
+    const std::wstring keyPath = std::wstring(sidText) + L"\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\ThermalrightVibeWare";
     LocalFree(sidText);
     for (const REGSAM view : { KEY_WOW64_64KEY, KEY_WOW64_32KEY }) {
         HKEY key = nullptr;
         LSTATUS result = RegOpenKeyExW(HKEY_USERS, keyPath.c_str(), 0, KEY_QUERY_VALUE | view, &key);
         if (result == ERROR_FILE_NOT_FOUND) { continue; }
-        if (result != ERROR_SUCCESS) { Fail(L"Cannot read legacy Vibe Panel registration", result); }
+        if (result != ERROR_SUCCESS) { Fail(L"Cannot read legacy Thermalright VibeWare registration", result); }
         DWORD managed = 0, bytes = sizeof(managed);
-        const auto markerResult = RegGetValueW(key, nullptr, L"VibePanelManaged", RRF_RT_REG_DWORD, nullptr, &managed, &bytes);
+        const auto markerResult = RegGetValueW(key, nullptr, L"ThermalrightVibeWareManaged", RRF_RT_REG_DWORD, nullptr, &managed, &bytes);
         wchar_t location[32768]{};
         bytes = sizeof(location);
         const auto pathResult = RegGetValueW(key, nullptr, L"InstallLocation", RRF_RT_REG_SZ, nullptr, location, &bytes);
         RegCloseKey(key);
         if (markerResult != ERROR_SUCCESS || managed != 1 || pathResult != ERROR_SUCCESS) {
-            Fail(L"The legacy Vibe Panel entry is not a recognized managed installation", ERROR_INVALID_DATA);
+            Fail(L"The legacy Thermalright VibeWare entry is not a recognized managed installation", ERROR_INVALID_DATA);
         }
         const auto path = FullPath(location);
         const auto root = ReleaseRoot(scope, path);
         if (!root || !Equal(path, *root) || !StartsWithPath(path, scope.apps)
             || !IsReleaseName(path.substr(scope.apps.size() + 1))) {
-            Fail(L"The legacy registration points outside managed Vibe Panel releases", ERROR_INVALID_DATA);
+            Fail(L"The legacy registration points outside managed Thermalright VibeWare releases", ERROR_INVALID_DATA);
         }
         // This key has no subkeys. Refuse unexpected children rather than
         // recursively deleting a registration with unknown contents.
@@ -782,7 +784,7 @@ void RemoveLegacyRegistration(const Scope& scope, const Log& log) {
         result = RegOpenKeyExW(HKEY_USERS, keyPath.c_str(), 0, KEY_QUERY_VALUE | view, &key);
         if (result == ERROR_SUCCESS) { RegCloseKey(key); Fail(L"Legacy registration remains after cleanup", ERROR_BUSY); }
         if (result != ERROR_FILE_NOT_FOUND) { Fail(L"Cannot verify legacy registration removal", result); }
-        log.Write(L"Removed and verified legacy Vibe Panel registration.");
+        log.Write(L"Removed and verified legacy Thermalright VibeWare registration.");
     }
 }
 
@@ -805,7 +807,7 @@ void RemovePreviousReleases(const Scope& scope, const Log& log, bool cleanInstal
 void Cleanup(const Scope& scope, const Log& log, bool closeOnly, bool cleanInstall) {
     log.Write(L"Starting scoped cleanup; administrator=" + std::to_wstring(IsAdministrator() ? 1 : 0));
     StopProcesses(scope, log);
-    if (closeOnly) { log.Write(L"Verified Vibe Panel processes are closed."); return; }
+    if (closeOnly) { log.Write(L"Verified Thermalright VibeWare processes are closed."); return; }
     RemoveDriverService(scope, log);
     try { RemoveDriverFiles(scope, log); }
     catch (const Failure& error) {
@@ -846,7 +848,7 @@ DWORD Elevate(int uiLevel, const Log& log, bool closeOnly, bool cleanInstall) {
     if (!ShellExecuteExW(&launch)) {
         const DWORD error = GetLastError();
         if (error == ERROR_CANCELLED) { log.Write(L"Administrator permission was cancelled."); return CancelExit; }
-        Fail(L"Cannot request administrator permission for Vibe Panel cleanup", error);
+        Fail(L"Cannot request administrator permission for Thermalright VibeWare cleanup", error);
     }
     Handle child(launch.hProcess);
     if (!child) { Fail(L"The elevated cleanup process is unavailable", ERROR_INVALID_HANDLE); }
@@ -868,9 +870,9 @@ void Report(const Failure& error, int uiLevel, const Log* log) {
         catch (...) {} // Preserve the original failure if logging also fails.
     }
     if (uiLevel >= 3) {
-        const auto message = L"Vibe Panel setup could not finish cleanup.\n\n" + detail
+        const auto message = L"Thermalright VibeWare setup could not finish cleanup.\n\n" + detail
             + (log ? L"\n\nDetails: " + log->path() : L"");
-        MessageBoxW(nullptr, message.c_str(), L"Vibe Panel Setup", MB_OK | MB_ICONERROR | MB_SETFOREGROUND);
+        MessageBoxW(nullptr, message.c_str(), L"Thermalright VibeWare Setup", MB_OK | MB_ICONERROR | MB_SETFOREGROUND);
     }
 }
 } // namespace
@@ -888,7 +890,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
         if (!arguments || (argumentCount != 4 && argumentCount != 8)
             || (wcscmp(arguments[1], L"--cleanup") != 0 && wcscmp(arguments[1], L"--close-apps") != 0 && wcscmp(arguments[1], L"--clean-install") != 0)
             || wcscmp(arguments[2], L"--ui-level") != 0) {
-            Fail(L"Usage: VibePanel.SetupActions.exe <--cleanup|--close-apps> --ui-level <2..5>", ERROR_INVALID_PARAMETER);
+            Fail(L"Usage: ThermalrightVibeWare.SetupActions.exe <--cleanup|--close-apps> --ui-level <2..5>", ERROR_INVALID_PARAMETER);
         }
         closeOnly = wcscmp(arguments[1], L"--close-apps") == 0;
         cleanInstall = wcscmp(arguments[1], L"--clean-install") == 0;

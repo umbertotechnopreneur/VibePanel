@@ -28,16 +28,16 @@ jobs:
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
-      - run: dotnet restore VibePanel.slnx -p:Platform=${{ matrix.arch }}
+      - run: dotnet restore ThermalrightVibeWare.slnx -p:Platform=${{ matrix.arch }}
       - name: Verify restored dependency scan evidence
         shell: pwsh
         run: ./scripts/Assert-DefenderClean.ps1 -Path $env:NUGET_PACKAGES -Source 'https://api.nuget.org/v3/index.json; restored package archives and extracted dependencies'
       # The vendored LibreHardwareMonitor source follows its upstream formatting.
-      - run: dotnet format VibePanel.slnx --verify-no-changes --no-restore --exclude third_party/LibreHardwareMonitor
-      - run: dotnet build VibePanel.slnx --configuration Release --no-restore --warnaserror -p:Platform=${{ matrix.arch }}
+      - run: dotnet format ThermalrightVibeWare.slnx --verify-no-changes --no-restore --exclude third_party/LibreHardwareMonitor
+      - run: dotnet build ThermalrightVibeWare.slnx --configuration Release --no-restore --warnaserror -p:Platform=${{ matrix.arch }}
       - name: Offline state and provider checks
         if: matrix.arch == 'x64'
-        run: dotnet run --project tests/VibePanel.StudioChecks -c Release
+        run: dotnet run --project tests/ThermalrightVibeWare.StudioChecks -c Release
       - name: Publish portable folders (no tests)
         shell: pwsh
         run: ./scripts/Publish.ps1 -Architecture ${{ matrix.arch }}
@@ -49,7 +49,7 @@ jobs:
           ./scripts/Build-Msi.ps1 -PayloadPath $payloads[0].FullName -Architecture ${{ matrix.arch }}
       - uses: actions/upload-artifact@v7
         with:
-          name: VibePanel-win-${{ matrix.arch }}
+          name: ThermalrightVibeWare-win-${{ matrix.arch }}
           path: |
             artifacts/packages/*.zip
             artifacts/packages/*.msi
@@ -62,10 +62,10 @@ jobs:
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
-      - run: dotnet restore src/VibePanel.Photino/VibePanel.Photino.csproj
-      - run: dotnet build src/VibePanel.Photino/VibePanel.Photino.csproj --configuration Release --no-restore --warnaserror
+      - run: dotnet restore src/ThermalrightVibeWare.Photino/ThermalrightVibeWare.Photino.csproj
+      - run: dotnet build src/ThermalrightVibeWare.Photino/ThermalrightVibeWare.Photino.csproj --configuration Release --no-restore --warnaserror
       - name: Offline state and provider checks (no hardware)
-        run: dotnet run --project tests/VibePanel.StudioChecks -c Release
+        run: dotnet run --project tests/ThermalrightVibeWare.StudioChecks -c Release
   required:
     name: Build
     if: always()
