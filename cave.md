@@ -434,3 +434,17 @@ inputs completed targeted Defender scans without detections. The site's
 pre-existing edited `dist` files were preserved. The site has not been deployed
 as part of this change. UlanziDock keeps its existing name and repository;
 its README and site page gained the requested independent-brand disclaimer.
+
+### Delivery follow-up — 21 October 2026
+
+App PR #6 was merged after Windows x64, Windows ARM64 and Linux checks passed
+in run `39630640187`. The main-branch run `39632641215` also passed. The earlier
+Windows checkout path failure was fixed by shortening the extracted native
+source path; it was not overridden. README and screenshot corrections were
+delivered separately with `[skip ci]` under the documentation-only rule.
+
+Personal-site PRs #5 and #6 were merged. Production deploy `39633297405`
+completed successfully. HTTP reads confirmed the new English, Italian and
+Vietnamese copy and three pairs of screenshots. All six displayed image files
+match the local owner-supplied crops by SHA-256. Ulanzi's disclaimer was pushed
+without changing its project name. No physical-device test was performed.
