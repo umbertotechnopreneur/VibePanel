@@ -31,7 +31,9 @@ if (-not (Test-Path -LiteralPath $archive)) {
 }
 if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ne $archiveHash) { throw 'Photino source archive checksum mismatch.' }
 & "$PSScriptRoot/Assert-DefenderClean.ps1" -Path $archive -Source "https://github.com/tryphotino/photino.Native/commit/$commit" -ScanNewImport:$PrepareImports
-$work = Join-Path $root ('source-' + [Guid]::NewGuid().ToString('N'))
+# Legacy native NuGet imports use path checks that fail in a long runner checkout.
+# Keep extracted sources short even when the repository name is long.
+$work = Join-Path $repo ('artifacts/pn/' + [Guid]::NewGuid().ToString('N').Substring(0, 12))
 [IO.Compression.ZipFile]::ExtractToDirectory($archive, $work)
 & "$PSScriptRoot/Assert-DefenderClean.ps1" -Path $work -Source "Photino.Native source $commit" -ScanNewImport:$PrepareImports
 $sourceRoots = @(Get-ChildItem -LiteralPath $work -Directory)
