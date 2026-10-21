@@ -420,7 +420,8 @@ The installer source checkpoint is `fe49056`. Build output is cleaned while
 retaining this MSI. No tests, CI runs or USB output commands were executed for
 this change.
 
-Nine owner-supplied app captures use one 1280 × 864 canvas. They keep their
+Nine owner-supplied app captures use 1280 × 480 display crops and 1280 × 864
+studio crops, with no added matte. They keep their
 original UI text and readings, with conventional crop, resize and light
 sharpening. The product icon is a first-party display and sensor trace; the
 VibeWare initiative mark is unchanged.

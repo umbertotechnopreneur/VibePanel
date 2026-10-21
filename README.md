@@ -2,13 +2,52 @@
 
 I made this free, open-source app for my Thermalright Trofeo Vision LCD. It puts music, artwork and PC sensor readings on the screen. I'm [Umberto Giacobbi](https://umbertogiacobbi.biz).
 
-![The display studio showing the Orbit music theme](docs/screenshots/studio-music.png)
+*Real app captures, not AI-generated images. Captured before the rename.*
 
-*Real screenshots from the running app, captured before the rename. Cropped and resized, with light sharpening. No AI-generated or AI-retouched UI.*
+## Music from your apps
 
-- **Music:** See the song and artwork from Spotify and other players that share a Windows media session.
-- **Your PC:** See available CPU, GPU, RAM, temperatures, power and fan readings. What you see depends on your hardware and sensor access.
-- **Codex:** Show local activity with the optional Codex plugin.
+Spotify is shown here. Other players that share a Windows media session work too. See the song, artwork, playback progress, real output spectrum and stereo VU meters.
+
+| Ribbon | Halo |
+| --- | --- |
+| ![Spotify playback in the Ribbon theme](docs/screenshots/ribbon-music.png) | ![Spotify playback in the Halo theme](docs/screenshots/halo-music.png) |
+
+## Your PC on the display
+
+System themes cycle through pages for CPU, GPU, RAM, temperatures, power and fans. I can choose a page and change the font and colors.
+
+Each System theme has six rotating pages. Theme files let me change what they show and how long each page stays on screen.
+
+| Temperatures · Quiet | Power and cooling · Ledger |
+| --- | --- |
+| ![Real temperature readings and history in Quiet](docs/screenshots/quiet-temperatures.png) | ![Real CPU, GPU and fan readings in Ledger](docs/screenshots/ledger-cooling.png) |
+
+## Make it your own
+
+Choose from 30 Music, System and Codex themes. Pick a theme and page in the studio, adjust its appearance and send it to the display. An optional Codex plugin shows local activity too.
+
+For any theme, adjust hue, saturation, brightness and contrast. Choose a refresh interval of 25, 50, 100, 250, 500 or 1,000 ms, and Poor, Low, Medium or High image quality. Change page timings in the theme files, or let the studio switch themes every 20 seconds.
+
+| Music in the studio | System pages in the studio |
+| --- | --- |
+| ![Studio with the Orbit music theme](docs/screenshots/studio-music.png) | ![Studio with the Ledger system theme](docs/screenshots/studio-system.png) |
+
+<details>
+<summary>Two more real screens</summary>
+
+| Orbit · music | Matrix · hardware |
+| --- | --- |
+| ![Orbit music](docs/screenshots/orbit-music.png) | ![Matrix hardware readings](docs/screenshots/matrix-readings.png) |
+
+</details>
+
+## A small app that runs on your PC
+
+Every theme is a Python script. Python is a widely used programming language that is simple to read and learn. A theme is **a small app that runs on your PC**: it can read the data supplied by the engine, draw charts, arrange information and change pages. You can change its colors, layout and behavior. The [theme guide](docs/theme-packs.md) shows where to start.
+
+## Less weight on your PC
+
+I have tried to test as much as possible for memory use, disk space and security, and to make this app extremely light compared with the alternatives. I want your PC's resources left for the things you care about. This is a work in progress: I keep working to make it lighter.
 
 I built this for my Thermalright Trofeo Vision LCD, a 6.86-inch USB screen (1280 × 480). Thermalright sells it in [black](https://www.thermalright.com/product/trofeo-vision-lcd-black/) and [white](https://www.thermalright.com/product/trofeo-vision-lcd-white/). [Hardware details](docs/protocol-notes.md).
 
@@ -18,7 +57,7 @@ This is an independent, unofficial project. I do not work for Thermalright, and 
 
 [Downloads](https://github.com/umbertotechnopreneur/thermalright-vibeware/releases). On Windows, choose the **x64** or **ARM64** MSI for your PC and follow the steps. For a portable ZIP, extract the whole folder before opening the app.
 
-**On Windows, run Thermalright VibeWare as administrator.** CPU and motherboard temperatures and fan RPM also need the **PawnIO driver**. Install its official signed edition from the [PawnIO releases page](https://github.com/namazso/PawnIO.Setup/releases/latest): open **Assets** and download `PawnIO_setup.exe`. Thermalright VibeWare does not install this driver.
+**On Windows, run Thermalright VibeWare as administrator.**
 
 **Linux and macOS guinea pigs wanted! 🐹** Want to help try it on your computer? [Share what you find](https://github.com/umbertotechnopreneur/thermalright-vibeware/issues).
 
@@ -31,17 +70,6 @@ I made this hobby project in a few days on holiday because I wanted lighter disp
 The software is open source under the [MIT license](LICENSE); the hardware is sold separately. Some included components have their own [licenses](THIRD_PARTY_NOTICES.md). This hobby project is provided as is, without any warranty.
 
 You are welcome to try it with other screens, use the code and share what you learn.
-
-## Screenshots
-
-These are app captures, not photographs of a physical display. The studio preview shows the frame prepared for the display.
-
-| System | Music |
-| --- | --- |
-| ![Quiet cooling](docs/screenshots/quiet-cooling.png) | ![Ribbon music](docs/screenshots/ribbon-music.png) |
-| ![Quiet temperatures](docs/screenshots/quiet-temperatures.png) | ![Halo music](docs/screenshots/halo-music.png) |
-| ![Ledger cooling](docs/screenshots/ledger-cooling.png) | ![Orbit music](docs/screenshots/orbit-music.png) |
-| ![Matrix hardware readings](docs/screenshots/matrix-readings.png) | ![The studio showing the Ledger theme](docs/screenshots/studio-system.png) |
 
 ## More tools
 
