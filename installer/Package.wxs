@@ -102,7 +102,7 @@ VBWR E -->
         <Directory Id="AppsFolder" Name="Apps">
           <Directory Id="ThermalrightVibeWareRoot" Name="ThermalrightVibeWare">
             <Directory Id="INSTALLFOLDER" Name="MSI" />
-            <Component Id="StableLauncher" Guid="E7AB0A35-CA28-4367-9885-17B6B934A38D">
+            <Component Id="StableLauncher" Guid="42B65AA1-B921-43C5-A347-F4B5E31D3511">
               <File Source="$(var.GeneratedRoot)\ThermalrightVibeWare.cmd" />
               <RegistryValue Root="HKCU" Key="Software\Umberto Giacobbi.biz\ThermalrightVibeWare\MSI" Name="Launcher" Type="integer" Value="1" KeyPath="yes" />
             </Component>
@@ -111,20 +111,14 @@ VBWR E -->
       </Directory>
     </StandardDirectory>
     <StandardDirectory Id="ProgramMenuFolder">
-      <Component Id="StartShortcut" Guid="79D28196-7969-4D07-83A6-6EA8456D293C">
+      <Component Id="StartShortcut" Guid="8D326D62-0344-4975-A75D-BCDF4E9B9195">
         <RemoveFile Id="PreviousStartShortcut" Name="Thermalright VibeWare.lnk" On="install" />
-        <RemoveFile Id="PreviousStudioShortcut" Name="Thermalright VibeWare — theme studio.lnk" On="both" />
-        <RemoveFile Id="PreviousAdminCheckShortcut" Name="Thermalright VibeWare - offline administrator checks.lnk" On="both" />
-        <RemoveFile Id="PreviousMemoryCheckShortcut" Name="Thermalright VibeWare - offline memory checks.lnk" On="both" />
-        <RemoveFile Id="PreviousStartupCheckShortcut" Name="Thermalright VibeWare - offline startup checks.lnk" On="both" />
-        <RemoveFile Id="PreviousVisibilityCheckShortcut" Name="Thermalright VibeWare - offline visibility check.lnk" On="both" />
-        <RemoveFile Id="PreviousBackgroundCheckShortcut" Name="Thermalright VibeWare - offline background check.lnk" On="both" />
         <Shortcut Id="StartMenuShortcut" Name="Thermalright VibeWare" Target="[INSTALLFOLDER]ThermalrightVibeWare.exe" WorkingDirectory="INSTALLFOLDER" Icon="ProductIcon" Description="Thermalright VibeWare" />
         <RegistryValue Root="HKCU" Key="Software\Umberto Giacobbi.biz\ThermalrightVibeWare\MSI" Name="StartShortcut" Type="integer" Value="1" KeyPath="yes" />
       </Component>
     </StandardDirectory>
     <StandardDirectory Id="StartupFolder">
-      <Component Id="StartupShortcut" Guid="C49044E3-6CA8-40D6-9949-9C42A9302B12">
+      <Component Id="StartupShortcut" Guid="FB0F7032-59E6-4D72-9A12-C5E61814E8F7">
         <RemoveFile Id="PreviousStartupShortcut" Name="ThermalrightVibeWare.lnk" On="install" />
         <Shortcut Id="SignInShortcut" Name="ThermalrightVibeWare" Target="[INSTALLFOLDER]ThermalrightVibeWare.exe" WorkingDirectory="INSTALLFOLDER" Arguments="--start-minimized --restore-last-session" Icon="ProductIcon" Show="minimized" Description="Thermalright VibeWare saved display at Windows sign-in" />
         <RegistryValue Root="HKCU" Key="Software\Umberto Giacobbi.biz\ThermalrightVibeWare\MSI" Name="StartupShortcut" Type="integer" Value="1" KeyPath="yes" />
